@@ -231,6 +231,50 @@ open http://localhost:8080
 
 ---
 
+## 🗄️ 資料庫日常操作
+
+資料庫不需要安裝——它是 compose 裡的容器，schema 與種子資料由 API 首次啟動時自動建立。
+
+### 重置資料庫（改了 `.env` 密碼、更新種子、升級 MySQL 版本之後）
+
+```bash
+docker compose down -v        # 停容器並刪除 mysql-data volume
+docker compose up -d mysql    # 全新初始化；下次 API 啟動會重建 schema + 種子
+```
+
+> ⚠️ **`.env` 的 MySQL 帳密只在 volume「第一次初始化」時生效**，之後再改
+> `.env` 不會更新既有資料庫——改了密碼就必須 `down -v` 重置（開發資料可拋棄），
+> 或進 SQL 手動 `ALTER USER`。這是 MySQL 官方映像的行為，不是本專案的設計。
+
+### 進 SQL 命令列 / 圖形介面
+
+```bash
+docker exec -it konbini-mysql mysql -u konbini -p konbini   # 密碼見 .env
+```
+
+圖形介面用 DBeaver / HeidiSQL 連 `localhost:3306` 即可（裝的是客戶端，不是資料庫）。
+
+### 備份與還原
+
+```bash
+# 備份（唯一值得備份的是正式環境的資料；開發庫可隨時重生）
+docker exec konbini-mysql mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" konbini > backup.sql
+
+# 還原到另一台機器
+docker exec -i konbini-mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" konbini < backup.sql
+```
+
+### 排錯與健康狀態
+
+```bash
+docker compose logs -f mysql                      # 資料庫日誌
+docker compose logs -f api                        # API 日誌（含啟動失敗原因）
+docker compose -f docker-compose.prod.yml ps      # api 應顯示 (healthy)
+curl http://localhost:5214/health                 # 開發模式：Healthy = API 與 DB 皆正常
+```
+
+---
+
 ## 🔧 功能開發指南 (The Feature Flow)
 
 新增一個用例只需要**兩個檔案**，不用動 `Program.cs`（endpoint 與 handler 由組件掃描自動註冊）。
