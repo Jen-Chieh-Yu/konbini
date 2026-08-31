@@ -96,6 +96,12 @@ Why：view 永遠透過 service 拿資料（axios 細節不外洩到元件）、
 與後端契約對齊、API 路由常數化避免字串散落。資料夾一樣按需建立——
 Cart 沒有 api/、目前多數 feature 沒有 components/，有第一個檔案才出現。
 
+UI 元件庫用 **Element Plus**，走 unplugin 按需自動引入：template 直接寫
+`<el-xxx>`、程式碼直接用 `ElMessage`，不需手動 import，打包只含用到的元件。
+★ 產生的 `auto-imports.d.ts` / `components.d.ts` **要進版控**——CI 的
+`vue-tsc` 先於 build 執行，沒有這兩個檔型別檢查會報 Cannot find name。
+zh-TW 語系由 App.vue 的 `<el-config-provider>` 統一設定。
+
 ### 路由風格
 
 一律 REST 資源風格、複數名詞（`GET /api/products`、`POST /api/orders`），

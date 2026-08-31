@@ -30,6 +30,7 @@
 | ORM | Entity Framework Core + Pomelo | Queries 一律 `AsNoTracking` + 投影 DTO |
 | 認證 | JWT | 取代原 Session 機制 |
 | 前端 | Vue 3, Vite, Pinia, Vue Router, Axios | SPA，購物車狀態存於 Pinia |
+| UI 元件庫 | Element Plus | 按需自動引入（unplugin），template 直接用 `<el-xxx>` 不需 import |
 | 部署 | Docker Compose | nginx（client）+ api + mysql |
 
 ---
