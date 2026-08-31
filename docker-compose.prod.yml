@@ -8,7 +8,8 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   api:
     build:
@@ -22,6 +23,13 @@ services:
       Jwt__Secret: ${JWT_SECRET}
     expose:
       - "8080"
+    healthcheck:
+      # aspnet 映像無 curl/wget，以 bash 的 /dev/tcp 打 /health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q '200' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     depends_on:
       mysql:
         condition: service_healthy

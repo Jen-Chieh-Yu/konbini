@@ -336,6 +336,7 @@ public class ProductEndpoints : IEndpoint
 | Search | `GET /api/search?keyword=` | 商品搜尋 |
 | Addresses | `GET /api/addresses/cities` | 縣市 |
 | | `GET /api/addresses/cities/{cityCode}/districts` | 行政區 |
+| Health | `GET /health` | 健康檢查（含資料庫連線；容器 healthcheck 亦打此端點） |
 
 🔒 = 需要 JWT。完整規格見 Scalar（開發模式）：`http://localhost:5214/scalar`
 購物車沒有後端路由——狀態在前端 Pinia，見「Feature 內部結構」的說明。

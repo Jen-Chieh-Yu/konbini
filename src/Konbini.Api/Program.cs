@@ -49,6 +49,8 @@ builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddHandlers();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>();   // /health 同時驗證資料庫連線
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -69,6 +71,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapEndpoints();
+app.MapHealthChecks("/health");
 
 // 建立 schema 並匯入種子資料（導入 EF Migrations 後改為 MigrateAsync）
 using (var scope = app.Services.CreateScope())
