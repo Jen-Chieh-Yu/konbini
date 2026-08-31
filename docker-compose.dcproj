@@ -6,7 +6,7 @@
     <DockerComposeProjectName>konbini</DockerComposeProjectName>
     <ProjectGuid>8f4b1c6e-2d3a-4e5f-9a7b-6c8d0e1f2a3b</ProjectGuid>
     <DockerLaunchAction>LaunchBrowser</DockerLaunchAction>
-    <DockerServiceUrl>{Scheme}://localhost:{ServicePort}/swagger</DockerServiceUrl>
+    <DockerServiceUrl>{Scheme}://localhost:{ServicePort}/scalar</DockerServiceUrl>
     <DockerServiceName>api</DockerServiceName>
   </PropertyGroup>
   <ItemGroup>

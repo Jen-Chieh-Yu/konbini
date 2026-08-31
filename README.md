@@ -59,7 +59,7 @@ Konbini/
 │   │       ├── views/            # 首頁等不屬於特定 feature 的頁面
 │   │       └── main.ts
 │   └── Konbini.Api/              # 唯一後端專案（net10.0）
-│       ├── Program.cs            # 組合根：DI、JWT、Swagger、endpoint/handler 掃描
+│       ├── Program.cs            # 組合根：DI、JWT、OpenAPI/Scalar、endpoint/handler 掃描
 │       ├── Dockerfile
 │       └── Features/
 │           ├── Common/           # 跨模組共用（依模組分類）
@@ -201,7 +201,7 @@ cd ../Konbini.Client && npm install
 
 **方式 A：VS 容器偵錯（F5）** —— 方案總管把 `docker-compose` 設為啟始專案後按 F5：
 VS 會建映像、起 api + mysql、把偵錯器附加進 api 容器，並開啟
-`http://localhost:5214/swagger`。前端照常另開終端機跑 `npm run dev`。
+`http://localhost:5214/scalar`。前端照常另開終端機跑 `npm run dev`。
 
 **方式 B：本機最快迭代** —— API 不進容器，熱重載最快：
 
@@ -209,14 +209,14 @@ VS 會建映像、起 api + mysql、把偵錯器附加進 api 容器，並開啟
 # 1. 只起資料庫（指定服務名）
 docker compose up -d mysql
 
-# 2. 後端（http://localhost:5214，Swagger 在 /swagger）
+# 2. 後端（http://localhost:5214，Scalar API 文件在 /scalar）
 dotnet watch --project src/Konbini.Api
 
 # 3. 前端（http://localhost:5173，vite proxy 已把 /api 轉發到 5214）
 cd src/Konbini.Client && npm run dev
 ```
 
-兩種方式的 api 對外都是 `5214`，前端與 Swagger 的用法完全相同。
+兩種方式的 api 對外都是 `5214`，前端與 Scalar 的用法完全相同。
 
 > ⚠️ **CLI 建置與測試必須指定專案路徑**（`dotnet build src/Konbini.Api`、
 > `dotnet test tests/Konbini.Tests`）。裸跑 `dotnet build` 會嘗試建置
@@ -337,7 +337,7 @@ public class ProductEndpoints : IEndpoint
 | Addresses | `GET /api/addresses/cities` | 縣市 |
 | | `GET /api/addresses/cities/{cityCode}/districts` | 行政區 |
 
-🔒 = 需要 JWT。完整規格見 Swagger UI（開發模式）：`http://localhost:5214/swagger`
+🔒 = 需要 JWT。完整規格見 Scalar（開發模式）：`http://localhost:5214/scalar`
 購物車沒有後端路由——狀態在前端 Pinia，見「Feature 內部結構」的說明。
 
 ---

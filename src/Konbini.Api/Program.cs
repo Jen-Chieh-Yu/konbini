@@ -7,6 +7,7 @@ using Konbini.Api.Features.Common.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,9 +52,8 @@ builder.Services.AddHandlers();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// --- OpenAPI / Swagger（僅開發環境掛 UI）---
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// --- OpenAPI / Scalar（僅開發環境掛 UI）---
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -61,8 +61,8 @@ app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();               // /openapi/v1.json
+    app.MapScalarApiReference();    // /scalar
 }
 
 app.UseAuthentication();
