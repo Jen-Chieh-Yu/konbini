@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main, 'feature/**', 'fix/**', 'hotfix/**']
+    tags: ['v*']
     paths-ignore: ['**/*.md']
   pull_request:
     branches: [main]
@@ -15,46 +16,103 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend build + test
+    name: 後端：建置與單元測試
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - name: ① 取出原始碼
+        uses: actions/checkout@v4
+      - name: ② 安裝 .NET SDK
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
       # dcproj 只有 Visual Studio 認得，不能裸建 sln——一律指定專案路徑
-      - name: Build
-        run: dotnet build src/Konbini.Api -c Release
-      - name: Test
+      - name: ③ 建置（Release）
+        run: dotnet build src/Konbini.Api -c Release | tee build.log
+      - name: ④ 單元測試
         run: dotnet test tests/Konbini.Tests -c Release
 
+      # ---- 以下皆「僅提醒、不阻擋」：印在執行頁上方的 Annotations 與 Summary ----
+      - name: ⑤ 編譯警告統計（僅提醒不阻擋）
+        if: always()
+        run: |
+          count=$(grep -cE 'warning CS[0-9]+' build.log || true)
+          if [ "${count:-0}" -gt 0 ]; then
+            echo "::warning title=後端編譯警告::共 ${count} 個（分類統計見 Summary 與步驟⑤ log），僅提醒不阻擋"
+            {
+              echo "## 後端編譯警告：${count} 個"
+              echo '```'
+              grep -oE 'warning CS[0-9]+' build.log | sort | uniq -c | sort -rn
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## 後端編譯警告：0 個 ✅" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: ⑥ 套件弱點掃描（僅提醒不阻擋）
+        if: always()
+        run: |
+          dotnet list src/Konbini.Api package --vulnerable --include-transitive | tee vuln.log || true
+          if grep -q "vulnerable packages" vuln.log; then
+            echo "::warning title=NuGet 套件弱點::發現有已知弱點的套件，明細見 Summary 與步驟⑥ log"
+            { echo "## NuGet 套件弱點"; echo '```'; cat vuln.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## NuGet 套件弱點：無 ✅" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   frontend:
-    name: Frontend type-check + build
+    name: 前端：型別檢查與打包
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: src/Konbini.Client
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: ① 取出原始碼
+        uses: actions/checkout@v4
+      - name: ② 安裝 Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: src/Konbini.Client/package-lock.json
-      - run: npm ci
-      # 型別錯誤現為 0，從第一天就設為阻擋，讓它一直是 0
-      - name: Type check
+      - name: ③ 安裝套件（npm ci）
+        run: npm ci
+      # 型別錯誤零容忍（從第一天就是 0，直接阻擋，不走「僅提醒」）
+      - name: ④ 型別檢查（零容忍，會阻擋）
         run: npx vue-tsc --noEmit
-      - name: Build
+      - name: ⑤ 打包（vite build）
         run: npm run build
 
   docker:
-    name: Validate Dockerfiles
+    name: 容器：驗證 Dockerfile
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: ① 取出原始碼
+        uses: actions/checkout@v4
       # 建完即丟：只驗證 Dockerfile 在乾淨環境建得起來
-      - name: Build api image
+      - name: ② 建置 api 映像
         run: docker build -f src/Konbini.Api/Dockerfile -t konbini-api:ci .
-      - name: Build client image
+      - name: ③ 建置 client 映像
         run: docker build -t konbini-client:ci src/Konbini.Client
+
+  # 只在推送 v* 標籤時執行：產出可部署的映像封存（發行流程練習）
+  package:
+    name: 打包：產出映像成品（僅 v* 標籤）
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [backend, frontend, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: ① 取出原始碼
+        uses: actions/checkout@v4
+      - name: ② 建置版本映像
+        run: |
+          docker build -f src/Konbini.Api/Dockerfile -t "konbini-api:${GITHUB_REF_NAME}" .
+          docker build -t "konbini-client:${GITHUB_REF_NAME}" src/Konbini.Client
+      - name: ③ 封存映像（docker save）
+        run: |
+          docker save "konbini-api:${GITHUB_REF_NAME}"    | gzip > "konbini-api-${GITHUB_REF_NAME}.tar.gz"
+          docker save "konbini-client:${GITHUB_REF_NAME}" | gzip > "konbini-client-${GITHUB_REF_NAME}.tar.gz"
+      - name: ④ 上傳成品（Artifacts）
+        uses: actions/upload-artifact@v4
+        with:
+          name: konbini-images-${{ github.ref_name }}
+          path: konbini-*.tar.gz
+          retention-days: 30

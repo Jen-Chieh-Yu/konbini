@@ -241,7 +241,7 @@ hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh �
 | Branch protection（main 禁直推、PR 必須綠燈） | 開始走 feature 分支 + PR 流程時一併啟用（練習目的） |
 | 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」 |
 | EnsureCreated → EF Migrations | 練習項（本專案資料可重建，無實質風險）；動 entity 結構前做最順 |
-| `v*` 標籤產出部署成品 | 可選的發行流程練習；無實際部署需求 |
+| ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋） |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、
