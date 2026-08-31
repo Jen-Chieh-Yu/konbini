@@ -192,7 +192,14 @@ dotnet user-secrets set "Jwt:Secret" "<至少 32 字元的隨機字串>"
 
 # 3. 前端套件
 cd ../Konbini.Client && npm install
+
+# 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
+cd ../..
+git config core.hooksPath .githooks
 ```
+
+> ⚠️ 第 4 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
+> 不會觸發，且沒有任何提示。緊急情況可用 `git push --no-verify` 跳過。
 
 > ⚠️ **應用程式不使用 root 連線。** 資料庫帳號一律用專屬帳號 `konbini`
 >（由 mysql 容器依 `.env` 的 `MYSQL_USER` 自動建立）。理由見 `CLAUDE.md` §3。

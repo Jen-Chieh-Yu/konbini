@@ -1,0 +1,17 @@
+#!/bin/sh
+# pre-push：推送前在本機跑 CI 的核心子集（後端測試 + 前端型別檢查，約 30–60 秒）。
+# Docker 建置不在此執行，留給雲端 CI。
+# 緊急跳過：git push --no-verify
+set -e
+
+echo "[pre-push] 後端建置與測試..."
+dotnet test tests/Konbini.Tests -c Release --nologo -v q
+
+if [ -d src/Konbini.Client/node_modules ]; then
+  echo "[pre-push] 前端型別檢查..."
+  (cd src/Konbini.Client && npx vue-tsc --noEmit)
+else
+  echo "[pre-push] 略過前端型別檢查（node_modules 不存在，僅由 CI 把關）"
+fi
+
+echo "[pre-push] 全部通過，開始推送"

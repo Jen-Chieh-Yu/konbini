@@ -225,6 +225,12 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 分支命名：`feature/` `fix/` `hotfix/` ＋ `YYYYMMDD-描述`，
 與 Conventional Commits 的 type 對齊。
 
+本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（後端測試＋前端
+型別檢查；Docker 建置留給雲端）。main 未受保護，紅燈原本是「推上去才知道」，
+hook 把檢查挪到推送前。每台機器需 `git config core.hooksPath .githooks`
+啟用（未設定時靜默不觸發）；跳過用 `git push --no-verify`。
+hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh 無法執行。
+
 **尚未實施、留待條件成立**：
 
 | 項目 | 觸發條件 |
