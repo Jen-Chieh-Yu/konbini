@@ -35,7 +35,9 @@
 | 前端 | `src/Konbini.Client` | Vue 3 + Vite + Pinia，`src/features/` 與後端同名分模組；方案中以網站專案節點（sln 指向資料夾，無專案檔）顯示於根目錄，不參與方案建置 |
 | 測試 | `tests/Konbini.Tests` | 單一測試專案，內分 `Unit/` 與 `Integration/` |
 
-資料庫是 **MySQL 8.0，隨 compose 啟動**（沒有既有的外部資料庫，自己帶最省事）。
+資料庫是 **MySQL 8.4（LTS，支援至 2032），隨 compose 啟動**（沒有既有的外部資料庫，
+自己帶最省事）。Why 8.4：8.0 已於 2026-04 EOL；9.x 是短命的 innovation release，
+版本一律釘 LTS。
 部署目標為 macOS（Apple Silicon）。程式碼放 GitHub。
 
 請求路徑：`Endpoint → Command/Query Handler → AppDbContext`。
@@ -169,9 +171,9 @@ nginx（client 容器）是唯一入口：SPA 靜態檔 + `/api` 反代。
 
 ### macOS（Apple Silicon）
 
-.NET、nginx 官方映像原生 arm64；MySQL 8.0.29+ 才有 arm64，**拉不到的舊 tag
-不要用 `platform: linux/amd64` 硬撐**（走 Rosetta，效能差且偶有 I/O 問題），
-換 tag 解決。
+.NET、nginx、MySQL 8.4 官方映像皆原生 arm64；若遇到沒有 arm64 的映像，
+**不要用 `platform: linux/amd64` 硬撐**（走 Rosetta，效能差且偶有 I/O 問題），
+換 tag 或換映像解決。
 
 ---
 

@@ -26,7 +26,7 @@
 | 類別 | 技術 | 說明 |
 |------|------|------|
 | 框架 | .NET 10, ASP.NET Core Minimal API | 核心框架 |
-| 資料庫 | MySQL 8.0 | 隨 compose 啟動，資料以 named volume 持久化 |
+| 資料庫 | MySQL 8.4（LTS） | 隨 compose 啟動，資料以 named volume 持久化 |
 | ORM | Entity Framework Core + Pomelo | Queries 一律 `AsNoTracking` + 投影 DTO |
 | 認證 | JWT | 取代原 Session 機制 |
 | 前端 | Vue 3, Vite, Pinia, Vue Router, Axios | SPA，購物車狀態存於 Pinia |
@@ -163,7 +163,7 @@ src/features/Products/
 要覆蓋 `appsettings.json` 必須在 compose 的 `environment:` 區段明寫
 （鍵名用 .NET 設定鍵格式：`ConnectionStrings__MySqlConnection`）。
 
-⚠️ macOS（Apple Silicon）：.NET、nginx、MySQL 8.0.29+ 官方映像皆原生支援 arm64，
+⚠️ macOS（Apple Silicon）：.NET、nginx、MySQL 8.4 官方映像皆原生支援 arm64，
 不需要 `platform` 覆寫。
 
 ---
