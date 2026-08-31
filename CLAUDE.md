@@ -198,27 +198,32 @@ API 啟動即失敗（fail fast，不要帶病上線）。
 
 ---
 
-## 6. 分支與 CI/CD（規劃，尚未實施）
+## 6. 分支與 CI/CD
 
-程式碼放 GitHub，CI/CD 屆時採 **GitHub Actions**。先把目標狀態記下來，
-免得日後從零重議：
+CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`）：
+三個平行 job——後端 build+test、前端 type-check+build、Dockerfile 驗證。
+內容見 `README.md`「測試 → CI」，這裡只記設計理由：
 
-```
-從 main 切分支 → 開發 commit → push → 開 Pull Request
-→ CI 綠燈（build + test）→ Merge（勾 Delete branch）
-```
+- **為什麼初期就上 CI**：導入條件「測試專案有實際內容」已成立；
+  且 CI 在 Linux/UTC/Release 下執行，能抓 Windows 開發機看不到的問題
+  （檔名大小寫、時區、漏 commit 的檔案、Dockerfile 失效）。
+- **為什麼指定專案路徑、不裸建 sln**：dcproj 只有 Visual Studio 認得，
+  裸建必炸。
+- **為什麼 `vue-tsc` 從第一天就阻擋**：目前型別錯誤為 0，此時設阻擋的
+  成本是零；等錯誤累積後再想擋，就得先還債。
+- **為什麼 `*.md` 不觸發**：文件變更跑建置是純浪費。
+- **為什麼 concurrency 取消舊執行**：同分支連續推送只有最新一次有意義。
 
-- 分支命名：`feature/` `fix/` `hotfix/` ＋ `YYYYMMDD-描述`，
-  與 Conventional Commits 的 type 對齊，不必另記一套。
-- CI 的最小集合：後端 build + `dotnet test`、前端 `vite build`、
-  兩個 Dockerfile 的 `docker build`（建完即丟）。
-- **平時 push 不產出部署成品**——成品只在打 `v*` 標籤時產出，
-  避免累積數十包沒人用的映像。
-- Branch protection（main 禁止直接推送、Pull Request 必須綠燈）
-  等 CI 上線後再開；單人開發初期先靠自律，規則空轉沒有意義。
+分支命名：`feature/` `fix/` `hotfix/` ＋ `YYYYMMDD-描述`，
+與 Conventional Commits 的 type 對齊。
 
-**回來做的觸發條件**：測試專案有實際內容之後（CI 沒有測試可跑，
-綠燈是假訊號）；或出現第一次「本機好好的、別台機器建不起來」。
+**尚未實施、留待條件成立**：
+
+| 項目 | 觸發條件 |
+|---|---|
+| Branch protection（main 禁直推、PR 必須綠燈） | 多人協作，或第一次「紅燈仍被合進 main」 |
+| `v*` 標籤產出部署成品（映像 artifact） | 第一次要部署到正式環境時。平時 push 不產成品——避免累積沒人用的映像 |
+| 自動部署（registry + 環境核准） | 部署頻率高到手動搬映像成為負擔 |
 
 ---
 

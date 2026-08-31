@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feature/**', 'fix/**', 'hotfix/**']
+    paths-ignore: ['**/*.md']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+
+# 同一分支的連續推送只跑最新一次，舊的自動取消
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      # dcproj 只有 Visual Studio 認得，不能裸建 sln——一律指定專案路徑
+      - name: Build
+        run: dotnet build src/Konbini.Api -c Release
+      - name: Test
+        run: dotnet test tests/Konbini.Tests -c Release
+
+  frontend:
+    name: Frontend type-check + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/Konbini.Client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Konbini.Client/package-lock.json
+      - run: npm ci
+      # 型別錯誤現為 0，從第一天就設為阻擋，讓它一直是 0
+      - name: Type check
+        run: npx vue-tsc --noEmit
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Validate Dockerfiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # 建完即丟：只驗證 Dockerfile 在乾淨環境建得起來
+      - name: Build api image
+        run: docker build -f src/Konbini.Api/Dockerfile -t konbini-api:ci .
+      - name: Build client image
+        run: docker build -t konbini-client:ci src/Konbini.Client

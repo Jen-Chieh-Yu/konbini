@@ -1,5 +1,7 @@
 # 🏪 Konbini - 日韓零食電商
 
+[![CI](https://github.com/Jen-Chieh-Yu/konbini/actions/workflows/ci.yml/badge.svg)](https://github.com/Jen-Chieh-Yu/konbini/actions/workflows/ci.yml)
+
 > 日韓零食線上商店。**.NET 10 Web API + Vue 3 SPA** 前後端分離架構，
 > 以 Docker Compose 部署（macOS / Apple Silicon）。
 
@@ -351,6 +353,21 @@ tests/Konbini.Tests/
 ```bash
 dotnet test tests/Konbini.Tests
 ```
+
+### CI（GitHub Actions）
+
+`.github/workflows/ci.yml` 定義三個平行 job，推送到 `main` /
+`feature|fix|hotfix` 分支與 Pull Request 時執行：
+
+| Job | 內容 |
+|---|---|
+| Backend | `dotnet build` + `dotnet test`（Release、Linux、UTC——與部署環境一致） |
+| Frontend | `npm ci` → `vue-tsc`（型別錯誤 0 容忍）→ `vite build` |
+| Docker | 兩個 Dockerfile 各建置一次，建完即丟 |
+
+- 純文件變更（`*.md`）不觸發建置。
+- 同一分支連續推送只跑最新一次（concurrency 自動取消舊的）。
+- CI 一律指定專案路徑，不裸建 sln（dcproj 只有 Visual Studio 認得）。
 
 ---
 
