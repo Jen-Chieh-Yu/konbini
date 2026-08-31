@@ -1,0 +1,25 @@
+# VS F5（docker-compose 啟始專案）用的 base 檔，與 docker-compose.override.yml 合併生效。
+# 只需要資料庫時：docker compose up -d mysql
+# 部署（含 client）用 docker-compose.prod.yml。
+services:
+  api:
+    image: ${DOCKER_REGISTRY-}konbini-api
+    build:
+      context: .
+      dockerfile: src/Konbini.Api/Dockerfile
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql:8.0
+    container_name: konbini-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-konbini}
+      MYSQL_USER: ${MYSQL_USER:-konbini}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:

@@ -1,0 +1,7 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Noto Sans TC', system-ui, sans-serif;
+  color: #333;
+}
+button { cursor: pointer; }

@@ -1,0 +1,15 @@
+# 偵錯環境設定，docker compose 與 VS F5 都會自動與 docker-compose.yml 合併。
+services:
+  api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__MySqlConnection=Server=mysql;Database=${MYSQL_DATABASE:-konbini};User=${MYSQL_USER:-konbini};Password=${MYSQL_PASSWORD}
+      - Jwt__Secret=${JWT_SECRET}
+    ports:
+      # 對外固定 5214，讓 vite proxy（→ localhost:5214）不論 API 在容器內外都通
+      - "5214:8080"
+
+  mysql:
+    ports:
+      - "3306:3306"

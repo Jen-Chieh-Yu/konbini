@@ -1,0 +1,46 @@
+# 部署環境：client（nginx，唯一對外入口）+ api（不映射主機埠）+ mysql（不對外）。
+# 啟動：docker compose -f docker-compose.prod.yml up -d --build
+services:
+  client:
+    build:
+      context: ./src/Konbini.Client
+    container_name: konbini-client
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Konbini.Api/Dockerfile
+    container_name: konbini-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # compose 的 .env 只做 ${} 替換，要進容器的鍵必須在此明寫（.NET 設定鍵用 __ 雙底線）
+      ConnectionStrings__MySqlConnection: Server=mysql;Database=${MYSQL_DATABASE:-konbini};User=${MYSQL_USER:-konbini};Password=${MYSQL_PASSWORD}
+      Jwt__Secret: ${JWT_SECRET}
+    expose:
+      - "8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    container_name: konbini-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-konbini}
+      MYSQL_USER: ${MYSQL_USER:-konbini}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:

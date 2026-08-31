@@ -1,0 +1,362 @@
+# 🏪 Konbini - 日韓零食電商
+
+> 日韓零食線上商店。**.NET 10 Web API + Vue 3 SPA** 前後端分離架構，
+> 以 Docker Compose 部署（macOS / Apple Silicon）。
+
+架構決策與理由見 [CLAUDE.md](CLAUDE.md)——「為什麼這樣做」只維護在那一份，這裡不重複。
+
+## 🏗️ 後端架構概觀
+
+本專案採用 **單一專案 Vertical Slice** 架構，結合 **REPR Pattern**（Request-Endpoint-Response）。
+
+### 設計原則
+
+- **Vertical Slices**：按業務功能（Products, Orders, Auth, Search, Addresses）拆分，而非按技術層分層。
+- **REPR Pattern**：`Endpoint → Command/Query → Handler`，不使用 Controller。
+- **CQRS-lite**：Commands（Write）與 Queries（Read）分離；以手寫輕量管線實作，**不引入 MediatR**。
+- **按需抽象**：Repository / Service 只在被 2 個以上 handler 共用時建立，否則 handler 直接使用 `AppDbContext`。
+- **集中共用**：`Features/Common/` 只收被 2 個以上 feature 使用的東西。
+
+---
+
+## 🛠️ 技術棧
+
+| 類別 | 技術 | 說明 |
+|------|------|------|
+| 框架 | .NET 10, ASP.NET Core Minimal API | 核心框架 |
+| 資料庫 | MySQL 8.0 | 隨 compose 啟動，資料以 named volume 持久化 |
+| ORM | Entity Framework Core + Pomelo | Queries 一律 `AsNoTracking` + 投影 DTO |
+| 認證 | JWT | 取代原 Session 機制 |
+| 前端 | Vue 3, Vite, Pinia, Vue Router, Axios | SPA，購物車狀態存於 Pinia |
+| 部署 | Docker Compose | nginx（client）+ api + mysql |
+
+---
+
+## 📂 專案結構
+
+```text
+Konbini/
+├── Konbini.sln
+├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api + mysql 並附加偵錯器
+├── docker-compose.yml            # 偵錯/開發 base：api + mysql
+├── docker-compose.override.yml   # 偵錯用環境變數與埠（自動與 base 合併）
+├── docker-compose.prod.yml       # 部署環境：client + api + mysql 全套
+├── .dockerignore
+├── .env                          # 機密（不進版控）
+├── .env.example                  # 鍵值範本（進版控）
+├── Docs/
+├── src/
+│   ├── Konbini.Client/           # Vue 3 SPA（方案中以網站專案節點顯示於根目錄）
+│   │   ├── Dockerfile            # node:22 build → nginx:alpine
+│   │   ├── nginx.conf            # SPA fallback + /api 反向代理
+│   │   └── src/
+│   │       ├── assets/css/       # 全域樣式
+│   │       ├── features/         # 依模組分類：Products / Cart / Orders / Auth / Search / Addresses
+│   │       ├── shared/api/       # axios 共用實例
+│   │       ├── router/
+│   │       ├── views/            # 首頁等不屬於特定 feature 的頁面
+│   │       └── main.ts
+│   └── Konbini.Api/              # 唯一後端專案（net10.0）
+│       ├── Program.cs            # 組合根：DI、JWT、Swagger、endpoint/handler 掃描
+│       ├── Dockerfile
+│       └── Features/
+│           ├── Common/           # 跨模組共用（依模組分類）
+│           │   ├── Abstractions/ #   IEndpoint、ICommandHandler、IQueryHandler
+│           │   ├── Auth/         #   PasswordHasher、JwtTokenService、CurrentUser
+│           │   ├── Persistence/  #   AppDbContext、Configurations/、Seed/
+│           │   └── Web/          #   全域例外處理
+│           ├── Products/
+│           ├── Orders/           # 購物車狀態在前端（Pinia），下單才進後端
+│           ├── Auth/             # 使用者認證（登入/註冊/me/改密碼）
+│           ├── Search/
+│           └── Addresses/
+└── tests/
+    └── Konbini.Tests/            # 內分 Unit/ 與 Integration/
+```
+
+> `Konbini.Client` 實體位於 `src/`，但在 Visual Studio 方案中以**網站專案**節點
+>（sln 直接指向資料夾，無專案檔）顯示於根目錄，僅供瀏覽與編輯檔案。
+> 方案建置不會連動 npm build——前端由 Vite（開發）與 Dockerfile（部署）自行建置。
+
+### Feature 內部結構
+
+依**技術類型**分資料夾，資料夾按需建立（沒有內容不預建，純讀模組沒有 `Commands/`）：
+
+```text
+Features/Orders/
+├── Models/       # Entity 與 DTO：Order.cs、OrderItem.cs、OrderDtos.cs、Pricing.cs
+├── Commands/     # 改變狀態的用例：CreateOrderCommand.cs
+├── Queries/      # 唯讀用例：GetOrdersQuery.cs
+├── Endpoints/    # 每個 feature 一支：OrderEndpoints.cs（MapGroup 集中路由）
+└── Services/     # ★ 僅在被 2+ 個 handler 共用時存在
+```
+
+> 購物車不是後端 feature：狀態存於前端 Pinia（+ localStorage），
+> 下單時才把品項送進 `CreateOrderCommand`，由後端以資料庫現價重新計算金額。
+
+前端的 feature 採同樣的模組化精神，內部依技術類型分層（資料夾按需建立）：
+
+```text
+src/features/Products/
+├── api/
+│   ├── constants/ApiEndpoints.ts    # API 路由常數
+│   ├── interfaces/ProductDTO.ts     # 型別定義（DTO）
+│   └── services/ProductService.ts   # axios 封裝，view 不直接發請求
+├── components/                      # 該模組專屬元件
+├── composables/                     # 該模組專屬組合式函式
+├── stores/useProductStore.ts        # Pinia store（useXxxStore 命名）
+└── views/ProductsView.vue           # 路由頁面
+```
+
+路徑別名：`@` → `src`、`@shared` → `src/shared`、`@features` → `src/features`
+（定義於 `vite.config.ts` 與 `tsconfig.json`，兩處要同步）。
+
+---
+
+## 🐳 Docker 架構與部署
+
+### 架構示意圖
+
+**對外入口是 nginx（client 容器）**，api 不對外開埠。
+
+```text
+[ 瀏覽器 ]
+    |
+    v  :8080
+[ client ]  nginx —— SPA 靜態檔 + /api 反向代理
+    |
+    +-- /api/*  --> [ api:8080 ]  .NET 10 Minimal API（僅 compose 內部網路）
+    |                    |
+    +-- 其他 --> index.html            v
+                （Vue History Mode）  [ mysql:3306 ]（僅 compose 內部網路）
+```
+
+前端一律打相對路徑 `/api/...`，由 nginx 轉發 —— 瀏覽器端**沒有跨域**，不需要 CORS 白名單。
+
+### docker-compose 服務清單
+
+**偵錯／開發環境（`docker-compose.yml` + `docker-compose.override.yml`）**
+—— VS 以 `docker-compose` 為啟始專案按 F5 時啟動，偵錯器自動附加進 api 容器：
+
+| 服務 | 用途 | 連接/備註 |
+| --- | --- | --- |
+| `api` | 後端 API（容器內偵錯） | 對外 `5214:8080`，vite proxy 不需改任何設定 |
+| `mysql` | 開發用資料庫 | 對外 `3306`，named volume |
+
+★ 只要資料庫、想走本機最快迭代時：`docker compose up -d mysql`（指定服務名，不會起 api）。
+
+**部署環境（`docker-compose.prod.yml`）** —— 完整三服務：
+
+| 服務 | 用途 | 連接/備註 |
+| --- | --- | --- |
+| `client` | 對外入口：SPA 靜態檔 + `/api` 反代 | 對外 `8080:80` |
+| `api` | 後端 API | `expose: 8080`，**不映射到主機** |
+| `mysql` | 資料庫 | 不對外開埠，named volume + init SQL |
+
+⚠️ `docker compose up` 不帶 `-f` 會抓 `docker-compose.yml` + override，
+起的是 **api + mysql 的偵錯組合**（Development 環境、不含 client）——
+不是部署佈局；部署一律明確指定 `-f docker-compose.prod.yml`。
+
+⚠️ **compose 的 `.env` 只做 `${}` 變數替換，不會自動注入容器。**
+要覆蓋 `appsettings.json` 必須在 compose 的 `environment:` 區段明寫
+（鍵名用 .NET 設定鍵格式：`ConnectionStrings__MySqlConnection`）。
+
+⚠️ macOS（Apple Silicon）：.NET、nginx、MySQL 8.0.29+ 官方映像皆原生支援 arm64，
+不需要 `platform` 覆寫。
+
+---
+
+## 🚀 快速開始
+
+### 環境需求
+
+- .NET 10 SDK
+- Node.js 22 以上（前端建置）
+- Docker Desktop for Mac
+
+### 初次設定（clone 後執行一次）
+
+```bash
+# 1. 建立 .env（照 .env.example 的鍵補值）
+cp .env.example .env
+
+# 2. 本機開發的機密放 user-secrets（不進 repo，不會誤 commit）
+cd src/Konbini.Api
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:MySqlConnection" \
+  "Server=127.0.0.1;Database=konbini;User=konbini;Password=<你的密碼>"
+dotnet user-secrets set "Jwt:Secret" "<至少 32 字元的隨機字串>"
+
+# 3. 前端套件
+cd ../Konbini.Client && npm install
+```
+
+> ⚠️ **應用程式不使用 root 連線。** 資料庫帳號一律用專屬帳號 `konbini`
+>（由 mysql 容器依 `.env` 的 `MYSQL_USER` 自動建立）。理由見 `CLAUDE.md` §3。
+> `Jwt:Secret` 空值時 API 會啟動失敗——這是刻意的 fail fast。
+
+### 啟動服務（日常開發）
+
+**方式 A：VS 容器偵錯（F5）** —— 方案總管把 `docker-compose` 設為啟始專案後按 F5：
+VS 會建映像、起 api + mysql、把偵錯器附加進 api 容器，並開啟
+`http://localhost:5214/swagger`。前端照常另開終端機跑 `npm run dev`。
+
+**方式 B：本機最快迭代** —— API 不進容器，熱重載最快：
+
+```bash
+# 1. 只起資料庫（指定服務名）
+docker compose up -d mysql
+
+# 2. 後端（http://localhost:5214，Swagger 在 /swagger）
+dotnet watch --project src/Konbini.Api
+
+# 3. 前端（http://localhost:5173，vite proxy 已把 /api 轉發到 5214）
+cd src/Konbini.Client && npm run dev
+```
+
+兩種方式的 api 對外都是 `5214`，前端與 Swagger 的用法完全相同。
+
+> ⚠️ **CLI 建置與測試必須指定專案路徑**（`dotnet build src/Konbini.Api`、
+> `dotnet test tests/Konbini.Tests`）。裸跑 `dotnet build` 會嘗試建置
+> `docker-compose.dcproj` 而失敗——dcproj 只有 Visual Studio 認得。
+
+### 啟動服務（完整容器）
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+open http://localhost:8080
+```
+
+---
+
+## 🔧 功能開發指南 (The Feature Flow)
+
+新增一個用例只需要**兩個檔案**，不用動 `Program.cs`（endpoint 與 handler 由組件掃描自動註冊）。
+
+### Step 1: Models —— Entity 與 DTO
+
+```text
+Features/{Feature}/Models/
+├── {Entity}.cs
+└── {Entity}Dto.cs
+```
+
+### Step 2: Command / Query —— 用例本體
+
+**Command / Query、Handler、Response 一律同一個檔案**，改一個功能不用開四、五個檔案。
+
+```csharp
+// Features/Products/Queries/GetProductsQuery.cs
+public record GetProductsQuery(int Type);
+
+public class GetProductsHandler(AppDbContext db)
+    : IQueryHandler<GetProductsQuery, List<ProductDto>>
+{
+    public async Task<List<ProductDto>> Handle(GetProductsQuery query, CancellationToken ct)
+        => await db.Products
+            .Where(p => query.Type == 0 || p.Type == query.Type)
+            .AsNoTracking()
+            .Select(p => new ProductDto(p.ID, p.Name, p.Price, p.PhotoPath))
+            .ToListAsync(ct);
+}
+```
+
+### Step 3: Endpoint —— HTTP 介面
+
+每個 feature 一支 `{Feature}Endpoints.cs`，一眼看到該模組全部路由：
+
+```csharp
+// Features/Products/Endpoints/ProductEndpoints.cs
+public class ProductEndpoints : IEndpoint
+{
+    public void Map(IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/products").WithTags("Products");
+
+        group.MapGet("/", async (int? type,
+            IQueryHandler<GetProductsQuery, List<ProductDto>> handler,
+            CancellationToken ct)
+            => Results.Ok(await handler.Handle(new(type ?? 0), ct)));
+
+        group.MapGet("/{id:int}", async (int id,
+            IQueryHandler<GetProductDetailQuery, ProductDetailDto?> handler,
+            CancellationToken ct)
+            => await handler.Handle(new(id), ct) is { } dto
+                ? Results.Ok(dto)
+                : Results.NotFound());
+    }
+}
+```
+
+---
+
+## ⚠️ 開發注意事項與最佳實踐
+
+### 1. 讀寫紀律
+
+| | Commands | Queries |
+|---|---|---|
+| 職責 | 改變狀態 | 唯讀 |
+| EF Core | 追蹤實體、`SaveChangesAsync` | **一律 `AsNoTracking` + 直接投影 DTO** |
+| 測試重點 | 單元測試（商業邏輯所在） | 整合測試覆蓋即可 |
+
+### 2. 抽象門檻（防止樣板碼膨脹）
+
+- Repository / Service：**被 2 個以上 handler 共用**才建立，否則 handler 直接吃 `AppDbContext`。
+- `Common/`：**被 2 個以上 feature 使用**才收進去，只有單一模組用的東西留在該模組。
+- 簡單的 Query 允許極簡：五行查詢就讓它五行，不強制完整儀式。
+
+### 3. 命名規範
+
+| 類型 | 命名範例 |
+|---|---|
+| Command | `AddToCartCommand`, `CreateOrderCommand` |
+| Query | `GetProductsQuery`, `GetProductDetailQuery` |
+| Handler | `AddToCartHandler`（與 Command/Query 同檔） |
+| DTO | `ProductDto`（Response）, `RegisterRequest`（Request） |
+| Endpoints | `ProductEndpoints`（每 feature 一支） |
+| 路由 | REST 資源風格、複數：`/api/products`、`/api/orders` |
+
+---
+
+## 📡 API 路由總覽
+
+| Feature | 路由 | 說明 |
+|---|---|---|
+| Products | `GET /api/products?type=` | 商品列表（type=0 為全部） |
+| | `GET /api/products/{id}` | 商品明細 + 同類推薦 |
+| Orders | `GET /api/orders` 🔒 | 訂單列表 |
+| | `POST /api/orders` 🔒 | 建立訂單 |
+| Auth | `POST /api/auth/register` | 註冊 |
+| | `POST /api/auth/login` | 登入，回傳 JWT |
+| | `PUT /api/auth/password` 🔒 | 修改密碼 |
+| | `GET /api/auth/me` 🔒 | 目前使用者 |
+| Search | `GET /api/search?keyword=` | 商品搜尋 |
+| Addresses | `GET /api/addresses/cities` | 縣市 |
+| | `GET /api/addresses/cities/{cityCode}/districts` | 行政區 |
+
+🔒 = 需要 JWT。完整規格見 Swagger UI（開發模式）：`http://localhost:5214/swagger`
+購物車沒有後端路由——狀態在前端 Pinia，見「Feature 內部結構」的說明。
+
+---
+
+## 🧪 測試
+
+```text
+tests/Konbini.Tests/
+├── Unit/           # Commands handler（下單、註冊、登入等商業邏輯）
+└── Integration/    # API + 真實 MySQL（Testcontainers），Queries 主要在此覆蓋
+```
+
+```bash
+dotnet test tests/Konbini.Tests
+```
+
+---
+
+## 📚 參考資源
+
+- [Vertical Slice Architecture - Jimmy Bogard](https://www.jimmybogard.com/vertical-slice-architecture/)
+- [REPR Design Pattern](https://deviq.com/design-patterns/repr-design-pattern)
+- [Minimal APIs - Microsoft Docs](https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis)
+- [Safe storage of app secrets - Microsoft Docs](https://learn.microsoft.com/aspnet/core/security/app-secrets)
