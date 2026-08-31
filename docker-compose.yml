@@ -1,6 +1,8 @@
 # VS F5（docker-compose 啟始專案）用的 base 檔，與 docker-compose.override.yml 合併生效。
 # 只需要資料庫時：docker compose up -d mysql
 # 部署（含 client）用 docker-compose.prod.yml。
+name: konbini
+
 services:
   api:
     image: ${DOCKER_REGISTRY-}konbini-api
