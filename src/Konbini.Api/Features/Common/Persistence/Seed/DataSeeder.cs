@@ -6,8 +6,9 @@ namespace Konbini.Api.Features.Common.Persistence.Seed;
 
 /// <summary>
 /// 啟動時建立 schema 並在空表時匯入種子資料。
-/// TODO：導入 EF Migrations 後，把 EnsureCreatedAsync 換成 MigrateAsync
-///（EnsureCreated 建的資料庫無法再套用 migration）。
+/// TODO（練習項）：導入 EF Migrations 後，把 EnsureCreatedAsync 換成 MigrateAsync
+///（EnsureCreated 建的資料庫無法再套用 migration）。本專案不正式上線、
+/// 資料皆可重建，EnsureCreated 無實質風險；動 entity 結構前導入最順。
 /// </summary>
 public static class DataSeeder
 {

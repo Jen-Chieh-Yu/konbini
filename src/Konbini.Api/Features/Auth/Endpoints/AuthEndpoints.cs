@@ -22,6 +22,8 @@ public class AuthEndpoints : IEndpoint
                 return result.Success ? Results.Ok(result) : Results.BadRequest(result);
             });
 
+        // 未實作登入速率限制：本專案為學習用途、不正式上線（CLAUDE.md §6）。
+        // 若日後對外開放，這是上線前必補項（暴力破解防護）。
         group.MapPost("/login", async (
                 LoginRequest request,
                 ICommandHandler<LoginCommand, LoginResult> handler,

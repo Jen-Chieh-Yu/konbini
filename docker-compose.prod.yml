@@ -1,4 +1,6 @@
 # 部署環境：client（nginx，唯一對外入口）+ api（不映射主機埠）+ mysql（不對外）。
+# 本專案不正式上線：此檔用於部署「演練」與完整佈局驗證，
+# 故不設備份排程、監控與自動部署（決策見 CLAUDE.md §6）。
 # 啟動：docker compose -f docker-compose.prod.yml up -d --build
 services:
   client:
