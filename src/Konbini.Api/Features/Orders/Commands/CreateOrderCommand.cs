@@ -1,7 +1,9 @@
+using Konbini.Api.Features.Addresses.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Persistence;
 using Konbini.Api.Features.Orders.Models;
-using Microsoft.EntityFrameworkCore;
+using Konbini.Api.Features.Orders.Repositories;
+using Konbini.Api.Features.Products.Repositories;
 
 namespace Konbini.Api.Features.Orders.Commands;
 
@@ -11,7 +13,11 @@ public record CreateOrderCommand(int UserId, CreateOrderRequest Request);
 /// 建立訂單。購物車狀態在前端（Pinia），這裡收到的是商品 Id 與數量；
 /// 單價、小計、運費一律以資料庫現價重新計算——金額裁決權在後端。
 /// </summary>
-public class CreateOrderHandler(AppDbContext db)
+public class CreateOrderHandler(
+    IOrderRepository orders,
+    IProductRepository products,
+    IAddressRepository addresses,
+    IUnitOfWork unitOfWork)
     : ICommandHandler<CreateOrderCommand, CreateOrderResult>
 {
     public async Task<CreateOrderResult> Handle(CreateOrderCommand command, CancellationToken ct)
@@ -41,14 +47,8 @@ public class CreateOrderHandler(AppDbContext db)
             errors["streetAddress"] = "請填寫地址";
         }
 
-        var cityName = await db.Cities.AsNoTracking()
-            .Where(c => c.CityCode == request.CityCode)
-            .Select(c => c.CityName)
-            .FirstOrDefaultAsync(ct);
-        var districtName = await db.Districts.AsNoTracking()
-            .Where(d => d.DistrictCode == request.DistrictCode && d.CityCode == request.CityCode)
-            .Select(d => d.DistrictName)
-            .FirstOrDefaultAsync(ct);
+        var cityName = await addresses.GetCityNameAsync(request.CityCode, ct);
+        var districtName = await addresses.GetDistrictNameAsync(request.CityCode, request.DistrictCode, ct);
         if (cityName is null || districtName is null)
         {
             errors["address"] = "縣市或行政區不正確";
@@ -60,11 +60,9 @@ public class CreateOrderHandler(AppDbContext db)
         }
 
         var productIds = request.Items!.Select(i => i.ProductId).Distinct().ToList();
-        var products = await db.Products.AsNoTracking()
-            .Where(p => productIds.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id, ct);
+        var snapshots = await products.GetSnapshotsAsync(productIds, ct);
 
-        var missing = productIds.Where(id => !products.ContainsKey(id)).ToList();
+        var missing = productIds.Where(id => !snapshots.ContainsKey(id)).ToList();
         if (missing.Count > 0)
         {
             return CreateOrderResult.Fail(new()
@@ -77,7 +75,7 @@ public class CreateOrderHandler(AppDbContext db)
             .GroupBy(i => i.ProductId)
             .Select(g =>
             {
-                var product = products[g.Key];
+                var product = snapshots[g.Key];
                 var quantity = g.Sum(i => i.Quantity);
                 return new OrderItem
                 {
@@ -111,8 +109,8 @@ public class CreateOrderHandler(AppDbContext db)
             Items = items,
         };
 
-        db.Orders.Add(order);
-        await db.SaveChangesAsync(ct);
+        orders.Add(order);
+        await unitOfWork.SaveChangesAsync(ct);
 
         return CreateOrderResult.Ok(order.Id);
     }

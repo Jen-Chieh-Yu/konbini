@@ -1,15 +1,15 @@
 using System.Text.RegularExpressions;
+using Konbini.Api.Features.Auth.Models;
+using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
-using Konbini.Api.Features.Auth.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Konbini.Api.Features.Auth.Commands;
 
 public record RegisterCommand(RegisterRequest Request);
 
-public partial class RegisterHandler(AppDbContext db, IPasswordHasher hasher)
+public partial class RegisterHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
     : ICommandHandler<RegisterCommand, AuthResult>
 {
     [GeneratedRegex(@"^09\d{8}$")]
@@ -40,7 +40,7 @@ public partial class RegisterHandler(AppDbContext db, IPasswordHasher hasher)
         {
             errors["email"] = "Email格式不正確";
         }
-        else if (await db.Users.AnyAsync(u => u.Email == request.Email, ct))
+        else if (await users.EmailExistsAsync(request.Email, ct))
         {
             errors["email"] = "此Email已註冊過";
         }
@@ -85,7 +85,7 @@ public partial class RegisterHandler(AppDbContext db, IPasswordHasher hasher)
             return AuthResult.Fail(errors);
         }
 
-        db.Users.Add(new User
+        users.Add(new User
         {
             Name = request.LastName + request.FirstName,
             Email = request.Email,
@@ -93,7 +93,7 @@ public partial class RegisterHandler(AppDbContext db, IPasswordHasher hasher)
             Birthday = birthday,
             Phone = request.PhoneNumber,
         });
-        await db.SaveChangesAsync(ct);
+        await unitOfWork.SaveChangesAsync(ct);
 
         return AuthResult.Ok();
     }

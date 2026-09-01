@@ -30,6 +30,24 @@ public static class EndpointExtensions
         return services;
     }
 
+    /// <summary>將組件內所有實作 <see cref="IRepository"/> 的類別以其介面註冊進 DI（Scoped）。</summary>
+    public static IServiceCollection AddRepositories(this IServiceCollection services)
+    {
+        var types = typeof(EndpointExtensions).Assembly.GetTypes()
+            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(IRepository).IsAssignableFrom(t));
+
+        foreach (var type in types)
+        {
+            var interfaces = type.GetInterfaces()
+                .Where(i => i != typeof(IRepository) && typeof(IRepository).IsAssignableFrom(i));
+            foreach (var itf in interfaces)
+            {
+                services.AddScoped(itf, type);
+            }
+        }
+        return services;
+    }
+
     /// <summary>Map 組件內所有 <see cref="IEndpoint"/>。</summary>
     public static IEndpointRouteBuilder MapEndpoints(this IEndpointRouteBuilder app)
     {

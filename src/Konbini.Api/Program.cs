@@ -49,6 +49,8 @@ builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddHandlers();
+builder.Services.AddRepositories();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();   // /health 同時驗證資料庫連線
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
