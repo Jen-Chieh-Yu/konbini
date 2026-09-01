@@ -410,25 +410,27 @@ dotnet test tests/Konbini.Tests
 ### CI（GitHub Actions）
 
 `.github/workflows/ci.yml` 定義三個平行 job，推送到 `main` /
-`feature|fix|hotfix` 分支與 Pull Request 時執行：
+`feature|fix|refactor|docs|chore|hotfix` 分支與 Pull Request 時執行：
 
 | Job | 內容 | 執行時機 |
 |---|---|---|
 | 後端：建置與單元測試 | `dotnet build` + `dotnet test`（Release、Linux、UTC——與部署環境一致） | 每次 |
-| 前端：型別檢查與打包 | `npm ci` → `vue-tsc`（型別錯誤 0 容忍）→ `vite build` | 每次 |
+| 前端：型別檢查與打包 | `npm ci` → `vue-tsc`（型別錯誤 0 容忍）→ `vite build` → `npm audit`（僅提醒） | 每次 |
 | 容器：驗證 Dockerfile | 兩個 Dockerfile 各建置一次，建完即丟 | 每次 |
-| 打包：產出映像成品 | 建置 api + client 映像 → `docker save` 成 `.tar.gz` 上傳為 artifact | **僅 `v*` 標籤** |
+| 打包：產出映像成品 | matrix 依 amd64／arm64 各建置 api + client 映像 → `docker save` 成 `.tar.gz` 上傳為 artifact | **僅 `v*` 標籤** |
 
 各 job 的步驟以 ①②③ 編號命名，警告訊息引用步驟編號（如「明細見步驟⑤ log」）。
 
 - **僅提醒、不阻擋的警告**會印在執行頁上方的 Annotations 與 Summary：
-  後端編譯警告統計（依 CS 代碼分類）、NuGet 套件弱點掃描。
+  後端編譯警告統計（依 CS 代碼分類）、NuGet 與 npm 套件弱點掃描。
   前端型別檢查不在此列——它從第一天就是 0 個錯誤、直接阻擋。
-- 純文件變更（`*.md`）不觸發建置；標籤推送不受此限。
+- 純文件變更（`*.md`）的「推送」不觸發建置；Pull Request 與標籤不受此限
+  ——PR 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。
 - 同一分支連續推送只跑最新一次（concurrency 自動取消舊的）。
 - CI 一律指定專案路徑，不裸建 sln（dcproj 只有 Visual Studio 認得）。
 - 取得映像成品：該次執行的 Summary 頁最下方 **Artifacts** 區下載，
-  目標機器 `docker load < konbini-api-vX.Y.Z.tar.gz` 即可還原。
+  依目標機器的 CPU 架構選 `-amd64`（x86_64）或 `-arm64`（Apple Silicon），
+  `docker load < konbini-api-vX.Y.Z-arm64.tar.gz` 即可還原。
 
 ---
 
