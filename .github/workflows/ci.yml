@@ -3,7 +3,7 @@ name: CI
 # Actions 執行清單的顯示名稱：PR 的執行帶「PR #編號：」前綴，
 # 其他事件（push、標籤）留空字串 → 沿用預設（commit 訊息首行；
 # 合併 commit 會自然顯示「Merge pull request #N from …」，等同 Azure 的 Merged PR 標註）
-run-name: ${{ github.event_name == 'pull_request' && format('PR #{0}：{1}', github.event.pull_request.number, github.event.pull_request.title) || '' }}
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0}：{1}', github.event.pull_request.number, github.event.pull_request.title) || '' }}"
 
 on:
   push:

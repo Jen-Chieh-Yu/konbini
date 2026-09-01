@@ -196,6 +196,11 @@ cd ../Konbini.Client && npm install
 # 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
 cd ../..
 git config core.hooksPath .githooks
+
+# 5.（建議）安裝 actionlint：hook 會在推送前靜態檢查 GitHub workflow 檔，
+#    未安裝時該項檢查自動略過（Windows 擇一；macOS 用 brew install actionlint）
+scoop install actionlint
+# 或 choco install actionlint
 ```
 
 > ⚠️ 第 4 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
