@@ -4,6 +4,15 @@
 # 緊急跳過：git push --no-verify
 set -e
 
+# workflow 檔靜態檢查（actionlint，未安裝則提示略過）：
+# 壞掉的 workflow 無法用 CI 驗自己，只能在推送前擋
+if command -v actionlint >/dev/null 2>&1; then
+  echo "[pre-push] workflow 靜態檢查（actionlint）..."
+  actionlint
+else
+  echo "[pre-push] 略過 workflow 檢查（未安裝 actionlint；scoop install actionlint 或 choco install actionlint）"
+fi
+
 echo "[pre-push] 後端建置與測試..."
 dotnet test tests/Konbini.Tests -c Release --nologo -v q
 

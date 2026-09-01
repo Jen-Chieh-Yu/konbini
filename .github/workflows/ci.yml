@@ -1,13 +1,19 @@
 name: CI
 
+# Actions 執行清單的顯示名稱：PR 的執行帶「PR #編號：」前綴，
+# 其他事件（push、標籤）留空字串 → 沿用預設（commit 訊息首行；
+# 合併 commit 會自然顯示「Merge pull request #N from …」，等同 Azure 的 Merged PR 標註）
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0}：{1}', github.event.pull_request.number, github.event.pull_request.title) || '' }}"
+
 on:
   push:
-    branches: [main, 'feature/**', 'fix/**', 'hotfix/**']
+    branches: [main, 'feature/**', 'fix/**', 'refactor/**', 'docs/**', 'chore/**', 'hotfix/**']
     tags: ['v*']
     paths-ignore: ['**/*.md']
+  # PR 不設 paths-ignore：讓每個 PR 一律回報檢查結果——
+  # 之後開 branch protection 的必過檢查，才不會被純 .md 的 PR 永遠等不到而卡住
   pull_request:
     branches: [main]
-    paths-ignore: ['**/*.md']
 
 # 同一分支的連續推送只跑最新一次，舊的自動取消
 concurrency:
@@ -26,10 +32,21 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       # dcproj 只有 Visual Studio 認得，不能裸建 sln——一律指定專案路徑
+      # shell: bash 讓指令帶 pipefail 執行——未指定 shell 時 GitHub 預設的 bash
+      # 不帶 pipefail，dotnet build 失敗會被 tee 的成功結束碼蓋掉、步驟誤判綠燈
       - name: ③ 建置（Release）
+        shell: bash
         run: dotnet build src/Konbini.Api -c Release | tee build.log
       - name: ④ 單元測試
-        run: dotnet test tests/Konbini.Tests -c Release
+        run: dotnet test tests/Konbini.Tests -c Release --logger "trx;LogFileName=test-results.trx" --results-directory TestResults
+      # 測試失敗時上傳 trx 報告，可下載到本機用 Visual Studio 開啟排查
+      - name: ④-1 上傳測試報告（僅失敗時）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/*.trx
+          retention-days: 7
 
       # ---- 以下皆「僅提醒、不阻擋」：印在執行頁上方的 Annotations 與 Summary ----
       - name: ⑤ 編譯警告統計（僅提醒不阻擋）
@@ -80,6 +97,17 @@ jobs:
         run: npx vue-tsc --noEmit
       - name: ⑤ 打包（vite build）
         run: npm run build
+      # 與後端的 NuGet 弱點掃描對稱：僅提醒不阻擋
+      - name: ⑥ 套件弱點掃描（僅提醒不阻擋）
+        if: always()
+        run: |
+          if npm audit > audit.log 2>&1; then
+            echo "## npm 套件弱點：無 ✅" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=npm 套件弱點::發現有已知弱點的套件，明細見 Summary 與本步驟 log"
+            { echo "## npm 套件弱點"; echo '```'; cat audit.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cat audit.log
 
   docker:
     name: 容器：驗證 Dockerfile
@@ -93,12 +121,22 @@ jobs:
       - name: ③ 建置 client 映像
         run: docker build -t konbini-client:ci src/Konbini.Client
 
-  # 只在推送 v* 標籤時執行：產出可部署的映像封存（發行流程練習）
+  # 只在推送 v* 標籤時執行：產出可部署的映像封存（發行流程練習）。
+  # 映像綁 CPU 架構：amd64 給 x86_64 機器（一般雲端 VM、Windows），
+  # arm64 給 Apple Silicon（部署目標 M 系列 Mac）——matrix 各建一份，
+  # 部署時依機器架構下載對應成品。
   package:
-    name: 打包：產出映像成品（僅 v* 標籤）
+    name: 打包：產出映像成品（僅 v* 標籤，${{ matrix.arch }}）
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [backend, frontend, docker]
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: ① 取出原始碼
         uses: actions/checkout@v4
@@ -108,11 +146,11 @@ jobs:
           docker build -t "konbini-client:${GITHUB_REF_NAME}" src/Konbini.Client
       - name: ③ 封存映像（docker save）
         run: |
-          docker save "konbini-api:${GITHUB_REF_NAME}"    | gzip > "konbini-api-${GITHUB_REF_NAME}.tar.gz"
-          docker save "konbini-client:${GITHUB_REF_NAME}" | gzip > "konbini-client-${GITHUB_REF_NAME}.tar.gz"
+          docker save "konbini-api:${GITHUB_REF_NAME}"    | gzip > "konbini-api-${GITHUB_REF_NAME}-${{ matrix.arch }}.tar.gz"
+          docker save "konbini-client:${GITHUB_REF_NAME}" | gzip > "konbini-client-${GITHUB_REF_NAME}-${{ matrix.arch }}.tar.gz"
       - name: ④ 上傳成品（Artifacts）
         uses: actions/upload-artifact@v4
         with:
-          name: konbini-images-${{ github.ref_name }}
+          name: konbini-images-${{ github.ref_name }}-${{ matrix.arch }}
           path: konbini-*.tar.gz
           retention-days: 30

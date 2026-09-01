@@ -235,6 +235,13 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
   成本是零；等錯誤累積後再想擋，就得先還債。
 - **為什麼 `*.md` 不觸發**：文件變更跑建置是純浪費。
 - **為什麼 concurrency 取消舊執行**：同分支連續推送只有最新一次有意義。
+- **為什麼 PR 不設 paths-ignore（2026-09-01 定案）**：必過檢查等的是「檢查結果」，
+  被 paths-ignore 跳過的 workflow 不會產生結果，純 .md 的 PR 會永遠 pending
+  合不了。public repo 的 Actions 免費，用一兩分鐘建置換 Branch protection
+  可以放心開必過檢查。push 端的 paths-ignore 保留。
+- **為什麼 package job 用 matrix 產雙架構（2026-09-01 定案）**：映像綁 CPU 架構，
+  amd64 給 x86_64 機器、arm64 給部署目標 Apple Silicon；
+  單一架構的成品必有一邊只能靠模擬跑（不接受，見 §4 macOS 節）。
 
 分支命名：`feature/` `fix/` `refactor/` `docs/` `chore/` `hotfix/`
 ＋ `YYYYMMDD-描述`，與 Conventional Commits 的 type 對齊。
@@ -256,7 +263,7 @@ hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh �
 | 列表查詢分頁（docs/api-conventions.md「分頁」格式） | Repository 重構完成後接續（同批檔案，避免衝突） |
 | 稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除） | 與 EF Migrations 導入同分支 |
 | 庫存欄位與扣庫存交易 | 尚未實作；導入時依 docs/database-design.md「交易」節 |
-| CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix） | fix/ci-hardening 分支 |
+| ~~CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix）~~ | 已實施（2026-09-01）：另含 PR 移除 paths-ignore、前端 npm audit（僅提醒）、測試失敗上傳 trx 報告 |
 | 「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等） | fix 分支，隨時可做 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋） |
 
