@@ -431,7 +431,8 @@ dotnet test tests/Konbini.Tests
 ### CI（GitHub Actions）
 
 `.github/workflows/ci.yml` 定義三個平行 job，推送到 `main` /
-`feature|fix|refactor|docs|chore|hotfix` 分支與 Pull Request 時執行：
+`feature|fix|refactor|docs|chore|hotfix` 分支、Pull Request，
+以及從 Actions 頁面手動觸發時執行：
 
 | Job | 內容 | 執行時機 |
 |---|---|---|
@@ -448,10 +449,27 @@ dotnet test tests/Konbini.Tests
 - 純文件變更（`*.md`）的「推送」不觸發建置；Pull Request 與標籤不受此限
   ——PR 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。
 - 同一分支連續推送只跑最新一次（concurrency 自動取消舊的）。
+- **手動觸發**：Actions 頁面 → 左欄選「CI」→ 右上 **Run workflow** →
+  下拉選分支或標籤 → 按綠色 **Run workflow**。按鈕只在 workflow 檔案
+  已存在於 `main` 時出現——在功能分支上看不到是 GitHub 的既定行為，
+  不是設定沒生效。
+  想重跑失敗的那一次請改用該次執行頁的 **Re-run jobs**：它保留原本的
+  事件脈絡（Pull Request 編號、觸發者、ref），手動觸發是另起一次新執行。
 - CI 一律指定專案路徑，不裸建 sln（dcproj 只有 Visual Studio 認得）。
 - 取得映像成品：該次執行的 Summary 頁最下方 **Artifacts** 區下載，
   依目標機器的 CPU 架構選 `-amd64`（x86_64）或 `-arm64`（Apple Silicon），
   `docker load < konbini-api-vX.Y.Z-arm64.tar.gz` 即可還原。
+
+#### 什麼時候用手動觸發
+
+共同前提是「沒有新 commit，但想跑一次」：
+
+| 情境 | 為什麼不推一個 commit 了事 |
+|---|---|
+| 重新產出過期的發行成品（artifact 保留 30 天） | 選 `v*` 標籤執行即可重跑 package job，不必刪標籤重推——那會改動歷史 |
+| 確認弱點掃描的「現在」結果 | `dotnet list package --vulnerable` 與 `npm audit` 的結果取決於外部弱點資料庫，同一份 commit 過幾週可能就不同 |
+| 純 `*.md` 推送被 paths-ignore 跳過後，想確認 main 仍是綠的 | 不必為此造一個空 commit |
+| 驗證環境本身（.NET SDK 小版本、base image、registry 行為變動） | 「上週還會過的同一份 commit」今天可能壞掉 |
 
 ---
 

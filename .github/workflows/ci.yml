@@ -14,6 +14,9 @@ on:
   # 之後開 branch protection 的必過檢查，才不會被純 .md 的 PR 永遠等不到而卡住
   pull_request:
     branches: [main]
+  # 手動觸發：Actions 頁面出現「Run workflow」按鈕，可指定分支或標籤執行。
+  # 不設 inputs——要重跑或臨時驗證時按一下即可，不必推空 commit 硬湊觸發條件
+  workflow_dispatch:
 
 # 同一分支的連續推送只跑最新一次，舊的自動取消
 concurrency:
