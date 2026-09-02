@@ -14,9 +14,12 @@
 ### 設計原則
 
 - **Vertical Slices**：按業務功能（Products, Orders, Auth, Search, Addresses）拆分，而非按技術層分層。
-- **REPR Pattern**：`Endpoint → Command/Query → Handler`，不使用 Controller。
+- **REPR Pattern**：`Endpoint → Command/Query → Handler → Repository`
+ （Service 僅於跨 Handler 共用業務規則時抽出），不使用 Controller。
 - **CQRS-lite**：Commands（Write）與 Queries（Read）分離；以手寫輕量管線實作，**不引入 MediatR**。
-- **按需抽象**：Repository / Service 只在被 2 個以上 handler 共用時建立，否則 handler 直接使用 `AppDbContext`。
+- **分層紀律**：Handler 不直接使用 `AppDbContext`——資料存取一律透過
+  Repository（查詢在 Repository 內投影 DTO），寫入由 `IUnitOfWork` 統一提交；
+  Service 只在被 2 個以上 handler 共用時建立。
 - **集中共用**：`Features/Common/` 只收被 2 個以上 feature 使用的東西。
 
 ---
@@ -90,8 +93,9 @@ Features/Orders/
 ├── Models/       # Entity 與 DTO：Order.cs、OrderItem.cs、OrderDtos.cs、Pricing.cs
 ├── Commands/     # 改變狀態的用例：CreateOrderCommand.cs
 ├── Queries/      # 唯讀用例：GetOrdersQuery.cs
-├── Endpoints/    # 每個 feature 一支：OrderEndpoints.cs（MapGroup 集中路由）
-└── Services/     # ★ 僅在被 2+ 個 handler 共用時存在
+├── Endpoints/     # 每個 feature 一支：OrderEndpoints.cs（MapGroup 集中路由）
+├── Repositories/  # 資料存取：OrderRepository.cs（介面＋實作同檔）
+└── Services/      # ★ 僅在被 2+ 個 handler 共用時存在
 ```
 
 > 購物車不是後端 feature：狀態存於前端 Pinia（+ localStorage），
@@ -290,7 +294,8 @@ curl http://localhost:5214/health                 # 開發模式：Healthy = API
 
 ## 🔧 功能開發指南 (The Feature Flow)
 
-新增一個用例只需要**兩個檔案**，不用動 `Program.cs`（endpoint 與 handler 由組件掃描自動註冊）。
+新增一個用例通常只需要**兩、三個檔案**，不用動 `Program.cs`
+（endpoint、handler 與 repository 皆由組件掃描自動註冊）。
 
 ### Step 1: Models —— Entity 與 DTO
 
@@ -300,7 +305,19 @@ Features/{Feature}/Models/
 └── {Entity}Dto.cs
 ```
 
-### Step 2: Command / Query —— 用例本體
+### Step 2: Repository —— 資料存取
+
+```text
+Features/{Feature}/Repositories/{Entity}Repository.cs   # 介面＋實作同檔
+```
+
+介面繼承 `IRepository`（marker）即自動註冊進 DI。查詢方法在 Repository 內
+`AsNoTracking` ＋ 投影 DTO；寫入方法只改狀態（`Add`、修改 tracked entity），
+由 Handler 以 `IUnitOfWork.SaveChangesAsync` 統一提交。
+跨 feature 需要同一份資料時，引用資料擁有者的 Repository，不重複建
+（例：Search 與 CreateOrder 都用 `IProductRepository`）。
+
+### Step 3: Command / Query —— 用例本體
 
 **Command / Query、Handler、Response 一律同一個檔案**，改一個功能不用開四、五個檔案。
 
@@ -308,19 +325,15 @@ Features/{Feature}/Models/
 // Features/Products/Queries/GetProductsQuery.cs
 public record GetProductsQuery(int Type);
 
-public class GetProductsHandler(AppDbContext db)
+public class GetProductsHandler(IProductRepository products)
     : IQueryHandler<GetProductsQuery, List<ProductDto>>
 {
     public async Task<List<ProductDto>> Handle(GetProductsQuery query, CancellationToken ct)
-        => await db.Products
-            .Where(p => query.Type == 0 || p.Type == query.Type)
-            .AsNoTracking()
-            .Select(p => new ProductDto(p.ID, p.Name, p.Price, p.PhotoPath))
-            .ToListAsync(ct);
+        => await products.GetListAsync(query.Type, ct);
 }
 ```
 
-### Step 3: Endpoint —— HTTP 介面
+### Step 4: Endpoint —— HTTP 介面
 
 每個 feature 一支 `{Feature}Endpoints.cs`，一眼看到該模組全部路由：
 
@@ -356,12 +369,14 @@ public class ProductEndpoints : IEndpoint
 | | Commands | Queries |
 |---|---|---|
 | 職責 | 改變狀態 | 唯讀 |
-| EF Core | 追蹤實體、`SaveChangesAsync` | **一律 `AsNoTracking` + 直接投影 DTO** |
+| EF Core | Repository 取 tracked entity 改狀態，`IUnitOfWork` 提交 | **Repository 內一律 `AsNoTracking` + 直接投影 DTO** |
 | 測試重點 | 單元測試（商業邏輯所在） | 整合測試覆蓋即可 |
 
 ### 2. 抽象門檻（防止樣板碼膨脹）
 
-- Repository / Service：**被 2 個以上 handler 共用**才建立，否則 handler 直接吃 `AppDbContext`。
+- Repository：**一律使用**，Handler 不直接吃 `AppDbContext`；
+  跨 feature 需要同一份資料時引用資料擁有者的 Repository，不重複建。
+- Service：**被 2 個以上 handler 共用**才建立。
 - `Common/`：**被 2 個以上 feature 使用**才收進去，只有單一模組用的東西留在該模組。
 - 簡單的 Query 允許極簡：五行查詢就讓它五行，不強制完整儀式。
 
@@ -372,6 +387,7 @@ public class ProductEndpoints : IEndpoint
 | Command | `AddToCartCommand`, `CreateOrderCommand` |
 | Query | `GetProductsQuery`, `GetProductDetailQuery` |
 | Handler | `AddToCartHandler`（與 Command/Query 同檔） |
+| Repository | `ProductRepository`（與介面 `IProductRepository` 同檔） |
 | DTO | `ProductDto`（Response）, `RegisterRequest`（Request） |
 | Endpoints | `ProductEndpoints`（每 feature 一支） |
 | 路由 | REST 資源風格、複數：`/api/products`、`/api/orders` |

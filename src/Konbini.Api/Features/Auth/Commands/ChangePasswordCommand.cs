@@ -1,19 +1,20 @@
+using Konbini.Api.Features.Auth.Models;
+using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
-using Konbini.Api.Features.Auth.Models;
 
 namespace Konbini.Api.Features.Auth.Commands;
 
 public record ChangePasswordCommand(int UserId, ChangePasswordRequest Request);
 
-public class ChangePasswordHandler(AppDbContext db, IPasswordHasher hasher)
+public class ChangePasswordHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
     : ICommandHandler<ChangePasswordCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(ChangePasswordCommand command, CancellationToken ct)
     {
         var request = command.Request;
-        var user = await db.Users.FindAsync([command.UserId], ct);
+        var user = await users.GetByIdAsync(command.UserId, ct);
 
         if (user is null)
         {
@@ -29,7 +30,7 @@ public class ChangePasswordHandler(AppDbContext db, IPasswordHasher hasher)
         }
 
         user.PasswordHash = hasher.Hash(request.NewPassword);
-        await db.SaveChangesAsync(ct);
+        await unitOfWork.SaveChangesAsync(ct);
         return AuthResult.Ok();
     }
 }

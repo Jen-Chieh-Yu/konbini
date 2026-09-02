@@ -43,8 +43,9 @@
 版本一律釘 LTS。
 部署目標為 macOS（Apple Silicon）。程式碼放 GitHub。
 
-請求路徑：`Endpoint → Command/Query Handler → AppDbContext`。
-Commands 改狀態、Queries 唯讀（`AsNoTracking` + 投影 DTO）。
+請求路徑：`Endpoint → Command/Query Handler → Repository → AppDbContext`，
+寫入經 `IUnitOfWork` 統一提交（2026-09-01 起，見 §2 Repository 節）。
+Commands 改狀態、Queries 唯讀（Repository 內 `AsNoTracking` + 投影 DTO）。
 
 ---
 
@@ -259,7 +260,7 @@ hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh �
 | Branch protection（main 禁直推、PR 必須綠燈） | 開始走 feature 分支 + PR 流程時一併啟用（練習目的） |
 | 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」 |
 | EnsureCreated → EF Migrations | 與「稽核欄位＋Status 軟刪除」同分支做（欄位定案後只產一次初始 Migration） |
-| Repository 全面導入（2026-09-01 定案，見 §2） | refactor 分支一次補齊既有 handler |
+| ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
 | 列表查詢分頁（docs/api-conventions.md「分頁」格式） | Repository 重構完成後接續（同批檔案，避免衝突） |
 | 稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除） | 與 EF Migrations 導入同分支 |
 | 庫存欄位與扣庫存交易 | 尚未實作；導入時依 docs/database-design.md「交易」節 |
