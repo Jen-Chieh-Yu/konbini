@@ -160,6 +160,9 @@ src/features/Products/
 | `api` | 後端 API | `expose: 8080`，**不映射到主機** |
 | `mysql` | 資料庫 | 不對外開埠，named volume + init SQL |
 
+部署環境的 compose 專案名是 `konbini-prod`，容器名一律 `konbini-prod-*`、
+volume 是 `konbini-prod_mysql-data`——與開發環境完全分開，兩套可以同時存在。
+
 ⚠️ `docker compose up` 不帶 `-f` 會抓 `docker-compose.yml` + override，
 起的是 **api + mysql 的偵錯組合**（Development 環境、不含 client）——
 不是部署佈局；部署一律明確指定 `-f docker-compose.prod.yml`。
@@ -177,7 +180,7 @@ src/features/Products/
 
 ### 環境需求
 
-- .NET 10 SDK
+- .NET 10 SDK（根目錄 `global.json` 限定 10.0.x 任一 feature band，不會被之後安裝的 11 預覽版接手）
 - Node.js 22 以上（前端建置）
 - Docker Desktop for Mac
 
@@ -235,6 +238,9 @@ cd src/Konbini.Client && npm run dev
 
 兩種方式的 api 對外都是 `5214`，前端與 Scalar 的用法完全相同。
 
+> 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
+> 資料庫仍要先自己 `docker compose up -d mysql`。
+
 > ⚠️ **CLI 建置與測試必須指定專案路徑**（`dotnet build src/Konbini.Api`、
 > `dotnet test tests/Konbini.Tests`）。裸跑 `dotnet build` 會嘗試建置
 > `docker-compose.dcproj` 而失敗——dcproj 只有 Visual Studio 認得。
@@ -275,10 +281,10 @@ docker exec -it konbini-mysql mysql -u konbini -p konbini   # 密碼見 .env
 
 ```bash
 # 備份（唯一值得備份的是正式環境的資料；開發庫可隨時重生）
-docker exec konbini-mysql mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" konbini > backup.sql
+docker exec konbini-prod-mysql mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" konbini > backup.sql
 
 # 還原到另一台機器
-docker exec -i konbini-mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" konbini < backup.sql
+docker exec -i konbini-prod-mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" konbini < backup.sql
 ```
 
 ### 排錯與健康狀態

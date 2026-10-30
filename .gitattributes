@@ -64,3 +64,7 @@
 
 # Git hooks 必須是 LF，否則 Git for Windows 的 sh 無法執行
 .githooks/* text eol=lf
+
+# .env 範本：複製出來的 .env 給 docker compose 讀，CRLF 會讓每個值多一個 \r
+#（JWT 金鑰與密碼變成錯的，卻不會報格式錯誤），範本一律 LF
+.env.example text eol=lf
