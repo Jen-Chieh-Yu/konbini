@@ -191,14 +191,15 @@ volume 是 `konbini-prod_mysql-data`——與開發環境完全分開，兩套�
 cp .env.example .env
 
 # 2. 本機開發的機密放 user-secrets（不進 repo，不會誤 commit）
-cd src/Konbini.Api
-dotnet user-secrets init
+#    值與 .env 相同：konbini 帳號由 mysql 容器依 .env 建立，密碼必須一致。
+#    csproj 已設定 UserSecretsId，不需要 dotnet user-secrets init。
 dotnet user-secrets set "ConnectionStrings:MySqlConnection" \
-  "Server=127.0.0.1;Database=konbini;User=konbini;Password=<你的密碼>"
-dotnet user-secrets set "Jwt:Secret" "<至少 32 字元的隨機字串>"
+  "Server=127.0.0.1;Port=3306;Database=konbini;User=konbini;Password=<.env 的 MYSQL_PASSWORD>" \
+  --project src/Konbini.Api
+dotnet user-secrets set "Jwt:Secret" "<.env 的 JWT_SECRET>" --project src/Konbini.Api
 
 # 3. 前端套件
-cd ../Konbini.Client && npm install
+cd src/Konbini.Client && npm install
 
 # 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
 cd ../..
@@ -209,6 +210,18 @@ git config core.hooksPath .githooks
 scoop install actionlint
 # 或 choco install actionlint
 ```
+
+Windows（PowerShell）的第 2 步可以直接從 `.env` 帶入，不必重打密碼，過程中不會印出值：
+
+```powershell
+$e = Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ConvertFrom-StringData
+dotnet user-secrets set "ConnectionStrings:MySqlConnection" "Server=127.0.0.1;Port=3306;Database=$($e.MYSQL_DATABASE);User=$($e.MYSQL_USER);Password=$($e.MYSQL_PASSWORD)" --project src/Konbini.Api
+dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
+```
+
+> 值含反斜線 `\` 或用引號包起來時，`ConvertFrom-StringData` 會解讀錯誤，改用上面手動輸入的寫法。
+> 確認是否設好用 `dotnet user-secrets list --project src/Konbini.Api`——它會印出值，不要貼到對話或 issue。
+> 已在執行的 `dotnet watch` 偵測不到 user-secrets 的變動，改完要按 Ctrl+R 重新啟動。
 
 > ⚠️ 第 4 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
 > 不會觸發，且沒有任何提示。緊急情況可用 `git push --no-verify` 跳過。
