@@ -1,5 +1,7 @@
 # base：執行環境。VS 容器偵錯（Fast Mode）只建這一層，原始碼用掛載的
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+# 以映像內建的非 root 帳號執行（最小權限，與資料庫不用 root 同理）；8080 非特權埠不受影響
+USER $APP_UID
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080

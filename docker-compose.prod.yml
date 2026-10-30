@@ -2,11 +2,25 @@
 # 本專案不正式上線：此檔用於部署「演練」與完整佈局驗證，
 # 故不設備份排程、監控與自動部署（決策見 CLAUDE.md §6）。
 # 啟動：docker compose -f docker-compose.prod.yml up -d --build
+
+# 獨立專案名：不設的話會沿用資料夾名 konbini，與開發環境（docker-compose.yml 的
+# name: konbini）視為同一個專案，共用 mysql-data volume、互相覆蓋容器
+name: konbini-prod
+
+# 共用設定：json-file 預設不輪替，長期執行會塞滿磁碟
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   client:
     build:
       context: ./src/Konbini.Client
-    container_name: konbini-client
+    container_name: konbini-prod-client
+    restart: unless-stopped
+    logging: *default-logging
     ports:
       - "8080:80"
     depends_on:
@@ -17,12 +31,14 @@ services:
     build:
       context: .
       dockerfile: src/Konbini.Api/Dockerfile
-    container_name: konbini-api
+    container_name: konbini-prod-api
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       # compose 的 .env 只做 ${} 替換，要進容器的鍵必須在此明寫（.NET 設定鍵用 __ 雙底線）
-      ConnectionStrings__MySqlConnection: Server=mysql;Database=${MYSQL_DATABASE:-konbini};User=${MYSQL_USER:-konbini};Password=${MYSQL_PASSWORD}
-      Jwt__Secret: ${JWT_SECRET}
+      ConnectionStrings__MySqlConnection: Server=mysql;Database=${MYSQL_DATABASE:-konbini};User=${MYSQL_USER:-konbini};Password=${MYSQL_PASSWORD:?請在 .env 設定 MYSQL_PASSWORD}
+      Jwt__Secret: ${JWT_SECRET:?請在 .env 設定 JWT_SECRET}
     expose:
       - "8080"
     healthcheck:
@@ -38,17 +54,21 @@ services:
 
   mysql:
     image: mysql:8.4
-    container_name: konbini-mysql
+    container_name: konbini-prod-mysql
+    restart: unless-stopped
+    logging: *default-logging
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?請在 .env 設定 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-konbini}
       MYSQL_USER: ${MYSQL_USER:-konbini}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?請在 .env 設定 MYSQL_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      # -h 127.0.0.1 強制走 TCP，避免首次初始化的暫時伺服器（只開 socket）被誤判健康
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 30s
     volumes:
       - mysql-data:/var/lib/mysql
 

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Konbini.Client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "src/Konbini.Client", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "Konbini.Api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["watch", "--project", "src/Konbini.Api"],
+      "port": 5214
+    }
+  ]
+}
