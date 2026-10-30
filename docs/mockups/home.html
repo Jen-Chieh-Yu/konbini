@@ -1,0 +1,800 @@
+<title>Konbini 首頁版面草稿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --brand:#D33A2C;          /* 沿用現有 HomeView 的 #d33，收斂後的版本 */
+  --brand-dark:#B32B1F;
+  --brand-soft:#FCEDEB;
+  --ground:#F8F6F4;
+  --surface:#FFFFFF;
+  --surface-2:#EFEBE7;
+  --ink:#1E1917;
+  --muted:#7A716C;
+  --line:#E2DCD7;
+  --line-strong:#CFC6BF;
+  --ok:#2E7D5B;
+  --ok-soft:#E4F1EA;
+  --flag:#9A6B12;
+  --flag-soft:#FBF0D9;
+  --shell:#EFEBE7;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--shell);color:var(--ink);
+  font-family:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
+  font-size:14px;line-height:1.7;-webkit-font-smoothing:antialiased;
+  padding:0 16px;padding-block:0 56px;
+}
+h1,h2,h3,h4{margin:0;line-height:1.35;text-wrap:balance}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:3px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.num{font-variant-numeric:tabular-nums}
+
+/* ══ 工具列（非版面的一部分） ══ */
+.toolbar{
+  max-width:1280px;margin:0 auto;padding-block:22px 14px;
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+}
+.toolbar .who{display:flex;flex-direction:column;gap:2px}
+.toolbar h1{font-size:19px;font-weight:700}
+.toolbar .sub{font-size:12.5px;color:var(--muted)}
+.tgl{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid var(--line-strong);border-radius:4px;
+  padding:9px 14px;min-height:44px;background:var(--surface);
+  font-size:13px;font-weight:500;
+}
+.tgl .dot{width:9px;height:9px;border-radius:50%;background:var(--line-strong)}
+.tgl[aria-pressed="true"]{border-color:var(--flag);background:var(--flag-soft);color:var(--flag)}
+.tgl[aria-pressed="true"] .dot{background:var(--flag)}
+
+/* ══ 模擬視窗 ══ */
+.frame{
+  max-width:1280px;margin:0 auto;background:var(--ground);
+  border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;
+}
+
+/* ── 標註 ── */
+.mark{
+  display:none;position:absolute;z-index:5;top:6px;left:6px;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;
+  background:var(--flag);color:#fff;border-radius:2px;padding:2px 6px;
+  white-space:nowrap;
+}
+.mark.need{background:var(--brand)}
+body.annot .mark{display:inline-block}
+body.annot .anchor{outline:1px dashed var(--flag);outline-offset:2px}
+.anchor{position:relative}
+
+/* ── 公告條 ── */
+.notice{
+  background:var(--brand);color:#fff;text-align:center;
+  font-size:12.5px;font-weight:500;padding:7px 16px;letter-spacing:.02em;
+}
+.notice b{font-weight:700}
+
+/* ── header ── */
+.hdr{background:var(--surface);border-bottom:1px solid var(--line)}
+.hdr-top{
+  max-width:1180px;margin:0 auto;padding:12px 18px;
+  display:flex;align-items:center;gap:16px;
+}
+.logo{display:flex;align-items:baseline;gap:7px;font-weight:900;font-size:21px;letter-spacing:.02em}
+.logo .jp{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.14em}
+.searchbar{
+  flex:1;min-width:0;display:flex;align-items:stretch;
+  border:1.5px solid var(--line-strong);border-radius:4px;overflow:hidden;background:var(--surface);
+}
+.searchbar input{
+  flex:1;min-width:0;border:0;background:transparent;color:var(--ink);
+  padding:0 12px;font:inherit;font-size:13.5px;min-height:42px;
+}
+.searchbar input::placeholder{color:var(--muted)}
+.searchbar .go{
+  background:var(--brand);color:#fff;padding:0 18px;font-weight:700;font-size:13px;
+  min-height:42px;min-width:56px;
+}
+.util{display:flex;gap:4px;align-items:center}
+.util a{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  min-width:56px;min-height:44px;padding:4px 6px;border-radius:4px;font-size:11px;color:var(--muted);
+}
+.util a .ico{font-size:16px;line-height:1}
+.util a.cart{color:var(--brand);font-weight:700}
+.util .badge{
+  position:absolute;transform:translate(14px,-8px);
+  background:var(--brand);color:#fff;border-radius:9px;
+  font-size:10px;font-weight:700;padding:0 5px;line-height:15px;
+}
+.hdr-nav{border-top:1px solid var(--line)}
+.hdr-nav ul{
+  max-width:1180px;margin:0 auto;padding:0 18px;list-style:none;
+  display:flex;gap:2px;overflow-x:auto;
+}
+.hdr-nav a{
+  display:block;padding:11px 14px;font-size:13.5px;font-weight:500;white-space:nowrap;
+  border-bottom:2px solid transparent;min-height:44px;
+}
+.hdr-nav a.on{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
+
+/* ── 版面骨架 ── */
+.page{max-width:1180px;margin:0 auto;padding:28px 20px 36px;display:grid;grid-template-columns:212px 1fr;gap:30px;align-items:start}
+aside{display:flex;flex-direction:column;gap:18px;position:sticky;top:16px}
+main{min-width:0;display:flex;flex-direction:column;gap:46px}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:4px}
+.panel-h{
+  padding:10px 13px;border-bottom:1px solid var(--line);
+  font-size:13px;font-weight:700;letter-spacing:.02em;
+}
+.panel-b{padding:11px 13px;display:flex;flex-direction:column;gap:9px}
+
+/* 左欄分類 */
+.catnav{list-style:none;margin:0;padding:0}
+.catnav li{border-bottom:1px solid var(--line)}
+.catnav li:last-child{border-bottom:0}
+.catnav a{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:0 13px;min-height:44px;font-size:13.5px;
+}
+.catnav a:hover{background:var(--surface-2)}
+.catnav .cnt{font-size:11.5px;color:var(--muted)}
+.catnav a.on{color:var(--brand);font-weight:700;box-shadow:inset 3px 0 0 var(--brand)}
+
+.fgroup{display:flex;flex-direction:column;gap:7px}
+.fgroup .lbl{font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.checks{display:flex;flex-direction:column;gap:2px}
+.chk{display:flex;align-items:center;gap:8px;min-height:34px;font-size:13px;cursor:default}
+.chk i{width:14px;height:14px;border:1.5px solid var(--line-strong);border-radius:2px;flex:none}
+.chk.dim{color:var(--muted)}
+.range{display:flex;align-items:center;gap:6px}
+.range span{
+  flex:1;border:1px solid var(--line-strong);border-radius:3px;
+  padding:7px 8px;font-size:12.5px;color:var(--muted);min-height:36px;
+  display:flex;align-items:center;
+}
+
+/* ── 主視覺輪播 ── */
+.hero{position:relative;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.hero-slide{
+  min-height:206px;padding:30px 34px;display:flex;flex-direction:column;justify-content:center;gap:10px;
+  background:
+    radial-gradient(130% 150% at 86% 10%, #FBE5E0, transparent 62%),
+    linear-gradient(105deg,#FEF6F2,#F7E8E1);
+  color:var(--ink);
+}
+.hero-slide .kicker{font-size:11.5px;letter-spacing:.2em;color:var(--brand);font-weight:700}
+.hero-slide h2{font-size:clamp(22px,3.2vw,31px);font-weight:900;letter-spacing:.01em}
+.hero-slide p{font-size:13.5px;color:var(--muted);max-width:46ch}
+.hero-slide .btn{
+  align-self:flex-start;margin-top:6px;background:var(--brand);color:#fff;
+  font-weight:700;font-size:13.5px;border-radius:4px;padding:11px 22px;min-height:44px;
+  display:inline-flex;align-items:center;
+}
+.dots{position:absolute;bottom:12px;left:34px;display:flex;gap:6px}
+.dots i{width:22px;height:3px;background:rgba(30,25,23,.16);border-radius:2px}
+.dots i.on{background:var(--brand)}
+
+/* ── icon 快速導覽 ── */
+.quick{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;
+}
+.quick a{
+  background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;padding:13px 4px;min-height:74px;font-size:12px;text-align:center;
+}
+.quick a:hover{background:var(--surface-2)}
+.quick .ico{font-size:20px;line-height:1}
+.flag{display:block;border-radius:2px;flex:none}
+.quick .flag{width:24px;height:16px;margin:2px 0}
+.chk .flag{width:18px;height:12px;border-radius:1.5px}
+
+/* ── 區塊標題 ── */
+.sec{display:flex;flex-direction:column;gap:18px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line-strong);padding-bottom:9px}
+.sec-h .t{display:flex;align-items:baseline;gap:9px;min-width:0}
+.sec-h h3{font-size:17px;font-weight:900;letter-spacing:.02em}
+.sec-h .cap{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.sec-h .more{font-size:12.5px;color:var(--muted);white-space:nowrap;font-weight:500}
+.sec-h .more::after{content:" ›"}
+
+/* ── 商品格線 ── */
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:34px 20px}
+.grid.g4{grid-template-columns:repeat(4,1fr)}
+.card{
+  background:transparent;border:0;border-radius:0;
+  display:flex;flex-direction:column;position:relative;
+}
+.thumb{
+  aspect-ratio:1/1;max-width:100%;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;
+  border-radius:8px;overflow:hidden;position:relative;
+}
+.thumb .ph{
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;
+  color:var(--muted);opacity:.75;
+}
+.thumb.t1{background:linear-gradient(150deg,#F7EDE2,#EFE0CF)}
+.thumb.t2{background:linear-gradient(150deg,#F8E7E3,#F0D3CC)}
+.thumb.t3{background:linear-gradient(150deg,#E4EEEF,#D2E2E4)}
+
+.rank{
+  position:absolute;top:6px;left:6px;background:var(--surface);color:var(--ink);
+  border:1px solid var(--line-strong);border-radius:4px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+}
+.rank.top{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tags{position:absolute;top:6px;right:6px;display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+.tag{font-size:10px;font-weight:700;padding:2px 6px;border-radius:2px;letter-spacing:.03em}
+.tag.new{background:var(--surface);color:var(--brand);border:1px solid var(--brand)}
+.tag.box{background:var(--surface);color:var(--muted);border:1px solid var(--line-strong)}
+.tag.sale{background:var(--brand);color:#fff}
+.card-b{
+  padding:10px 2px 0;display:grid;grid-template-columns:1fr auto;
+  column-gap:10px;row-gap:5px;align-items:baseline;align-content:start;
+}
+.pname{
+  grid-column:1/-1;
+  font-size:12.5px;line-height:1.55;min-height:calc(12.5px * 1.55 * 2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.price-row{grid-column:2;justify-self:end;display:flex;align-items:baseline;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.price{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.price small{font-size:11px;font-weight:500;margin-right:1px}
+.price.on-sale{color:var(--brand)}
+.was{font-size:11.5px;color:var(--muted);text-decoration:line-through;font-variant-numeric:tabular-nums}
+.stock{grid-column:1;font-size:11.5px;color:var(--ok);display:flex;align-items:center;gap:4px}
+.stock i{width:5px;height:5px;border-radius:50%;background:var(--ok);flex:none}
+
+/* ── 特集 ── */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.feat{
+  border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface);
+  display:flex;flex-direction:column;
+}
+.feat .band{
+  min-height:88px;padding:14px 16px;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;
+  color:var(--ink);border-bottom:1px solid var(--line);
+}
+.feat .band .k{font-size:10.5px;letter-spacing:.18em;color:var(--muted)}
+.feat .band strong{font-size:16px;font-weight:900;letter-spacing:.01em}
+.feat.f1 .band{background:linear-gradient(120deg,#FBEBE8,#F6D9D2)}
+.feat.f2 .band{background:linear-gradient(120deg,#E8F0F2,#D6E5E8)}
+.feat.f3 .band{background:linear-gradient(120deg,#F8EFDD,#F0E2C5)}
+.feat .txt{padding:10px 13px 13px;font-size:12.5px;color:var(--muted);line-height:1.7}
+
+/* ── footer ── */
+.ftr{background:var(--surface);border-top:1px solid var(--line);margin-top:14px}
+.ftr-in{max-width:1180px;margin:0 auto;padding:34px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.ftr h4{font-size:12.5px;font-weight:700;margin-bottom:8px}
+.ftr ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.ftr li{font-size:12.5px;color:var(--muted)}
+.ftr-btm{border-top:1px solid var(--line);padding:13px 18px;text-align:center;font-size:11.5px;color:var(--muted)}
+
+/* ── 狀態示意 ── */
+.states{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.state{border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:13px;display:flex;flex-direction:column;gap:9px;min-height:160px}
+.state .h{font-size:11.5px;letter-spacing:.1em;color:var(--muted);font-family:"IBM Plex Mono",monospace}
+.sk{background:var(--surface-2);border-radius:3px}
+.sk.img{aspect-ratio:1/1;max-width:100%}
+.sk.l1{height:9px;width:88%}
+.sk.l2{height:9px;width:56%}
+.state .empty,.state .err{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;
+}
+.state .empty p,.state .err p{font-size:12px;color:var(--muted);line-height:1.6}
+.state .mini{
+  border:1px solid var(--line-strong);border-radius:3px;padding:7px 13px;
+  font-size:12px;font-weight:700;min-height:36px;display:inline-flex;align-items:center;
+}
+.state .err .mini{border-color:var(--brand);color:var(--brand)}
+
+/* ══ 說明區（非版面） ══ */
+.notes{max-width:1180px;margin:0 auto;padding-block:40px 0;display:flex;flex-direction:column;gap:26px}
+.notes h2{font-size:20px;font-weight:900}
+.notes .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:13px}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;letter-spacing:.08em;color:var(--muted);font-weight:500;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+td b{font-weight:700}
+.warnbox{
+  background:var(--brand-soft);border:1px solid var(--brand);border-radius:4px;
+  padding:18px 20px;display:flex;flex-direction:column;gap:10px;
+}
+.warnbox .k{color:var(--brand)}
+.warnbox p{font-size:13.5px;line-height:1.85}
+.warnbox code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface);padding:1px 5px;border-radius:2px}
+ul.plain{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:6px}
+ul.plain li{font-size:13.5px;line-height:1.75}
+ul.plain li::marker{color:var(--brand)}
+
+/* ══ RWD ══ */
+@media (max-width:1100px){
+  .page{grid-template-columns:1fr}
+  aside{position:static;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid{grid-template-columns:repeat(3,1fr);gap:30px 18px}
+  .grid.g4{grid-template-columns:repeat(3,1fr)}
+  .quick{grid-template-columns:repeat(4,1fr)}
+  .states{grid-template-columns:repeat(2,1fr)}
+  .ftr-in{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:760px){
+  main{gap:36px}
+  .feats{grid-template-columns:1fr}
+  .hdr-top{flex-wrap:wrap}
+  .searchbar{order:3;width:100%;flex-basis:100%}
+  .grid,.grid.g4{grid-template-columns:repeat(2,1fr);gap:26px 16px}
+  .quick{grid-template-columns:repeat(4,1fr)}
+  aside{grid-template-columns:1fr}
+}
+@media (max-width:430px){
+  .grid,.grid.g4{grid-template-columns:repeat(2,1fr)}
+  .ftr-in{grid-template-columns:1fr}
+  .states{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
+  <symbol id="flag-jp" viewBox="0 0 30 20">
+    <rect width="30" height="20" fill="#fff"/>
+    <circle cx="15" cy="10" r="6" fill="#BC002D"/>
+    <rect x=".5" y=".5" width="29" height="19" fill="none" stroke="rgba(30,25,23,.2)"/>
+  </symbol>
+  <symbol id="flag-kr" viewBox="0 0 30 20">
+    <rect width="30" height="20" fill="#fff"/>
+    <clipPath id="kr-tg"><circle cx="15" cy="10" r="5"/></clipPath>
+    <g clip-path="url(#kr-tg)">
+      <rect x="10" y="5" width="10" height="5" fill="#CD2E3A"/>
+      <rect x="10" y="10" width="10" height="5" fill="#0047A0"/>
+    </g>
+    <circle cx="17.5" cy="10" r="2.5" fill="#0047A0"/>
+    <circle cx="12.5" cy="10" r="2.5" fill="#CD2E3A"/>
+    <g fill="#16160E">
+      <g transform="translate(7.5,5) rotate(-33.69)">
+        <rect x="-2" y="-1.5" width="4" height=".62"/>
+        <rect x="-2" y="-.31" width="4" height=".62"/>
+        <rect x="-2" y="0.88" width="4" height=".62"/>
+      </g>
+      <g transform="translate(22.5,5) rotate(33.69)">
+        <rect x="-2" y="-1.5" width="1.62" height=".62"/><rect x=".38" y="-1.5" width="1.62" height=".62"/>
+        <rect x="-2" y="-.31" width="4" height=".62"/>
+        <rect x="-2" y="0.88" width="1.62" height=".62"/><rect x=".38" y="0.88" width="1.62" height=".62"/>
+      </g>
+      <g transform="translate(7.5,15) rotate(33.69)">
+        <rect x="-2" y="-1.5" width="4" height=".62"/>
+        <rect x="-2" y="-.31" width="1.62" height=".62"/><rect x=".38" y="-.31" width="1.62" height=".62"/>
+        <rect x="-2" y="0.88" width="4" height=".62"/>
+      </g>
+      <g transform="translate(22.5,15) rotate(-33.69)">
+        <rect x="-2" y="-1.5" width="1.62" height=".62"/><rect x=".38" y="-1.5" width="1.62" height=".62"/>
+        <rect x="-2" y="-.31" width="1.62" height=".62"/><rect x=".38" y="-.31" width="1.62" height=".62"/>
+        <rect x="-2" y="0.88" width="1.62" height=".62"/><rect x=".38" y="0.88" width="1.62" height=".62"/>
+      </g>
+    </g>
+    <rect x=".5" y=".5" width="29" height="19" fill="none" stroke="rgba(30,25,23,.2)"/>
+  </symbol>
+</svg>
+
+<div class="toolbar">
+  <div class="who">
+    <h1>Konbini 首頁版面草稿</h1>
+    <p class="sub">以 カルディ オンラインストア（cmShopTopPage1）為骨架 · 商品為 products.csv 實際資料 · 靜態 HTML，專案程式碼未更動</p>
+  </div>
+  <button class="tgl" id="annotBtn" aria-pressed="false"><span class="dot"></span>顯示區塊標註</button>
+</div>
+
+<div class="frame">
+
+  <!-- 01 公告條 -->
+  <div class="notice anchor"><span class="mark">01 公告條 ← 送料無料バー</span>
+    單筆滿 <b>NT$1,200</b> 免運費　·　平日 15:00 前下單當日出貨
+  </div>
+
+  <!-- 02 header -->
+  <header class="hdr anchor"><span class="mark">02 Header ← ヘッダー</span>
+    <div class="hdr-top">
+      <a class="logo" href="#">🏪 Konbini <span class="jp">NICHI–KAN SNACKS</span></a>
+      <div class="searchbar">
+        <input placeholder="搜尋商品，例如：辛拉麵、白色戀人" aria-label="搜尋商品">
+        <button class="go">搜尋</button>
+      </div>
+      <nav class="util">
+        <a href="#"><span class="ico">♡</span>收藏</a>
+        <a href="#"><span class="ico">👤</span>登入</a>
+        <a class="cart" href="#"><span class="ico">🛒</span>購物車<span class="badge num">3</span></a>
+      </nav>
+    </div>
+    <nav class="hdr-nav">
+      <ul>
+        <li><a class="on" href="#">全部商品</a></li>
+        <li><a href="#">零食</a></li>
+        <li><a href="#">泡麵</a></li>
+        <li><a href="#">飲品</a></li>
+        <li><a href="#">新到貨</a></li>
+        <li><a href="#">箱購・禮盒</a></li>
+        <li><a href="#">特集</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="page">
+
+    <!-- 03 左側欄 -->
+    <aside>
+      <div class="panel anchor"><span class="mark">03 分類導覽（常駐左側）</span>
+        <div class="panel-h">商品分類</div>
+        <ul class="catnav">
+          <li><a class="on" href="#">全部商品<span class="cnt num">74</span></a></li>
+          <li><a href="#">零食<span class="cnt num">41</span></a></li>
+          <li><a href="#">泡麵<span class="cnt num">20</span></a></li>
+          <li><a href="#">飲品<span class="cnt num">13</span></a></li>
+        </ul>
+      </div>
+
+      <div class="panel anchor"><span class="mark">04 篩選 ← 絞り込み検索</span>
+        <div class="panel-h">篩選</div>
+        <div class="panel-b">
+          <div class="fgroup">
+            <span class="lbl">價格</span>
+            <div class="range"><span class="num">NT$ 0</span><span class="mono" style="flex:0;border:0;padding:0">–</span><span class="num">NT$ 1,580</span></div>
+          </div>
+          <div class="fgroup">
+            <span class="lbl">產地</span>
+            <div class="checks">
+              <label class="chk"><i></i><svg class="flag" viewBox="0 0 30 20" role="img" aria-label="日本"><use href="#flag-jp"/></svg>日本</label>
+              <label class="chk"><i></i><svg class="flag" viewBox="0 0 30 20" role="img" aria-label="韓國"><use href="#flag-kr"/></svg>韓國</label>
+            </div>
+          </div>
+          <div class="fgroup anchor"><span class="mark need">需後端欄位</span>
+            <span class="lbl">商品特徵</span>
+            <div class="checks">
+              <label class="chk"><i></i>箱購・多入</label>
+              <label class="chk dim"><i></i>特價中</label>
+              <label class="chk dim"><i></i>有現貨</label>
+              <label class="chk dim"><i></i>新到貨</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+
+      <!-- 05 主視覺 -->
+      <div class="hero anchor"><span class="mark">05 主視覺輪播 ← キャンペーンバナー</span>
+        <div class="hero-slide">
+          <span class="kicker">SEASONAL</span>
+          <h2>秋季新品・日本限定口味到貨</h2>
+          <p>白色戀人、ROYCE 生巧克力、東京香蕉——這批只有北海道與成田機場才買得到的品項，這次一起進了。</p>
+          <a class="btn" href="#">看這批新品</a>
+          <div class="dots"><i class="on"></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+
+      <!-- 06 快速導覽 -->
+      <nav class="quick anchor"><span class="mark">06 icon 快速導覽 ← ミニナビ</span>
+        <a href="#"><span class="ico">🆕</span>新到貨</a>
+        <a href="#"><span class="ico">🔥</span>熱賣排行</a>
+        <a href="#"><span class="ico">🍫</span>零食</a>
+        <a href="#"><span class="ico">🍜</span>泡麵</a>
+        <a href="#"><span class="ico">🥤</span>飲品</a>
+        <a href="#"><svg class="flag" viewBox="0 0 30 20" role="img" aria-label="日本"><use href="#flag-jp"/></svg>日本</a>
+        <a href="#"><svg class="flag" viewBox="0 0 30 20" role="img" aria-label="韓國"><use href="#flag-kr"/></svg>韓國</a>
+        <a href="#"><span class="ico">📦</span>箱購</a>
+        <a href="#"><span class="ico">🎁</span>禮盒</a>
+        <a href="#"><span class="ico">🌶️</span>辣味</a>
+        <a href="#"><span class="ico">🔁</span>再買一次</a>
+        <a href="#"><span class="ico">🚚</span>配送說明</a>
+        <a href="#"><span class="ico">💬</span>常見問題</a>
+        <a href="#"><span class="ico">☰</span>全部分類</a>
+      </nav>
+
+      <!-- 07 排行榜 -->
+      <section class="sec anchor"><span class="mark">07 熱賣排行 ← ランキング</span>
+        <div class="sec-h">
+          <div class="t"><h3>本週熱賣排行</h3><span class="cap">統計至 09/09</span></div>
+          <a class="more" href="#">看完整排行</a>
+        </div>
+        <div class="grid">
+          <article class="card"><div class="thumb t2"><span class="rank top num">1</span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國三養 火辣雞肉風味炒麵-5入袋裝</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>249</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t2"><span class="rank top num">2</span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國辛拉麵</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>45</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t1"><span class="rank top num">3</span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本白色戀人 巧克力夾心餅-12入</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>680</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t1"><span class="rank num">4</span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國好麗友 Choco Pie 12入禮盒</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>229</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t3"><span class="rank num">5</span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國Paldo 香蕉牛奶</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>45</span></div>
+              </div></article>
+        </div>
+      </section>
+
+      <!-- 08 新到貨 -->
+      <section class="sec anchor"><span class="mark">08 新到貨 ← 新着商品</span>
+        <div class="sec-h">
+          <div class="t"><h3>新到貨</h3><span class="cap">09/08 入庫</span></div>
+          <a class="more" href="#">看全部新品</a>
+        </div>
+        <div class="grid">
+          <article class="card"><div class="thumb t1"><span class="tags"><span class="tag new">NEW</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本ROYCE 生巧克力禮盒-北海道限定</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>890</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t1"><span class="tags"><span class="tag new">NEW</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本東京香蕉蛋糕禮盒-8入</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>580</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t1"><span class="tags"><span class="tag new">NEW</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國Market O 布朗尼-4入</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>149</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t2"><span class="tags"><span class="tag new">NEW</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國三養 奶油培根火辣雞肉風味炒麵</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>65</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t3"><span class="tags"><span class="tag new">NEW</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本UCC 職人咖啡-微糖</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>55</span></div>
+              </div></article>
+        </div>
+      </section>
+
+      <!-- 09 特價 -->
+      <section class="sec anchor"><span class="mark need">09 特價 ← お買得商品（需 ListPrice 欄位）</span>
+        <div class="sec-h">
+          <div class="t"><h3>本週特價</h3><span class="cap">09/15 23:59 截止</span></div>
+          <a class="more" href="#">看全部特價</a>
+        </div>
+        <div class="grid">
+          <article class="card"><div class="thumb t1"><span class="tags"><span class="tag sale">-22%</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本江崎固力高 百奇草莓棒-家庭號10袋入</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price on-sale"><small>NT$</small>199</span><span class="was num">NT$259</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t2"><span class="tags"><span class="tag sale">-13%</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國農心 辛拉麵-5入袋裝</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price on-sale"><small>NT$</small>189</span><span class="was num">NT$219</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t1"><span class="tags"><span class="tag sale">-16%</span><span class="tag box">箱購</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國CROWN 大蒜麵包餅乾家庭號</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price on-sale"><small>NT$</small>159</span><span class="was num">NT$189</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t3"><span class="tags"><span class="tag sale">-10%</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國樂天 蜂蜜柚子茶罐裝</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price on-sale"><small>NT$</small>80</span><span class="was num">NT$89</span></div>
+              </div></article>
+          <article class="card"><div class="thumb t1"><span class="tags"><span class="tag sale">-9%</span><span class="tag box">箱購</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日韓人氣零食綜合禮盒-30品項箱購</p>
+              <span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price on-sale"><small>NT$</small>1,438</span><span class="was num">NT$1,580</span></div>
+              </div></article>
+        </div>
+      </section>
+
+      <!-- 10 特集 -->
+      <section class="sec anchor"><span class="mark">10 特集 ← 特集</span>
+        <div class="sec-h">
+          <div class="t"><h3>特集</h3><span class="cap">一次一個主題</span></div>
+          <a class="more" href="#">看過往特集</a>
+        </div>
+        <div class="feats">
+          <article class="feat f1"><div class="band"><span class="k">FEATURE 01</span><strong>韓國辣麵大賞</strong></div>
+            <p class="txt">火辣雞肉、辛拉麵、王撈麵——把架上 20 款泡麵按辣度排成一條線，讓客人自己挑得下去的位置。</p></article>
+          <article class="feat f2"><div class="band"><span class="k">FEATURE 02</span><strong>日本茶飲時間</strong></div>
+            <p class="txt">伊藤園、三得利、可爾必思。冰箱裡最常見的那幾支，配上什麼零食比較對，一次講完。</p></article>
+          <article class="feat f3"><div class="band"><span class="k">FEATURE 03</span><strong>送禮用的伴手禮</strong></div>
+            <p class="txt">白色戀人、東京香蕉、ROYCE、Choco Pie 禮盒。價格帶從 200 到 900，依收禮的人分。</p></article>
+        </div>
+      </section>
+
+      <!-- 11 分類推薦 -->
+      <section class="sec anchor"><span class="mark">11 分類推薦 ← カテゴリ別おすすめ</span>
+        <div class="sec-h">
+          <div class="t"><h3>零食</h3><span class="cap">41 項</span></div>
+          <a class="more" href="#">看全部零食</a>
+        </div>
+        <div class="grid">
+          <article class="card"><div class="thumb t1"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本卡樂比 Jagabee 薯條-鹽味</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>89</span></div></div></article>
+          <article class="card"><div class="thumb t1"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本北日本 Alfort 帆船巧克力餅</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>110</span></div></div></article>
+          <article class="card"><div class="thumb t1"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本湖池屋 濃厚洋芋片-海苔鹽</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>95</span></div></div></article>
+          <article class="card"><div class="thumb t1"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國海太 蜂蜜奶油洋芋片</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>105</span></div></div></article>
+          <article class="card"><div class="thumb t1"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本龜田製菓 柿種米果-辣味</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>120</span></div></div></article>
+        </div>
+      </section>
+
+      <section class="sec">
+        <div class="sec-h">
+          <div class="t"><h3>泡麵</h3><span class="cap">20 項</span></div>
+          <a class="more" href="#">看全部泡麵</a>
+        </div>
+        <div class="grid">
+          <article class="card"><div class="thumb t2"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本日清 合味道杯麵-海鮮風味</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>68</span></div></div></article>
+          <article class="card"><div class="thumb t2"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本日清 出前一丁-麻油風味5入</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>185</span></div></div></article>
+          <article class="card"><div class="thumb t2"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國農心 安城湯麵</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>52</span></div></div></article>
+          <article class="card"><div class="thumb t2"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國八道 王撈麵</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>62</span></div></div></article>
+          <article class="card"><div class="thumb t2"><span class="tags"><span class="tag box">箱購</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國泡麵人氣組合-12入箱購</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>1,280</span></div></div></article>
+        </div>
+      </section>
+
+      <section class="sec">
+        <div class="sec-h">
+          <div class="t"><h3>飲品</h3><span class="cap">13 項</span></div>
+          <a class="more" href="#">看全部飲品</a>
+        </div>
+        <div class="grid">
+          <article class="card"><div class="thumb t3"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本可爾必思 原味乳酸飲</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>99</span></div></div></article>
+          <article class="card"><div class="thumb t3"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本伊藤園 濃味綠茶</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>65</span></div></div></article>
+          <article class="card"><div class="thumb t3"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">日本三得利 烏龍茶</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>62</span></div></div></article>
+          <article class="card"><div class="thumb t3"><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國熊津 蘆薈汁</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>75</span></div></div></article>
+          <article class="card"><div class="thumb t3"><span class="tags"><span class="tag box">禮盒</span></span><span class="ph">IMAGE</span></div>
+            <div class="card-b"><p class="pname">韓國燒酒禮盒-6瓶入</p><span class="stock"><i></i>現貨</span>
+              <div class="price-row"><span class="price"><small>NT$</small>790</span></div></div></article>
+        </div>
+      </section>
+
+      <!-- 12 畫面狀態 -->
+      <section class="sec anchor"><span class="mark">12 四種畫面狀態（ui-guidelines 要求）</span>
+        <div class="sec-h"><div class="t"><h3>畫面狀態示意</h3><span class="cap">每個資料區塊都要有這四種</span></div></div>
+        <div class="states">
+          <div class="state"><span class="h">LOADING</span>
+            <div class="sk img"></div><div class="sk l1"></div><div class="sk l2"></div></div>
+          <div class="state"><span class="h">EMPTY</span>
+            <div class="empty"><p>這個分類目前沒有商品<br>要不要先看看熱賣排行？</p><span class="mini">看熱賣排行</span></div></div>
+          <div class="state"><span class="h">ERROR</span>
+            <div class="err"><p>商品載入失敗<br>可能是連線中斷</p><span class="mini">重新載入</span></div></div>
+          <div class="state"><span class="h">NORMAL</span>
+            <article class="card" style="border:0"><div class="thumb t1" style="border-radius:3px"><span class="ph">IMAGE</span></div>
+              <div class="card-b" style="padding:8px 0 0"><p class="pname">日本明治 蘑菇造型餅乾</p>
+                <div class="price-row"><span class="price"><small>NT$</small>75</span></div></div></article></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- 13 footer -->
+  <footer class="ftr anchor"><span class="mark">13 Footer ← フッター</span>
+    <div class="ftr-in">
+      <div><h4>購物指南</h4><ul><li>運費與配送</li><li>付款方式</li><li>退換貨說明</li><li>常見問題</li></ul></div>
+      <div><h4>關於 Konbini</h4><ul><li>我們怎麼選貨</li><li>進貨與效期政策</li><li>聯絡我們</li></ul></div>
+      <div><h4>條款</h4><ul><li>服務條款</li><li>隱私權政策</li><li>食品標示資訊</li></ul></div>
+      <div><h4>訂單</h4><ul><li>查詢訂單</li><li>會員中心</li><li>再買一次</li></ul></div>
+    </div>
+    <div class="ftr-btm">客服時間 週一至週五 10:00–18:00　·　© 2026 Konbini</div>
+  </footer>
+
+</div>
+
+<!-- ══════ 說明（不屬於版面） ══════ -->
+<div class="notes">
+
+  <section>
+    <p class="k">Mapping</p>
+    <h2>與 KALDI 的區塊對照</h2>
+    <div class="tblwrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>KALDI</th><th>Konbini</th><th>調整理由</th></tr></thead>
+        <tbody>
+          <tr><td>送料無料バー（7,000 円）</td><td><b>免運公告條</b>（NT$1,200）</td><td>照搬。位置、寫法都一樣，換成台幣門檻。</td></tr>
+          <tr><td>ヘッダー＋主選單 8 項</td><td><b>Header＋主選單 7 項</b></td><td>KALDI 有 14 個分類，Konbini 只有 3 類。主選單改成「分類 3 個＋新到貨＋箱購禮盒＋特集」，不硬湊。</td></tr>
+          <tr><td>搜尋在 header 右側小框</td><td><b>搜尋列置中放大</b></td><td>雜貨客人多半目標明確地找特定商品，搜尋不該縮在角落。</td></tr>
+          <tr><td>キャンペーンバナー 5 張</td><td><b>主視覺輪播 4 張</b></td><td>照搬，張數減少。</td></tr>
+          <tr><td>ミニナビ 14 個 icon</td><td><b>快速導覽 14 個 icon</b></td><td>照搬數量。KALDI 放在較下方，這裡上移到主視覺正下方，因為它實質取代了第二層導覽。</td></tr>
+          <tr><td>ランキング 10 件</td><td><b>熱賣排行 5 件 ×「看完整排行」</b></td><td>桌機 5 欄一列剛好，不做兩列。排行是新客最需要的，位置照 KALDI 排第一。</td></tr>
+          <tr><td>新着商品 8 件</td><td><b>新到貨 5 件</b></td><td>同上。</td></tr>
+          <tr><td>お買得商品 10 件</td><td><b>本週特價 5 件</b></td><td>同上。<b>但目前做不出來</b>，見下方欄位缺口。</td></tr>
+          <tr><td>特集 6 個</td><td><b>特集 3 個</b></td><td>一次擺 6 個會互相稀釋，Konbini 也沒有那麼多企劃產能。</td></tr>
+          <tr><td>カテゴリ別おすすめ ×7 類</td><td><b>分類推薦 ×3 類</b></td><td>零食／泡麵／飲品，對應 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">Product.Type</code> 的 1／2／3。</td></tr>
+          <tr><td>左側 絞り込み検索</td><td><b>左側 分類導覽＋篩選</b></td><td>照搬左欄，但把分類導覽也放進來——<code style="font-family:'IBM Plex Mono',monospace;font-size:12px">ui-guidelines</code> 要求分類導覽桌機常駐左側。</td></tr>
+          <tr><td>右側欄（推薦關鍵字、電子報 banner）</td><td><b>拿掉</b></td><td>三欄配上 5 欄商品格線太擠。商品密度優先，這是 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">ui-guidelines</code> 寫死的方向。</td></tr>
+          <tr><td>（沒有理念區塊）</td><td><b>暫時不放</b></td><td>原本畫在商品之後、頁尾之前，本版先移除。這一版與 KALDI 一致：首頁只做找貨，理念收在頁尾連出去的「關於 Konbini」。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="warnbox">
+    <p class="k">Blocked · 目前的 schema 撐不起來的區塊</p>
+    <p><code>Product</code> 現在只有 <code>Id / Type / Name / Price / ImageUrl</code> 五個欄位。上面草稿裡有幾塊是照 KALDI 畫出來的，但實際上接不到資料：</p>
+    <ul class="plain">
+      <li><b>本週特價</b>（區塊 09）— 需要原價欄位才能顯示「NT$259 → NT$199」與折扣標。KALDI 的「462円→369円」就是這個。</li>
+      <li><b>「現貨」標示與「有現貨」篩選</b> — 需要庫存欄位。<code>ui-guidelines</code> 已經註明庫存相關項目要等後端導入。</li>
+      <li><b>「NEW」標與新到貨排序</b> — 需要建立時間或入庫日欄位，現在無法判斷誰是新品。</li>
+      <li><b>到期日</b>（進口食品效期落差大，商品頁應該標）— 需要效期欄位。</li>
+      <li><b>產地篩選（日本／韓國）</b> — 目前只能靠商品名稱開頭字串猜，不是可靠做法。</li>
+      <li><b>熱賣排行</b> — 需要銷售統計，或先用訂單明細算。</li>
+    </ul>
+    <p>草稿裡這幾處在「顯示區塊標註」模式下會標成紅色。要不要補這些欄位、補哪些，是下一個要決定的事——照專案規則我不自行動 schema。</p>
+  </section>
+
+  <section>
+    <p class="k">Notes</p>
+    <h2>幾件實作上要先講清楚的</h2>
+    <ul class="plain" style="margin-top:12px">
+      <li><b>這是靜態 HTML，不是 Vue。</b>刻意不寫成元件，避免看起來像可以直接貼進專案。真的要做時，版面用 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">el-row / el-col</code> 的響應式屬性重寫，商品卡是 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">el-card</code>，篩選是 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">el-checkbox-group</code> 與 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">el-slider</code>。</li>
+      <li><b>主色沿用現有的紅。</b>草稿用 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">#D33A2C</code>，是現在 HomeView 那個 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">#d33</code> 收斂後的版本。實作時是覆寫 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">--el-color-primary</code>，不是到處寫死色碼。</li>
+      <li><b>商品格線斷點</b>：桌機 5 欄、平板 3 欄、手機 2 欄，落在 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">ui-guidelines</code> 的 4–6／2–3／1–2 區間內。</li>
+      <li><b>圖片位置目前是色塊。</b>seed 指向 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">/Pictures/Products/*.svg</code>，草稿裡沒有這些檔，用分類色塊佔位，不是最終視覺。</li>
+      <li><b>金額格式</b>：整數、千分位逗號、<code style="font-family:'IBM Plex Mono',monospace;font-size:12px">NT$</code> 前置、數字用 tabular-nums 對齊。</li>
+      <li><b>觸控目標</b>：導覽、篩選、按鈕一律 44px 以上。商品卡本身整塊可點，不另放「加入購物車」——加購動作留在商品詳情頁與列表頁處理。</li>
+      <li><b>只做淺色。</b>這一版不做深色模式，配色直接寫在淺底上。之後若要加深色，要在 Element Plus 的 <code style="font-family:'IBM Plex Mono',monospace;font-size:12px">html.dark</code> 上一起規劃，不是事後補色。</li>
+      <li><b>商品卡無邊框。</b>靠照片圓角（8px）與間距分隔，不用外框。好處是密度更高、視覺更輕；代價是區塊之間得靠標題線撐住層級，所以區塊標題那條線不能省。</li>
+      <li><b>手機版還沒細畫。</b>目前只做到格線收合。<code style="font-family:'IBM Plex Mono',monospace;font-size:12px">ui-guidelines</code> 要求的「底部固定條顯示總計與結帳入口」還沒放進來——那要等購物車狀態一起設計。</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  var btn = document.getElementById('annotBtn');
+  btn.addEventListener('click', function(){
+    var on = btn.getAttribute('aria-pressed') === 'true';
+    btn.setAttribute('aria-pressed', String(!on));
+    document.body.classList.toggle('annot', !on);
+  });
+})();
+</script>
