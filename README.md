@@ -50,6 +50,10 @@ Konbini/
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
+├── .claude/
+│   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
+├── .github/
+│   └── pull_request_template.md  # Pull Request description 範本
 ├── docs/
 │   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
 │   ├── database-design.md        # 資料表、欄位型別與 Migration 規範

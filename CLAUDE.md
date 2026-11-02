@@ -303,7 +303,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 
 | 項目 | 觸發條件 |
 |---|---|
-| ~~Branch protection（main 禁直推、PR 必須綠燈）~~ | 已實施（2026-09-02）：ruleset「Protect main」，見上方 Branch protection 節 |
+| ~~Branch protection（main 禁直推、Pull Request 必須綠燈）~~ | 已實施（2026-09-02）：ruleset「Protect main」，見上方 Branch protection 節 |
 | 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」 |
 | EnsureCreated → EF Migrations | 與「稽核欄位＋Status 軟刪除」同分支做（欄位定案後只產一次初始 Migration） |
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
