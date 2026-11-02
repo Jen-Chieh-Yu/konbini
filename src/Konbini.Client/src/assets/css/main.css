@@ -1,7 +1,73 @@
-* { box-sizing: border-box; }
+/*
+ * 全站設計 token。色票與尺寸取自 docs/mockups/home.html 的版面草稿。
+ * 元件外觀一律透過覆寫 Element Plus 的 CSS 變數調整，
+ * 不用高權重選擇器硬蓋（見 docs/ui-guidelines.md）。
+ */
+:root {
+  /* 品牌色：由原本寫死的 #d33 收斂而來 */
+  --kb-brand: #d33a2c;
+  --kb-brand-dark: #b32b1f;
+  --kb-brand-soft: #fcedeb;
+
+  /* 中性色：偏暖的灰，配合品牌紅 */
+  --kb-ground: #f8f6f4;
+  --kb-surface: #ffffff;
+  --kb-surface-2: #efebe7;
+  --kb-ink: #1e1917;
+  --kb-muted: #7a716c;
+  --kb-line: #e2dcd7;
+  --kb-line-strong: #cfc6bf;
+  --kb-ok: #2e7d5b;
+
+  /* 版面 */
+  --kb-page-width: 1180px;
+  --kb-radius: 4px;
+  --kb-radius-img: 8px;
+  --kb-tap: 44px; /* 觸控目標下限 */
+
+  /* ── 覆寫 Element Plus ── */
+  --el-color-primary: var(--kb-brand);
+  --el-color-primary-light-3: #e06a5f;
+  --el-color-primary-light-5: #e89189;
+  --el-color-primary-light-7: #f0b8b3;
+  --el-color-primary-light-8: #f4ccc8;
+  --el-color-primary-light-9: var(--kb-brand-soft);
+  --el-color-primary-dark-2: var(--kb-brand-dark);
+
+  --el-text-color-primary: var(--kb-ink);
+  --el-text-color-regular: var(--kb-ink);
+  --el-text-color-secondary: var(--kb-muted);
+  --el-border-color: var(--kb-line);
+  --el-border-color-light: var(--kb-line);
+  --el-border-radius-base: var(--kb-radius);
+  --el-font-family: 'Noto Sans TC', system-ui, -apple-system, 'Microsoft JhengHei', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: 'Noto Sans TC', system-ui, sans-serif;
-  color: #333;
+  font-family: var(--el-font-family);
+  color: var(--kb-ink);
+  background: var(--kb-ground);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
 }
-button { cursor: pointer; }
+
+button {
+  cursor: pointer;
+}
+
+/* 數字對齊：金額、數量、計數都用這個 */
+.kb-num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

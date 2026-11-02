@@ -12,7 +12,8 @@ export interface CartItem {
 const STORAGE_KEY = 'konbini.cart'
 
 // 與後端 Orders/Models/Pricing.cs 對齊；金額最終以後端計算為準
-const FREE_DELIVERY_THRESHOLD = 500
+// export：header 的免運公告條要顯示同一個門檻，不在畫面上另外寫死
+export const FREE_DELIVERY_THRESHOLD = 500
 const DELIVERY_FEE = 60
 
 /** 購物車狀態放前端（localStorage 持久化），下單時才把品項送給後端重新計價。 */

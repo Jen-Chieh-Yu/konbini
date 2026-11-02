@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ProductService } from '../api/services/ProductService'
 import type { ProductDTO } from '../api/interfaces/ProductDTO'
 import { useCartStore } from '@features/Cart/stores/useCartStore'
+import { CATEGORIES } from '@shared/constants/catalog'
 
+const route = useRoute()
+const router = useRouter()
 const cart = useCartStore()
 const products = ref<ProductDTO[]>([])
-const type = ref(0)
+// 分類由網址決定，header 與首頁的分類連結才能直接進到對應清單
+const type = ref(Number(route.query.type) || 0)
 const loading = ref(true)
 
 async function loadProducts() {
@@ -19,9 +24,16 @@ async function loadProducts() {
 }
 
 function changeType(t: number) {
-  type.value = t
-  loadProducts()
+  router.push({ path: '/products', query: t ? { type: t } : {} })
 }
+
+watch(
+  () => route.query.type,
+  (value) => {
+    type.value = Number(value) || 0
+    loadProducts()
+  },
+)
 
 onMounted(loadProducts)
 </script>
@@ -29,10 +41,14 @@ onMounted(loadProducts)
 <template>
   <h2>商品</h2>
   <div class="filters">
-    <button :class="{ active: type === 0 }" @click="changeType(0)">全部</button>
-    <button :class="{ active: type === 1 }" @click="changeType(1)">零食</button>
-    <button :class="{ active: type === 2 }" @click="changeType(2)">泡麵</button>
-    <button :class="{ active: type === 3 }" @click="changeType(3)">飲品</button>
+    <button
+      v-for="c in CATEGORIES"
+      :key="c.type"
+      :class="{ active: type === c.type }"
+      @click="changeType(c.type)"
+    >
+      {{ c.name }}
+    </button>
   </div>
   <p v-if="loading">載入中…</p>
   <div v-else class="grid">
