@@ -8,10 +8,6 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Konbini.Api/Konbini.Api.csproj" />
-    <!-- 前端：網站專案節點，只供在 VS 瀏覽與編輯檔案，不參與方案建置（由 Vite／Dockerfile 自行建置） -->
-    <Project Path="src/Konbini.Client/" Type="Website" DisplayName="Konbini.Client">
-      <Build Project="false" />
-    </Project>
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Konbini.Tests/Konbini.Tests.csproj" />

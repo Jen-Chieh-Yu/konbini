@@ -370,8 +370,8 @@ src/Konbini.Client/dist/
 # Claude 無刪檔權限時暫放待刪檔案的資料夾，內容物手動刪除即可
 _to_delete/
 
-# JetBrains Rider 的工作區設定（各機器自行產生）
-.idea/
+# JetBrains Rider：.idea/ 不整個排除——附加資料夾（indexLayout.xml）要跨機器共用；
+# 個人檔（workspace.xml 等）由 Rider 自動產生的 .idea/.idea.Konbini/.idea/.gitignore 排除
 
 # Claude Code 個人設定（權限白名單等），各機器自行維護；.claude/ 其餘內容要進版控
 .claude/settings.local.json

@@ -51,6 +51,7 @@ Konbini/
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
+├── .idea/                        # Rider 共用設定（附加前端資料夾；個人檔不進版控）
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
@@ -64,7 +65,7 @@ Konbini/
 │   ├── ui-guidelines.md          # 前端畫面、RWD 與中文排版規範
 │   └── mockups/                  # 版面草稿（HTML），main.css 的色票出處
 ├── src/
-│   ├── Konbini.Client/           # Vue 3 SPA（方案中以網站專案節點顯示於 src 方案資料夾）
+│   ├── Konbini.Client/           # Vue 3 SPA（不在方案檔內，Rider 以附加資料夾顯示）
 │   │   ├── .nvmrc                # Node 版本，本機與 CI 共用
 │   │   ├── Dockerfile            # node:24 build → nginx:alpine
 │   │   ├── nginx.conf            # SPA fallback + /api 反向代理
@@ -93,8 +94,9 @@ Konbini/
     └── Konbini.Tests/            # 內分 Unit/ 與 Integration/
 ```
 
-> `Konbini.Client` 實體位於 `src/`，在 Visual Studio 方案中以**網站專案**節點
->（方案檔直接指向資料夾，無專案檔）顯示於 `src` 方案資料夾下，與 API 並列，僅供瀏覽與編輯檔案。
+> `Konbini.Client` 實體位於 `src/`，**不在方案檔內**（沒有專案檔）。Rider 以「附加資料夾」顯示，
+> 設定在 `.idea/.idea.Konbini/.idea/indexLayout.xml` 並進版控，clone 後開啟 `Konbini.slnx` 即自動附加；
+> Visual Studio 的方案總管不會列出前端，改用資料夾檢視瀏覽。
 > 方案建置不會連動 npm build——前端由 Vite（開發）與 Dockerfile（部署）自行建置。
 
 ### Feature 內部結構
