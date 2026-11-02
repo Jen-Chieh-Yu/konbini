@@ -9,7 +9,8 @@ on:
   push:
     branches: [main, 'feature/**', 'fix/**', 'refactor/**', 'docs/**', 'chore/**', 'hotfix/**']
     tags: ['v*']
-    paths-ignore: ['**/*.md']
+    # 文件不觸發建置：*.md 與 docs/（含 mockups 的 HTML 草稿）
+    paths-ignore: ['**/*.md', 'docs/**']
   # PR 不設 paths-ignore：讓每個 PR 一律回報檢查結果——
   # 之後開 branch protection 的必過檢查，才不會被純 .md 的 PR 永遠等不到而卡住
   pull_request:
@@ -30,10 +31,11 @@ jobs:
     steps:
       - name: ① 取出原始碼
         uses: actions/checkout@v4
-      - name: ② 安裝 .NET SDK
+      # SDK 版本由根目錄 global.json 決定，本機與 CI 同一份設定；升版只改 global.json
+      - name: ② 安裝 .NET SDK（依 global.json）
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
       # 指定專案路徑：只建 Api（測試專案由步驟④建），不建方案檔裡的 dcproj 與網站節點
       # shell: bash 讓指令帶 pipefail 執行——未指定 shell 時 GitHub 預設的 bash
       # 不帶 pipefail，dotnet build 失敗會被 tee 的成功結束碼蓋掉、步驟誤判綠燈
@@ -87,10 +89,11 @@ jobs:
     steps:
       - name: ① 取出原始碼
         uses: actions/checkout@v4
-      - name: ② 安裝 Node.js
+      # Node 版本由 .nvmrc 決定，本機（nvm／fnm）與 CI 同一份設定
+      - name: ② 安裝 Node.js（依 .nvmrc）
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: src/Konbini.Client/.nvmrc
           cache: npm
           cache-dependency-path: src/Konbini.Client/package-lock.json
       - name: ③ 安裝套件（npm ci）

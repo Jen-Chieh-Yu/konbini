@@ -43,6 +43,7 @@
 ```text
 Konbini/
 ├── Konbini.slnx                  # 方案檔（XML 格式）
+├── global.json                   # 限定 .NET 10 SDK，本機與 CI 共用
 ├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api + mysql 並附加偵錯器
 ├── docker-compose.yml            # 偵錯/開發 base：api + mysql
 ├── docker-compose.override.yml   # 偵錯用環境變數與埠（自動與 base 合併）
@@ -51,8 +52,11 @@ Konbini/
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
 ├── .claude/
+│   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
+├── .githooks/pre-push            # 推送前跑後端測試與前端型別檢查
 ├── .github/
+│   ├── workflows/ci.yml          # CI：後端、前端、Docker，v* 標籤打包映像
 │   └── pull_request_template.md  # Pull Request description 範本
 ├── docs/
 │   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
@@ -61,7 +65,8 @@ Konbini/
 │   └── mockups/                  # 版面草稿（HTML），main.css 的色票出處
 ├── src/
 │   ├── Konbini.Client/           # Vue 3 SPA（方案中以網站專案節點顯示於 src 方案資料夾）
-│   │   ├── Dockerfile            # node:22 build → nginx:alpine
+│   │   ├── .nvmrc                # Node 版本，本機與 CI 共用
+│   │   ├── Dockerfile            # node:24 build → nginx:alpine
 │   │   ├── nginx.conf            # SPA fallback + /api 反向代理
 │   │   └── src/
 │   │       ├── assets/css/       # 全域樣式
@@ -189,7 +194,7 @@ volume 是 `konbini-prod_mysql-data`——與開發環境完全分開，兩套�
 ### 環境需求
 
 - .NET 10 SDK（根目錄 `global.json` 限定 10.0.x 任一 feature band，不會被之後安裝的 11 預覽版接手）
-- Node.js 22 以上（前端建置）
+- Node.js 24 以上（前端建置；版本見 `src/Konbini.Client/.nvmrc`，nvm／fnm 可直接讀取）
 - Docker Desktop for Mac
 
 ### 初次設定（clone 後執行一次）
