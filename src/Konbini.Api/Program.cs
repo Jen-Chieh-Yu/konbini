@@ -21,11 +21,12 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
-// --- 認證（JWT；Secret 空值直接啟動失敗，不帶病上線）---
+// --- 認證（JWT；Secret 空值或不足 32 字元直接啟動失敗，不帶病上線）---
+// HS256 金鑰至少 256 bits，太短要到簽發 token（登入）時才報錯，提前到啟動時擋
 var jwtSecret = builder.Configuration["Jwt:Secret"];
-if (string.IsNullOrWhiteSpace(jwtSecret))
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
 {
-    throw new InvalidOperationException("Jwt:Secret 未設定（至少 32 字元的隨機字串）。");
+    throw new InvalidOperationException("Jwt:Secret 未設定或長度不足（至少 32 字元的隨機字串）。");
 }
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

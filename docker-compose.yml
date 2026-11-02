@@ -10,16 +10,25 @@ services:
       context: .
       dockerfile: src/Konbini.Api/Dockerfile
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
   mysql:
     image: mysql:8.4
     container_name: konbini-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?請在 .env 設定 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-konbini}
       MYSQL_USER: ${MYSQL_USER:-konbini}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?請在 .env 設定 MYSQL_PASSWORD}
+    healthcheck:
+      # -h 127.0.0.1 強制走 TCP：首次初始化時映像先起一個只開 socket 的暫時伺服器，
+      # 用 localhost（socket）會在初始化完成前就誤判健康
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
     volumes:
       - mysql-data:/var/lib/mysql
 

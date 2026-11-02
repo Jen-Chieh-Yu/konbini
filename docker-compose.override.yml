@@ -4,12 +4,13 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ConnectionStrings__MySqlConnection=Server=mysql;Database=${MYSQL_DATABASE:-konbini};User=${MYSQL_USER:-konbini};Password=${MYSQL_PASSWORD}
-      - Jwt__Secret=${JWT_SECRET}
+      - ConnectionStrings__MySqlConnection=Server=mysql;Database=${MYSQL_DATABASE:-konbini};User=${MYSQL_USER:-konbini};Password=${MYSQL_PASSWORD:?請在 .env 設定 MYSQL_PASSWORD}
+      - Jwt__Secret=${JWT_SECRET:?請在 .env 設定 JWT_SECRET}
     ports:
-      # 對外固定 5214，讓 vite proxy（→ localhost:5214）不論 API 在容器內外都通
-      - "5214:8080"
+      # 對外固定 5214，讓 vite proxy（→ 127.0.0.1:5214）不論 API 在容器內外都通。
+      # 只綁本機：不綁 IP 時會開在所有網卡，同網段的人也連得到
+      - "127.0.0.1:5214:8080"
 
   mysql:
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"

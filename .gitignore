@@ -369,3 +369,6 @@ src/Konbini.Client/dist/
 
 # Claude 無刪檔權限時暫放待刪檔案的資料夾，內容物手動刪除即可
 _to_delete/
+
+# Claude Code 個人設定（權限白名單等），各機器自行維護；.claude/ 其餘內容要進版控
+.claude/settings.local.json

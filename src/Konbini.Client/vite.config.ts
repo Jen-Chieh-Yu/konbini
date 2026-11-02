@@ -28,9 +28,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // 開發時把 /api 轉發給本機或容器內的 API（皆為 5214）
+      // 開發時把 /api 轉發給本機或容器內的 API（皆為 5214）。
+      // 寫 127.0.0.1 不寫 localhost：容器埠只綁 IPv4 本機，localhost 可能先解析成 ::1 而連不到
       '/api': {
-        target: 'http://localhost:5214',
+        target: 'http://127.0.0.1:5214',
         changeOrigin: true,
       },
     },

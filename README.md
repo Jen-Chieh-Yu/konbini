@@ -160,6 +160,9 @@ src/features/Products/
 | `api` | 後端 API | `expose: 8080`，**不映射到主機** |
 | `mysql` | 資料庫 | 不對外開埠，named volume + init SQL |
 
+部署環境的 compose 專案名是 `konbini-prod`，容器名一律 `konbini-prod-*`、
+volume 是 `konbini-prod_mysql-data`——與開發環境完全分開，兩套可以同時存在。
+
 ⚠️ `docker compose up` 不帶 `-f` 會抓 `docker-compose.yml` + override，
 起的是 **api + mysql 的偵錯組合**（Development 環境、不含 client）——
 不是部署佈局；部署一律明確指定 `-f docker-compose.prod.yml`。
@@ -177,7 +180,7 @@ src/features/Products/
 
 ### 環境需求
 
-- .NET 10 SDK
+- .NET 10 SDK（根目錄 `global.json` 限定 10.0.x 任一 feature band，不會被之後安裝的 11 預覽版接手）
 - Node.js 22 以上（前端建置）
 - Docker Desktop for Mac
 
@@ -188,14 +191,15 @@ src/features/Products/
 cp .env.example .env
 
 # 2. 本機開發的機密放 user-secrets（不進 repo，不會誤 commit）
-cd src/Konbini.Api
-dotnet user-secrets init
+#    值與 .env 相同：konbini 帳號由 mysql 容器依 .env 建立，密碼必須一致。
+#    csproj 已設定 UserSecretsId，不需要 dotnet user-secrets init。
 dotnet user-secrets set "ConnectionStrings:MySqlConnection" \
-  "Server=127.0.0.1;Database=konbini;User=konbini;Password=<你的密碼>"
-dotnet user-secrets set "Jwt:Secret" "<至少 32 字元的隨機字串>"
+  "Server=127.0.0.1;Port=3306;Database=konbini;User=konbini;Password=<.env 的 MYSQL_PASSWORD>" \
+  --project src/Konbini.Api
+dotnet user-secrets set "Jwt:Secret" "<.env 的 JWT_SECRET>" --project src/Konbini.Api
 
 # 3. 前端套件
-cd ../Konbini.Client && npm install
+cd src/Konbini.Client && npm install
 
 # 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
 cd ../..
@@ -206,6 +210,18 @@ git config core.hooksPath .githooks
 scoop install actionlint
 # 或 choco install actionlint
 ```
+
+Windows（PowerShell）的第 2 步可以直接從 `.env` 帶入，不必重打密碼，過程中不會印出值：
+
+```powershell
+$e = Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ConvertFrom-StringData
+dotnet user-secrets set "ConnectionStrings:MySqlConnection" "Server=127.0.0.1;Port=3306;Database=$($e.MYSQL_DATABASE);User=$($e.MYSQL_USER);Password=$($e.MYSQL_PASSWORD)" --project src/Konbini.Api
+dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
+```
+
+> 值含反斜線 `\` 或用引號包起來時，`ConvertFrom-StringData` 會解讀錯誤，改用上面手動輸入的寫法。
+> 確認是否設好用 `dotnet user-secrets list --project src/Konbini.Api`——它會印出值，不要貼到對話或 issue。
+> 已在執行的 `dotnet watch` 偵測不到 user-secrets 的變動，改完要按 Ctrl+R 重新啟動。
 
 > ⚠️ 第 4 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
 > 不會觸發，且沒有任何提示。緊急情況可用 `git push --no-verify` 跳過。
@@ -234,6 +250,9 @@ cd src/Konbini.Client && npm run dev
 ```
 
 兩種方式的 api 對外都是 `5214`，前端與 Scalar 的用法完全相同。
+
+> 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
+> 資料庫仍要先自己 `docker compose up -d mysql`。
 
 > ⚠️ **CLI 建置與測試必須指定專案路徑**（`dotnet build src/Konbini.Api`、
 > `dotnet test tests/Konbini.Tests`）。裸跑 `dotnet build` 會嘗試建置
@@ -275,10 +294,10 @@ docker exec -it konbini-mysql mysql -u konbini -p konbini   # 密碼見 .env
 
 ```bash
 # 備份（唯一值得備份的是正式環境的資料；開發庫可隨時重生）
-docker exec konbini-mysql mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" konbini > backup.sql
+docker exec konbini-prod-mysql mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" konbini > backup.sql
 
 # 還原到另一台機器
-docker exec -i konbini-mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" konbini < backup.sql
+docker exec -i konbini-prod-mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" konbini < backup.sql
 ```
 
 ### 排錯與健康狀態
