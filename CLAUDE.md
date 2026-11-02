@@ -283,8 +283,8 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
   最實際的用途是重新產出過期的 artifact（保留 30 天）——選 `v*` 標籤手動執行，
   不必刪標籤重推，而刪標籤重推正是「不改動歷史」這條紅線要擋的事。
   次要用途是弱點掃描：它的結果取決於外部資料庫而非程式碼，同一份 commit
-  過幾週可能就不同。**不設 inputs**——目前沒有需要參數化的分歧，
-  加了只是替沒發生的需求先付複雜度。concurrency 沿用 `github.ref`，
+  過幾週可能就不同。原本**不設 inputs**（沒有需要參數化的分歧）；2026-11-02 有了
+  「在分支上試跑打包」的需求，新增 `test_package`，見下方「半自動發行」。concurrency 沿用 `github.ref`，
   手動觸發會取消同分支進行中的 push 執行；「只留最新結果」通常正是想要的，
   真要分開再把 `github.event_name` 加進 group。
 - **為什麼 PR 不設 paths-ignore（2026-09-01 定案）**：必過檢查等的是「檢查結果」，
@@ -340,6 +340,30 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 #6（中文標題慣例之前）與 #10（Squash 時誤改 Commit message）的標題不符慣例，
 依「不改動歷史」保留原樣。
 
+### 半自動發行（2026-11-02 定案）
+
+**CI 產出並驗證成品，部署由人執行**。流程見 `docs/release.md`、部署見 `docs/deployment.md`。
+不做自動部署（見下方「明確不做」）；日後若交給 MCP／agent 部署，照部署手冊的步驟執行。
+
+- **版號從 `v0.1.0` 開始**：`0.x` 表示還在發展、不保證相容，符合「不正式上線」的定位；`1.0.0` 留給真的上線。
+- **標籤必須在 main 上**：`.github/scripts/release-info.sh` 檢查，從功能分支打的標籤不產出任何成品。
+  版號格式也在這裡擋（trigger 只看 `v` 開頭，`v1.2`、`vABC` 也會觸發）。
+- **測試打包**（`workflow_dispatch` 的 `test_package`）：在任何分支跑完整打包與冒煙測試，版號 `0.0.0-test.<編號>`。
+  為了「合併前先試跑」而在分支上打 `v*` 標籤是更糟的選項——已推送的標籤原則上不刪，會跟正式版號混在一起。
+- **冒煙測試驗證的是成品，不是原始碼**：用剛建好的映像跑 `docker-compose.prod.yml`（`--no-build`），
+  確認三個容器健康、首頁與 `/api` 反代可用、版號正確、種子資料存在。兩種架構各跑一次（各自是不同的映像）。
+- **成品放 Release 草稿**：Actions artifact 30 天就刪，Release 附件不會過期；「草稿」就是半自動的人工確認點，
+  人看過內容才 Publish。重跑同一個標籤時 Release 已存在則略過，不覆蓋。
+- **版號寫進成品**：後端組件的 InformationalVersion（`GET /api/version`）與前端的 `version.json`，
+  部署後才能確認「跑的是哪一版」。`/api/version` 不需登入：只含版號與 commit，冒煙測試也靠它核對。
+- **prod compose 的映像標籤＝版號**（`APP_VERSION`）：部署是 `docker load` + `up --no-build`，
+  回到上一版就是把 `APP_VERSION` 改回去。
+- **CHANGELOG 發行時一次整理**：Squash 後 main 一個 commit 就是一個 Pull Request，
+  `git log --first-parent` 就是草稿；平時不寫，避免 `[未發行]` 變成每次合併都衝突的熱點。
+
+放棄的東西：沒有 registry，成品靠下載 `.tar.gz` 再 `docker load`（每次部署要搬幾百 MB）；
+打包建置多了冒煙測試與 Release，從打標籤到草稿約 10–15 分鐘。
+
 **尚未實施、留待條件成立**：
 
 | 項目 | 觸發條件 |
@@ -354,7 +378,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix）~~ | 已實施（2026-09-01）：另含 PR 移除 paths-ignore、前端 npm audit（僅提醒）、測試失敗上傳 trx 報告 |
 | 「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等） | fix 分支，隨時可做 |
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
-| ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋） |
+| ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、
@@ -375,5 +399,8 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
 | `docs/ui-guidelines.md` | 前端畫面、RWD 與中文排版規範 |
+| `docs/release.md` | 版號規則、發行步驟、測試打包 |
+| `docs/deployment.md` | 部署手冊：載入映像、啟動、檢查、升級與回到上一版 |
+| `CHANGELOG.md` | 變更紀錄（發行時整理） |
 | `.github/pull_request_template.md` | Pull Request description 範本 |
 | `.claude/skills/` | Claude Code 專案技能：`create-pr`（送審準備）、`review-pr`（審查清單）、`dev-env`（本機環境診斷） |
