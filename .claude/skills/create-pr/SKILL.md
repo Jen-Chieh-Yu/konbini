@@ -24,6 +24,7 @@ description: 把目前分支整理成可送審的 Pull Request：自我檢查、
    - 同步一律 **merge**（`git merge origin/main`），不要 rebase——推送過的分支 rebase 要 force push；同步用的 merge commit 會在 Squash 時消失。還沒推送過的分支才可以 rebase。
 4. **自我檢查**（失敗就停下來回報，不要推送）
    - 只有 push 時 `.githooks/pre-push` 會自動跑 actionlint、後端測試、前端型別檢查；尚未設定 `core.hooksPath` 時要提醒使用者，並說明這些檢查沒有在本機跑過。
+   - 新增或修改會在容器內執行的腳本（`*.sh`）：`git ls-files --eol <檔案>` 應為 `w/lf`。Windows 的 `core.autocrlf=true` 可能把新檔寫成 CRLF，容器執行時會出現 `cannot execute: required file not found`；是 `w/crlf` 就用 `sed -i 's/\r$//' <檔案>` 轉回 LF。
    - 改到 compose 或 `.env.example`：`docker compose config -q` 與 `docker compose -f docker-compose.prod.yml config -q`（**加 `-q`**，不帶時會印出 `.env` 的實際值）。
    - 測試由使用者自己執行（CLAUDE.md §0），不要代跑 `dotnet test`／`npm` 指令；需要時把指令給使用者。pre-push hook 是 git 推送的一部分，不在此限。
 5. **看變更範圍**：`git diff origin/main...HEAD --stat`。混了多個主題、或有意義的變更超過約 500 行時，建議拆分，由使用者決定。主題不同的改動（例如 `ci:` 與 `chore:`）不要擠在同一個 Pull Request——Squash 後只剩一個標題，寫不清楚。
