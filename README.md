@@ -50,6 +50,10 @@ Konbini/
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
+├── .claude/
+│   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
+├── .github/
+│   └── pull_request_template.md  # Pull Request description 範本
 ├── docs/
 │   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
 │   ├── database-design.md        # 資料表、欄位型別與 Migration 規範
@@ -213,6 +217,11 @@ git config core.hooksPath .githooks
 #    未安裝時該項檢查自動略過（Windows 擇一；macOS 用 brew install actionlint）
 scoop install actionlint
 # 或 choco install actionlint
+
+# 6.（選用）安裝 GitHub CLI：讓 Claude Code 的 create-pr 技能可直接建立 Pull Request；
+#    不裝也行，改在網頁建立（macOS 用 brew install gh）
+winget install GitHub.cli
+gh auth login
 ```
 
 Windows（PowerShell）的第 2 步可以直接從 `.env` 帶入，不必重打密碼，過程中不會印出值：
@@ -493,6 +502,30 @@ dotnet test tests/Konbini.Tests
 | 確認弱點掃描的「現在」結果 | `dotnet list package --vulnerable` 與 `npm audit` 的結果取決於外部弱點資料庫，同一份 commit 過幾週可能就不同 |
 | 純 `*.md` 推送被 paths-ignore 跳過後，想確認 main 仍是綠的 | 不必為此造一個空 commit |
 | 驗證環境本身（.NET SDK 小版本、base image、registry 行為變動） | 「上週還會過的同一份 commit」今天可能壞掉 |
+
+### Pull Request 流程
+
+main 受 ruleset 保護：只能經 Pull Request、只能 Squash merge、三個 CI job 必須綠燈
+且分支要與 main 同步（理由見 `CLAUDE.md` §6）。
+
+1. 從最新的 main 開分支：`git switch -c <type>/YYYYMMDD-描述`
+2. commit（Conventional Commits，type 英文、描述中文）→ `git push -u origin <分支>`
+3. 建立 Pull Request：title 同 commit 格式，description 照 `.github/pull_request_template.md`
+4. 分支顯示 out-of-date 時按 **Update branch**，等 CI 綠燈
+5. **Squash and merge**：Commit message 欄位不要動；Extended description 換成純文字
+   （不含 Markdown 與「驗證」）
+6. 本機清理（Squash 後 `-d` 認不出已合併，確認無差異再用 `-D`）：
+
+```bash
+git switch main && git pull --ff-only
+git diff <分支> main --stat   # 沒有輸出代表內容都已進 main
+git branch -D <分支>
+```
+
+使用 Claude Code 時，`.claude/skills/` 的專案技能會跟著 git 同步到每台機器：
+說「建立 PR」會執行 `create-pr`（自我檢查、推送、產出 title／description／Squash 純文字版），
+說「審查分支 X」會執行 `review-pr`（依本專案的架構決策與規範逐項檢查），
+兩者都不會核准或 merge；說「API 起不來」會執行 `dev-env`（只看 key、不印出機密值的環境診斷）。
 
 ---
 

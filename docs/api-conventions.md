@@ -23,8 +23,6 @@ Endpoint → Command/Query → Handler → Service → Repository
   （本專案以手寫介面取代 dispatcher／MediatR）。
 - Handler 不直接注入 DbContext，資料存取一律透過 Repository；
   Query 端的投影（Select 成 Response）寫在 Repository 內。
-  （既有 handler 直接使用 DbContext，由 refactor 分支補齊，
-  新程式碼一律照本規範。）
 
 ## Command 與 Query
 
