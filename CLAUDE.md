@@ -133,9 +133,9 @@ HTTP 動詞承載語意，路由表可預測；契約一旦對外公開，改風
 - **網站節點只保留 `Type="Website"` 與不建置**：轉換時帶出的 WebsiteProperties
   （AspNetCompiler、VWDPort 等）是舊式 ASP.NET 網站的設定，對 Vite 專案沒有作用。
 - **不並存 `.sln`**：根目錄有兩個方案檔時，不帶路徑的 `dotnet` 指令會因為不知道選哪個而失敗。
-- **dcproj 的限制不變**：dcproj 依賴 Visual Studio 安裝的 `Microsoft.Docker.Sdk`。裝了 VS 的
-  Windows 上裸建方案檔可以成功（2026-11-02 實測 `.sln`、`.slnx` 皆同），CI 的 Linux 與 macOS 沒有這個 SDK，
-  所以建置與測試照舊指定專案路徑，CI 不受影響。
+- **dcproj 不會讓 CLI 建置失敗**：2026-11-02 實測，Windows（已裝 VS）與 Linux（`sdk:10.0` 容器）
+  裸建 `.sln`、`.slnx` 都成功——dcproj 的 `Microsoft.Docker.Sdk` 由 NuGet 還原，在 VS 以外建置時不做事。
+  原本「裸建必炸」的前提已不成立（§4、§6 同步修正）；建置與測試仍指定專案路徑，理由見 §6。
 
 放棄的東西：較舊的工具打不開。需要 Visual Studio 2022 17.13 以上（早期版本須開啟預覽功能）、
 Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0.x，已滿足）。
@@ -188,8 +188,8 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
   不與 base 合併、必須明確 `-f` 指定。
 - 只要資料庫（本機熱重載模式）：`docker compose up -d mysql` 指定服務名。
 
-**接受的代價**：① dcproj 只有 Visual Studio 認得，沒裝 VS 的環境（CI、macOS）裸建方案檔會失敗
-——`dotnet build` / `dotnet test` 一律指定專案路徑，日後 CI 亦同；
+**接受的代價**：① ~~dcproj 只有 Visual Studio 認得，CLI 裸建 sln 會失敗~~
+——2026-11-02 實測已不成立（SDK 10 在 Windows 與 Linux 都能裸建，見 §2 `.slnx` 節），此代價不存在；
 ② 預設檔不再無害：誤打 `docker compose up` 會建置並啟動 api + mysql 的
 Development 組合（仍不含 client、不是部署佈局）。
 ③ dcproj 與 Windows/VS 綁定；macOS 上用 Rider/VS Code 時忽略它即可，
@@ -247,8 +247,8 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 - **為什麼初期就上 CI**：導入條件「測試專案有實際內容」已成立；
   且 CI 在 Linux/UTC/Release 下執行，能抓 Windows 開發機看不到的問題
   （檔名大小寫、時區、漏 commit 的檔案、Dockerfile 失效）。
-- **為什麼指定專案路徑、不裸建方案檔**：dcproj 只有 Visual Studio 認得，
-  裸建必炸。
+- **為什麼指定專案路徑、不建方案檔**：範圍明確——CI 要的是 Api 與測試專案，方案檔另含
+  dcproj 與網站節點，建它們只是多做事。原本的理由「dcproj 讓裸建必炸」2026-11-02 實測已不成立。
 - **為什麼 `vue-tsc` 從第一天就阻擋**：目前型別錯誤為 0，此時設阻擋的
   成本是零；等錯誤累積後再想擋，就得先還債。
 - **為什麼 `*.md` 不觸發**：文件變更跑建置是純浪費。

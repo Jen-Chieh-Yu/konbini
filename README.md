@@ -267,9 +267,9 @@ cd src/Konbini.Client && npm run dev
 > 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
 > 資料庫仍要先自己 `docker compose up -d mysql`。
 
-> ⚠️ **CLI 建置與測試必須指定專案路徑**（`dotnet build src/Konbini.Api`、
-> `dotnet test tests/Konbini.Tests`）。裸跑 `dotnet build` 會嘗試建置
-> `docker-compose.dcproj` 而失敗——dcproj 只有 Visual Studio 認得。
+> CLI 建置與測試建議指定專案路徑（`dotnet build src/Konbini.Api`、
+> `dotnet test tests/Konbini.Tests`），範圍明確、只建需要的專案。裸跑 `dotnet build` 會建置整個
+> `Konbini.slnx`（連同 dcproj），也能成功，只是多做事。
 
 ### 啟動服務（完整容器）
 
@@ -487,7 +487,7 @@ dotnet test tests/Konbini.Tests
   不是設定沒生效。
   想重跑失敗的那一次請改用該次執行頁的 **Re-run jobs**：它保留原本的
   事件脈絡（Pull Request 編號、觸發者、ref），手動觸發是另起一次新執行。
-- CI 一律指定專案路徑，不裸建方案檔（dcproj 只有 Visual Studio 認得）。
+- CI 一律指定專案路徑（只建 Api 與測試專案，範圍明確）。
 - 取得映像成品：該次執行的 Summary 頁最下方 **Artifacts** 區下載，
   依目標機器的 CPU 架構選 `-amd64`（x86_64）或 `-arm64`（Apple Silicon），
   `docker load < konbini-api-vX.Y.Z-arm64.tar.gz` 即可還原。
