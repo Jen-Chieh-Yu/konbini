@@ -40,10 +40,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # SDK 版本由根目錄 global.json 決定，本機與 CI 同一份設定；升版只改 global.json
       - name: ② 安裝 .NET SDK（依 global.json）
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       # 指定專案路徑：只建 Api（測試專案由步驟④建），不建方案檔裡的 dcproj 與網站節點
@@ -57,7 +57,7 @@ jobs:
       # 測試失敗時上傳 trx 報告，可下載到本機用 Visual Studio 開啟排查
       - name: ④-1 上傳測試報告（僅失敗時）
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: TestResults/*.trx
@@ -83,7 +83,9 @@ jobs:
         if: always()
         run: |
           dotnet list src/Konbini.Api package --vulnerable --include-transitive | tee vuln.log || true
-          if grep -q "vulnerable packages" vuln.log; then
+          # 只比對「有弱點」的句子：沒有弱點時的訊息「has no vulnerable packages」也含 vulnerable packages，
+          # 只 grep 後半句會把「沒有弱點」誤判成有弱點
+          if grep -q "has the following vulnerable packages" vuln.log; then
             echo "::warning title=NuGet 套件弱點::發現有已知弱點的套件，明細見 Summary 與步驟⑥ log"
             { echo "## NuGet 套件弱點"; echo '```'; cat vuln.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           else
@@ -98,10 +100,10 @@ jobs:
         working-directory: src/Konbini.Client
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # Node 版本由 .nvmrc 決定，本機（nvm／fnm）與 CI 同一份設定
       - name: ② 安裝 Node.js（依 .nvmrc）
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: src/Konbini.Client/.nvmrc
           cache: npm
@@ -130,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # 建完即丟：只驗證 Dockerfile 在乾淨環境建得起來
       - name: ② 建置 api 映像
         run: docker build -f src/Konbini.Api/Dockerfile -t konbini-api:ci .
@@ -151,7 +153,7 @@ jobs:
     steps:
       # 完整歷史：要確認正式標籤是否已在 main 上
       - name: ① 取出原始碼（完整歷史）
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: ② 決定版號與成品名稱（正式標籤須在 main 上）
@@ -177,7 +179,7 @@ jobs:
       SUFFIX: ${{ needs.release-info.outputs.suffix }}
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # 版號與 commit 寫進後端組件（/api/version）與前端的 version.json；
       # 映像標籤＝版號，與 docker-compose.prod.yml 的 image: 對應
       - name: ② 建置版本映像
@@ -219,7 +221,7 @@ jobs:
           docker save "konbini-client:$APP_VERSION" | gzip > "konbini-client-$SUFFIX-${{ matrix.arch }}.tar.gz"
       # 正式發行另外附在 Release 上（不會過期）；測試打包只留 7 天
       - name: ⑤ 上傳成品（Artifacts）
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: konbini-images-${{ env.SUFFIX }}-${{ matrix.arch }}
           path: konbini-*.tar.gz
@@ -238,7 +240,7 @@ jobs:
       APP_VERSION: ${{ needs.release-info.outputs.version }}
     steps:
       - name: ① 下載各架構的映像成品
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: konbini-images-*
           merge-multiple: true
