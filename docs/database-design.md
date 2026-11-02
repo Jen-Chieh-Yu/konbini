@@ -2,10 +2,11 @@
 
 ## 基本設定
 
-- 字元集：utf8mb4，定序 utf8mb4_unicode_ci 或 utf8mb4_0900_ai_ci
-  （不要用 utf8，那是 3-byte，存不下部分中文與 emoji）
-- 儲存引擎：InnoDB
-- 時區：資料庫一律存 UTC，顯示時才轉 Asia/Taipei
+- 資料庫：PostgreSQL 18（Npgsql provider）
+- 編碼：UTF8（官方映像預設），中文與 emoji 都存得下
+- 時區：資料庫一律存 UTC（`timestamptz`），顯示時才轉 Asia/Taipei
+- 比對區分大小寫：不分大小寫的比對要明確處理——Email 寫入前正規化成小寫，
+  搜尋用 `EF.Functions.ILike`（不要用 `Contains`，它在 PostgreSQL 會區分大小寫）
 
 ## 命名
 
@@ -15,19 +16,25 @@
 - 外鍵：<單數表名>\_id。product_id、order_id
 - 索引：ix*<表名>*<欄位>；唯一索引 ux*<表名>*<欄位>
 
-MySQL 在 Linux 上資料表名稱大小寫敏感、在 Windows 上不敏感。
-統一小寫可以避免部署到 Linux 時炸掉。
+由 `EFCore.NamingConventions` 的 `UseSnakeCaseNamingConvention()` 自動轉換，
+C# 照常用 PascalCase（CreatedAt → created_at），不要在 Configuration 逐一 HasColumnName。
+PostgreSQL 會把未加引號的識別字轉成小寫，統一小寫底線，手寫 SQL 時就不必加雙引號。
 
 ## 欄位型別
 
-| 用途                   | 型別                             |
-| ---------------------- | -------------------------------- |
-| 金額、單價、小計       | INT（新台幣整數）                |
-| 重量、數量（可能小數） | DECIMAL(18,3)                    |
-| 件數                   | INT                              |
-| 時間                   | DATETIME(6)，存 UTC              |
-| 布林                   | TINYINT(1)                       |
-| 狀態列舉               | TINYINT 或 VARCHAR，對應 C# enum |
+| 用途                   | 型別（C# → PostgreSQL）                         |
+| ---------------------- | ----------------------------------------------- |
+| 金額、單價、小計       | int → integer（新台幣整數）                     |
+| 重量、數量（可能小數） | decimal → numeric(18,3)                         |
+| 件數                   | int → integer                                   |
+| 時間                   | DateTime（Kind=Utc）→ timestamptz               |
+| 日期（不含時間）       | DateOnly → date                                 |
+| 布林                   | bool → boolean                                  |
+| 狀態列舉               | enum → integer（依底層型別，預設 int；要 smallint 須宣告 `enum X : short`） |
+| 文字                   | string → varchar(n)，長度以 HasMaxLength 指定   |
+
+`timestamptz` 只接受 UTC：寫入的 DateTime 必須是 `DateTime.UtcNow` 這類 Kind=Utc 的值，
+Kind=Local／Unspecified 會在寫入時丟例外（Npgsql 的刻意設計，避免時區被悄悄換算）。
 
 金額絕不使用 FLOAT / DOUBLE。本專案金額一律為新台幣整數，
 統一用 INT（C# 端為 int），不使用 DECIMAL——
@@ -38,11 +45,11 @@ MySQL 在 Linux 上資料表名稱大小寫敏感、在 Windows 上不敏感。
 所有業務資料表包含：
 
 - id
-- created_on（DATETIME(6)，UTC）
+- created_on（timestamptz，UTC）
 - created_by（建立者 user id）
-- modified_on（DATETIME(6)，UTC）
+- modified_on（timestamptz，UTC）
 - modified_by（最後異動者 user id）
-- status（TINYINT，對應 C# enum）
+- status（smallint，對應 C# enum）
 
 C# 屬性名為 CreatedOn / CreatedBy / ModifiedOn / ModifiedBy / Status，
 資料庫欄位名依本文件命名規則轉為小寫底線。
@@ -67,7 +74,8 @@ quantity、subtotal
 - 所有外鍵欄位建索引。
 - 常用查詢條件建索引：orders.user_id、orders.created_on、
   products.type、products.status
-- 商品搜尋若量大，考慮全文索引或外部搜尋，不要用 LIKE '%關鍵字%'。
+- 商品搜尋目前用 `ILIKE '%關鍵字%'`（無法使用一般索引）；量大時改用
+  `pg_trgm` 的 GIN 索引或全文檢索，不要硬撐。
 
 ## Migration
 

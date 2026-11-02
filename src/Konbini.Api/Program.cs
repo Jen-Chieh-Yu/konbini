@@ -12,14 +12,15 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 資料庫（連線字串來源：容器 = .env 經環境變數；本機 = user-secrets）---
-var connectionString = builder.Configuration.GetConnectionString("MySqlConnection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException(
-        "ConnectionStrings:MySqlConnection 未設定。本機開發請用 dotnet user-secrets，容器請確認 .env 與 compose 的 environment。");
+        "ConnectionStrings:DefaultConnection 未設定。本機開發請用 dotnet user-secrets，容器請確認 .env 與 compose 的 environment。");
 }
+// 資料表、欄位、索引一律 snake_case（PostgreSQL 慣例：未加引號的識別字會轉小寫，PascalCase 手寫 SQL 時都要加雙引號）
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
 
 // --- 認證（JWT；Secret 空值或不足 32 字元直接啟動失敗，不帶病上線）---
 // HS256 金鑰至少 256 bits，太短要到簽發 token（登入）時才報錯，提前到啟動時擋

@@ -29,12 +29,12 @@
 | 類別 | 技術 | 說明 |
 |------|------|------|
 | 框架 | .NET 10, ASP.NET Core Minimal API | 核心框架 |
-| 資料庫 | MySQL 8.4（LTS） | 隨 compose 啟動，資料以 named volume 持久化 |
-| ORM | Entity Framework Core + Pomelo | Queries 一律 `AsNoTracking` + 投影 DTO |
+| 資料庫 | PostgreSQL 18 | 隨 compose 啟動，資料以 named volume 持久化 |
+| ORM | Entity Framework Core + Npgsql | Queries 一律 `AsNoTracking` + 投影 DTO |
 | 認證 | JWT | 取代原 Session 機制 |
 | 前端 | Vue 3, Vite, Pinia, Vue Router, Axios | SPA，購物車狀態存於 Pinia |
 | UI 元件庫 | Element Plus | 按需自動引入（unplugin），template 直接用 `<el-xxx>` 不需 import |
-| 部署 | Docker Compose | nginx（client）+ api + mysql |
+| 部署 | Docker Compose | nginx（client）+ api + postgres |
 
 ---
 
@@ -44,10 +44,10 @@
 Konbini/
 ├── Konbini.slnx                  # 方案檔（XML 格式）
 ├── global.json                   # 限定 .NET 10 SDK，本機與 CI 共用
-├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api + mysql 並附加偵錯器
-├── docker-compose.yml            # 偵錯/開發 base：api + mysql
+├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api + postgres 並附加偵錯器
+├── docker-compose.yml            # 偵錯/開發 base：api + postgres
 ├── docker-compose.override.yml   # 偵錯用環境變數與埠（自動與 base 合併）
-├── docker-compose.prod.yml       # 部署環境：client + api + mysql 全套
+├── docker-compose.prod.yml       # 部署環境：client + api + postgres 全套
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
@@ -59,6 +59,7 @@ Konbini/
 ├── .github/
 │   ├── workflows/ci.yml          # CI：後端、前端、Docker，v* 標籤打包映像
 │   └── pull_request_template.md  # Pull Request description 範本
+├── docker/postgres/init/         # postgres 首次初始化腳本：建立應用程式帳號與資料庫
 ├── docs/
 │   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
 │   ├── database-design.md        # 資料表、欄位型別與 Migration 規範
@@ -150,7 +151,7 @@ src/features/Products/
     +-- /api/*  --> [ api:8080 ]  .NET 10 Minimal API（僅 compose 內部網路）
     |                    |
     +-- 其他 --> index.html            v
-                （Vue History Mode）  [ mysql:3306 ]（僅 compose 內部網路）
+                （Vue History Mode）  [ postgres:5432 ]（僅 compose 內部網路）
 ```
 
 前端一律打相對路徑 `/api/...`，由 nginx 轉發 —— 瀏覽器端**沒有跨域**，不需要 CORS 白名單。
@@ -163,9 +164,9 @@ src/features/Products/
 | 服務 | 用途 | 連接/備註 |
 | --- | --- | --- |
 | `api` | 後端 API（容器內偵錯） | 對外 `5214:8080`，vite proxy 不需改任何設定 |
-| `mysql` | 開發用資料庫 | 對外 `3306`，named volume |
+| `postgres` | 開發用資料庫 | 對外 `127.0.0.1:5432`，named volume |
 
-★ 只要資料庫、想走本機最快迭代時：`docker compose up -d mysql`（指定服務名，不會起 api）。
+★ 只要資料庫、想走本機最快迭代時：`docker compose up -d postgres`（指定服務名，不會起 api）。
 
 **部署環境（`docker-compose.prod.yml`）** —— 完整三服務：
 
@@ -173,20 +174,20 @@ src/features/Products/
 | --- | --- | --- |
 | `client` | 對外入口：SPA 靜態檔 + `/api` 反代 | 對外 `8080:80` |
 | `api` | 後端 API | `expose: 8080`，**不映射到主機** |
-| `mysql` | 資料庫 | 不對外開埠，named volume + init SQL |
+| `postgres` | 資料庫 | 不對外開埠，named volume + init 腳本 |
 
 部署環境的 compose 專案名是 `konbini-prod`，容器名一律 `konbini-prod-*`、
-volume 是 `konbini-prod_mysql-data`——與開發環境完全分開，兩套可以同時存在。
+volume 是 `konbini-prod_pg-data`——與開發環境完全分開，兩套可以同時存在。
 
 ⚠️ `docker compose up` 不帶 `-f` 會抓 `docker-compose.yml` + override，
-起的是 **api + mysql 的偵錯組合**（Development 環境、不含 client）——
+起的是 **api + postgres 的偵錯組合**（Development 環境、不含 client）——
 不是部署佈局；部署一律明確指定 `-f docker-compose.prod.yml`。
 
 ⚠️ **compose 的 `.env` 只做 `${}` 變數替換，不會自動注入容器。**
 要覆蓋 `appsettings.json` 必須在 compose 的 `environment:` 區段明寫
-（鍵名用 .NET 設定鍵格式：`ConnectionStrings__MySqlConnection`）。
+（鍵名用 .NET 設定鍵格式：`ConnectionStrings__DefaultConnection`）。
 
-⚠️ macOS（Apple Silicon）：.NET、nginx、MySQL 8.4 官方映像皆原生支援 arm64，
+⚠️ macOS（Apple Silicon）：.NET、nginx、PostgreSQL 18 官方映像皆原生支援 arm64，
 不需要 `platform` 覆寫。
 
 ---
@@ -206,10 +207,10 @@ volume 是 `konbini-prod_mysql-data`——與開發環境完全分開，兩套�
 cp .env.example .env
 
 # 2. 本機開發的機密放 user-secrets（不進 repo，不會誤 commit）
-#    值與 .env 相同：konbini 帳號由 mysql 容器依 .env 建立，密碼必須一致。
+#    值與 .env 相同：konbini 帳號由 postgres 的 init 腳本依 .env 建立，密碼必須一致。
 #    csproj 已設定 UserSecretsId，不需要 dotnet user-secrets init。
-dotnet user-secrets set "ConnectionStrings:MySqlConnection" \
-  "Server=127.0.0.1;Port=3306;Database=konbini;User=konbini;Password=<.env 的 MYSQL_PASSWORD>" \
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
+  "Host=127.0.0.1;Port=5432;Database=konbini;Username=konbini;Password=<.env 的 APP_DB_PASSWORD>" \
   --project src/Konbini.Api
 dotnet user-secrets set "Jwt:Secret" "<.env 的 JWT_SECRET>" --project src/Konbini.Api
 
@@ -235,7 +236,7 @@ Windows（PowerShell）的第 2 步可以直接從 `.env` 帶入，不必重打�
 
 ```powershell
 $e = Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ConvertFrom-StringData
-dotnet user-secrets set "ConnectionStrings:MySqlConnection" "Server=127.0.0.1;Port=3306;Database=$($e.MYSQL_DATABASE);User=$($e.MYSQL_USER);Password=$($e.MYSQL_PASSWORD)" --project src/Konbini.Api
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=127.0.0.1;Port=5432;Database=$($e.APP_DB_NAME);Username=$($e.APP_DB_USER);Password=$($e.APP_DB_PASSWORD)" --project src/Konbini.Api
 dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
 ```
 
@@ -246,21 +247,27 @@ dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
 > ⚠️ 第 4 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
 > 不會觸發，且沒有任何提示。緊急情況可用 `git push --no-verify` 跳過。
 
-> ⚠️ **應用程式不使用 root 連線。** 資料庫帳號一律用專屬帳號 `konbini`
->（由 mysql 容器依 `.env` 的 `MYSQL_USER` 自動建立）。理由見 `CLAUDE.md` §3。
+> ⚠️ **應用程式不使用超級使用者連線。** 資料庫帳號一律用專屬帳號 `konbini`
+>（由 `docker/postgres/init` 的腳本依 `.env` 的 `APP_DB_USER` 建立）。理由見 `CLAUDE.md` §3。
+
+> **從 MySQL 版本升級上來的機器**（2026-11-02 改用 PostgreSQL）：`.env` 改照新的 `.env.example`
+> 補上 `POSTGRES_PASSWORD`、`APP_DB_PASSWORD`；user-secrets 照第 2 步重設（舊的鍵可用
+> `dotnet user-secrets remove "ConnectionStrings:MySqlConnection" --project src/Konbini.Api` 移除）；
+> 舊的 MySQL 容器與 volume 用 `docker rm -f konbini-mysql`、`docker volume rm konbini_mysql-data` 清掉
+>（開發資料不轉移，API 啟動時會重建 schema 與種子）。
 > `Jwt:Secret` 空值時 API 會啟動失敗——這是刻意的 fail fast。
 
 ### 啟動服務（日常開發）
 
 **方式 A：VS 容器偵錯（F5）** —— 方案總管把 `docker-compose` 設為啟始專案後按 F5：
-VS 會建映像、起 api + mysql、把偵錯器附加進 api 容器，並開啟
+VS 會建映像、起 api + postgres、把偵錯器附加進 api 容器，並開啟
 `http://localhost:5214/scalar`。前端照常另開終端機跑 `npm run dev`。
 
 **方式 B：本機最快迭代** —— API 不進容器，熱重載最快：
 
 ```bash
 # 1. 只起資料庫（指定服務名）
-docker compose up -d mysql
+docker compose up -d postgres
 
 # 2. 後端（http://localhost:5214，Scalar API 文件在 /scalar）
 dotnet watch --project src/Konbini.Api
@@ -272,7 +279,7 @@ cd src/Konbini.Client && npm run dev
 兩種方式的 api 對外都是 `5214`，前端與 Scalar 的用法完全相同。
 
 > 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
-> 資料庫仍要先自己 `docker compose up -d mysql`。
+> 資料庫仍要先自己 `docker compose up -d postgres`。
 
 > CLI 建置與測試建議指定專案路徑（`dotnet build src/Konbini.Api`、
 > `dotnet test tests/Konbini.Tests`），範圍明確、只建需要的專案。裸跑 `dotnet build` 會建置整個
@@ -291,39 +298,44 @@ open http://localhost:8080
 
 資料庫不需要安裝——它是 compose 裡的容器，schema 與種子資料由 API 首次啟動時自動建立。
 
-### 重置資料庫（改了 `.env` 密碼、更新種子、升級 MySQL 版本之後）
+### 重置資料庫（改了 `.env` 密碼、更新種子、改了 Entity 結構之後）
 
 ```bash
-docker compose down -v        # 停容器並刪除 mysql-data volume
-docker compose up -d mysql    # 全新初始化；下次 API 啟動會重建 schema + 種子
+docker compose down -v          # 停容器並刪除 pg-data volume
+docker compose up -d postgres   # 全新初始化（重跑 init 腳本）；下次 API 啟動會重建 schema + 種子
 ```
 
-> ⚠️ **`.env` 的 MySQL 帳密只在 volume「第一次初始化」時生效**，之後再改
+> ⚠️ **`.env` 的資料庫帳密只在 volume「第一次初始化」時生效**，之後再改
 > `.env` 不會更新既有資料庫——改了密碼就必須 `down -v` 重置（開發資料可拋棄），
-> 或進 SQL 手動 `ALTER USER`。這是 MySQL 官方映像的行為，不是本專案的設計。
+> 或進 SQL 手動 `ALTER ROLE`。這是 PostgreSQL 官方映像的行為（init 腳本只跑一次），不是本專案的設計。
+>
+> ⚠️ **升級 PostgreSQL 主版本**（例如 18 → 19）不能只改映像版本：資料目錄綁定主版本，
+> 新映像會拒絕啟動。開發環境直接 `down -v` 重建；要保留資料則先 `pg_dump`、升級後再還原。
 
 ### 進 SQL 命令列 / 圖形介面
 
 ```bash
-docker exec -it konbini-mysql mysql -u konbini -p konbini   # 密碼見 .env
+docker exec -it konbini-postgres psql -U konbini -d konbini   # 容器內走本機連線，不需輸入密碼
 ```
 
-圖形介面用 DBeaver / HeidiSQL 連 `localhost:3306` 即可（裝的是客戶端，不是資料庫）。
+圖形介面用 Rider 的 Database 工具視窗、DBeaver 或 pgAdmin 連 `localhost:5432` 即可
+（帳號 `konbini`，密碼見 `.env` 的 `APP_DB_PASSWORD`；裝的是客戶端，不是資料庫）。
+資料表與欄位都是小寫底線（snake_case），手寫 SQL 不用加雙引號。
 
 ### 備份與還原
 
 ```bash
 # 備份（唯一值得備份的是正式環境的資料；開發庫可隨時重生）
-docker exec konbini-prod-mysql mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" konbini > backup.sql
+docker exec konbini-prod-postgres pg_dump -U konbini -d konbini --clean --if-exists > backup.sql
 
 # 還原到另一台機器
-docker exec -i konbini-prod-mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" konbini < backup.sql
+docker exec -i konbini-prod-postgres psql -U konbini -d konbini < backup.sql
 ```
 
 ### 排錯與健康狀態
 
 ```bash
-docker compose logs -f mysql                      # 資料庫日誌
+docker compose logs -f postgres                   # 資料庫日誌（含 init 腳本的輸出）
 docker compose logs -f api                        # API 日誌（含啟動失敗原因）
 docker compose -f docker-compose.prod.yml ps      # api 應顯示 (healthy)
 curl http://localhost:5214/health                 # 開發模式：Healthy = API 與 DB 皆正常
@@ -460,7 +472,7 @@ public class ProductEndpoints : IEndpoint
 ```text
 tests/Konbini.Tests/
 ├── Unit/           # Commands handler（下單、註冊、登入等商業邏輯）
-└── Integration/    # API + 真實 MySQL（Testcontainers），Queries 主要在此覆蓋
+└── Integration/    # API + 真實 PostgreSQL（Testcontainers），Queries 主要在此覆蓋
 ```
 
 ```bash

@@ -15,5 +15,6 @@
     <None Include="docker-compose.prod.yml" />
     <None Include=".dockerignore" />
     <None Include=".env.example" />
+    <None Include="docker\postgres\init\01-create-app-user.sh" />
   </ItemGroup>
 </Project>

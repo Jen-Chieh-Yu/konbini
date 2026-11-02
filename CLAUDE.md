@@ -39,9 +39,8 @@
 | 前端 | `src/Konbini.Client` | Vue 3 + Vite + Pinia，`src/features/` 與後端同名分模組；不在方案檔內（沒有專案檔，由 Vite／Dockerfile 自行建置），Rider 以附加資料夾顯示 |
 | 測試 | `tests/Konbini.Tests` | 單一測試專案，內分 `Unit/` 與 `Integration/` |
 
-資料庫是 **MySQL 8.4（LTS，支援至 2032），隨 compose 啟動**（沒有既有的外部資料庫，
-自己帶最省事）。Why 8.4：8.0 已於 2026-04 EOL；9.x 是短命的 innovation release，
-版本一律釘 LTS。
+資料庫是 **PostgreSQL 18，隨 compose 啟動**（沒有既有的外部資料庫，自己帶最省事；
+2026-11-02 由 MySQL 8.4 改用，理由見 §3）。主版本一律釘死（18 支援至 2030-11），不用 `latest`。
 部署目標為 macOS（Apple Silicon）。程式碼放 GitHub。
 
 請求路徑：`Endpoint → Command/Query Handler → Repository → AppDbContext`，
@@ -151,7 +150,7 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 
 | 情境 | 來源 |
 |---|---|
-| 容器 | `.env` →（compose `environment:`）→ 環境變數 `ConnectionStrings__MySqlConnection` |
+| 容器 | `.env` →（compose `environment:`）→ 環境變數 `ConnectionStrings__DefaultConnection` |
 | 本機 `dotnet run` | `dotnet user-secrets`（存於使用者目錄，天生不會誤 commit） |
 
 `appsettings.json` 與程式碼中不出現任何機密。本機不放第二份 `.env` 是刻意的
@@ -164,15 +163,32 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 ### 資料庫帳號（2026-08-31 定案）
 
 應用程式一律使用專屬帳號 `konbini`
-（由 compose 的 MYSQL_USER / MYSQL_PASSWORD 環境變數自動建立），
-**不使用 root**。Why：最小權限——連線字串萬一外洩，賠掉的是單一資料庫的
+（volume 首次初始化時由 `docker/postgres/init/01-create-app-user.sh` 依 `.env` 的
+`APP_DB_USER` / `APP_DB_PASSWORD` 建立，並擁有 `APP_DB_NAME` 資料庫），
+**不使用超級使用者**（PostgreSQL 映像的 `POSTGRES_USER`）。Why：最小權限——連線字串萬一外洩，賠掉的是單一資料庫的
 存取權，不是整台資料庫伺服器。
 
-### 為什麼 MySQL 放進 Docker（2026-08-31 定案）
+### 改用 PostgreSQL（2026-11-02 變更決策）
+
+初版用 MySQL 8.4（Pomelo provider）。改用 PostgreSQL 18（Npgsql provider）：
+
+- **provider 跟不上 EF Core**：Pomelo 停在 EF Core 9，整個專案被迫停在 9；
+  它帶進的 `MySqlConnector` 2.4.0 有已知弱點（NU1902），只能等上游。Npgsql 與 EF Core
+  同步發版，換過去即升到 EF Core 10。
+- **免費雲端資料庫的選擇**：Neon、Supabase 等免費方案以 PostgreSQL 為主，日後練習部署可直接沿用。
+- **命名改 snake_case**（`EFCore.NamingConventions`）：PostgreSQL 會把未加引號的識別字轉小寫，
+  PascalCase 欄位手寫 SQL 時都得加雙引號；與 `docs/database-design.md` 的命名規則一致。
+- **比對區分大小寫**：MySQL 的預設定序不分大小寫，PostgreSQL 會分。Email 改為寫入與查詢前
+  正規化成小寫（`User.NormalizeEmail`，不依賴資料庫定序）；商品搜尋改用 `ILike`。
+
+放棄的東西：既有 MySQL 開發資料不轉移（`EnsureCreated` 與種子資料可隨時重建）；
+`.env` 與 user-secrets 的鍵名改變，每台機器要重設一次（README「初次設定」）。
+
+### 為什麼資料庫放進 Docker（2026-08-31 定案）
 
 沒有既有的外部資料庫，要的是「clone 下來 `docker compose up` 就有完整環境」
 ——專案公開在 GitHub，這句話就是別人能不能跑起來的分界。
-資料以 named volume 持久化；真要保資料，`mysqldump` 排程比容器存廢可靠。
+資料以 named volume 持久化；真要保資料，`pg_dump` 排程比容器存廢可靠。
 
 ---
 
@@ -183,17 +199,17 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 初版設計是「兩份獨立檔案、預設檔只放無害的 mysql」。後來為了 **VS F5 容器偵錯**
 改為現制——這是一次明確的取捨變更，代價要記著：
 
-- `docker-compose.yml`（base：api + mysql）+ `docker-compose.override.yml`
+- `docker-compose.yml`（base：api + postgres）+ `docker-compose.override.yml`
   （偵錯環境變數與埠）：VS 以 `docker-compose.dcproj` 為啟始專案按 F5 時啟動，
   偵錯器附加進 api 容器。api 對外固定 `5214:8080`，**與本機執行同一個埠**，
   所以 vite proxy 與 Swagger 網址在容器內外兩種模式下通用。
-- `docker-compose.prod.yml`：部署專用，自包含三服務（client + api + mysql），
+- `docker-compose.prod.yml`：部署專用，自包含三服務（client + api + postgres），
   不與 base 合併、必須明確 `-f` 指定。
-- 只要資料庫（本機熱重載模式）：`docker compose up -d mysql` 指定服務名。
+- 只要資料庫（本機熱重載模式）：`docker compose up -d postgres` 指定服務名。
 
 **接受的代價**：① ~~dcproj 只有 Visual Studio 認得，CLI 裸建 sln 會失敗~~
 ——2026-11-02 實測已不成立（SDK 10 在 Windows 與 Linux 都能裸建，見 §2 `.slnx` 節），此代價不存在；
-② 預設檔不再無害：誤打 `docker compose up` 會建置並啟動 api + mysql 的
+② 預設檔不再無害：誤打 `docker compose up` 會建置並啟動 api + postgres 的
 Development 組合（仍不含 client、不是部署佈局）。
 ③ dcproj 與 Windows/VS 綁定；macOS 上用 Rider/VS Code 時忽略它即可，
 compose 檔本身與部署流程完全跨平台。
@@ -212,7 +228,7 @@ nginx（client 容器）是唯一入口：SPA 靜態檔 + `/api` 反代。
 
 ### macOS（Apple Silicon）（2026-08-31 定案）
 
-.NET、nginx、MySQL 8.4 官方映像皆原生 arm64；若遇到沒有 arm64 的映像，
+.NET、nginx、PostgreSQL 18 官方映像皆原生 arm64；若遇到沒有 arm64 的映像，
 **不要用 `platform: linux/amd64` 硬撐**（走 Rosetta，效能差且偶有 I/O 問題），
 換 tag 或換映像解決。
 
@@ -353,8 +369,9 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 |---|---|
 | `README.md` | 專案結構、開發流程（The Feature Flow）、Docker、測試 |
 | `.env.example` | compose 所需的環境變數清單 |
-| `docker-compose.yml` | 開發環境 base（api + mysql，與 override 合併；只要資料庫用 `up -d mysql`） |
-| `docker-compose.prod.yml` | 部署環境（client + api + mysql） |
+| `docker-compose.yml` | 開發環境 base（api + postgres，與 override 合併；只要資料庫用 `up -d postgres`） |
+| `docker-compose.prod.yml` | 部署環境（client + api + postgres） |
+| `docker/postgres/init/` | postgres volume 首次初始化時執行的腳本（建立應用程式帳號與資料庫） |
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
 | `docs/ui-guidelines.md` | 前端畫面、RWD 與中文排版規範 |

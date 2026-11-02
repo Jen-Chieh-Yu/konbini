@@ -372,6 +372,8 @@ _to_delete/
 
 # JetBrains Rider：.idea/ 不整個排除——附加資料夾（indexLayout.xml）要跨機器共用；
 # 個人檔（workspace.xml 等）由 Rider 自動產生的 .idea/.idea.Konbini/.idea/.gitignore 排除
+# Rider 的 Docker 偵錯產生檔（含本機絕對路徑，每台機器不同）
+.idea/.idea.Konbini/Docker/
 
 # Claude Code 個人設定（權限白名單等），各機器自行維護；.claude/ 其餘內容要進版控
 .claude/settings.local.json

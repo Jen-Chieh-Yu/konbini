@@ -43,6 +43,8 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
     public async Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct)
         => await db.Products.AsNoTracking()
             .Where(p => p.Type == type && p.Id != excludeId)
+            // PostgreSQL 不保證未排序查詢的順序（MySQL InnoDB 依主鍵叢集，過去「剛好」有序）
+            .OrderBy(p => p.Id)
             .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
             .ToListAsync(ct);
 
@@ -54,10 +56,12 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
         }
 
         // 多關鍵字 OR：以 Union 累加，可完整轉譯為 SQL（不需在記憶體過濾）
+        // ILike 不分大小寫（PostgreSQL 的 LIKE／Contains 會區分）；% 與 _ 先跳脫，避免使用者輸入被當成萬用字元
         IQueryable<Product>? matched = null;
         foreach (var keyword in keywords)
         {
-            var part = db.Products.Where(p => p.Name.Contains(keyword));
+            var pattern = $"%{EscapeLike(keyword)}%";
+            var part = db.Products.Where(p => EF.Functions.ILike(p.Name, pattern, LikeEscape));
             matched = matched is null ? part : matched.Union(part);
         }
 
@@ -66,6 +70,13 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
             .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
             .ToListAsync(ct);
     }
+
+    private const string LikeEscape = "\\";
+
+    private static string EscapeLike(string value)
+        => value.Replace(LikeEscape, LikeEscape + LikeEscape)
+            .Replace("%", LikeEscape + "%")
+            .Replace("_", LikeEscape + "_");
 
     public async Task<Dictionary<int, ProductSnapshot>> GetSnapshotsAsync(IReadOnlyCollection<int> ids, CancellationToken ct)
         => await db.Products.AsNoTracking()

@@ -69,6 +69,9 @@
 #（JWT 金鑰與密碼變成錯的，卻不會報格式錯誤），範本一律 LF
 .env.example text eol=lf
 
+# 容器內以 bash 執行的腳本（postgres init 等）：CRLF 會出現 "\r: command not found"
+*.sh text eol=lf
+
 # unplugin 自動產生的型別宣告（auto-imports.d.ts、components.d.ts）一律以 LF 寫出；
 # 工作區若轉成 CRLF，dev server 每次重寫都會讓 git 誤判為已修改，並擋住切換分支
 *.d.ts text eol=lf

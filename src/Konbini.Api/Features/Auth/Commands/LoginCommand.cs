@@ -19,7 +19,7 @@ public class LoginHandler(IUserRepository users, IPasswordHasher hasher, IJwtTok
             return LoginResult.Fail(new() { ["general"] = "請輸入帳號與密碼" });
         }
 
-        var user = await users.GetByEmailAsync(request.Email, ct);
+        var user = await users.GetByEmailAsync(User.NormalizeEmail(request.Email), ct);
 
         // 帳號不存在與密碼錯誤回同一訊息，避免帳號列舉
         if (user is null || !hasher.Verify(request.Password, user.PasswordHash))

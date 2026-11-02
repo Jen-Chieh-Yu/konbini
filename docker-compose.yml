@@ -1,5 +1,5 @@
 # VS F5（docker-compose 啟始專案）用的 base 檔，與 docker-compose.override.yml 合併生效。
-# 只需要資料庫時：docker compose up -d mysql
+# 只需要資料庫時：docker compose up -d postgres
 # 部署（含 client）用 docker-compose.prod.yml。
 name: konbini
 
@@ -10,27 +10,32 @@ services:
       context: .
       dockerfile: src/Konbini.Api/Dockerfile
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
 
-  mysql:
-    image: mysql:8.4
-    container_name: konbini-mysql
+  postgres:
+    # 主版本釘死（18 支援至 2030-11）；不用 latest，避免主版本升級後舊資料目錄無法啟動
+    image: postgres:18
+    container_name: konbini-postgres
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?請在 .env 設定 MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-konbini}
-      MYSQL_USER: ${MYSQL_USER:-konbini}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?請在 .env 設定 MYSQL_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?請在 .env 設定 POSTGRES_PASSWORD}
+      # 應用程式帳號與資料庫：由 init 腳本建立（POSTGRES_USER 是超級使用者，應用程式不使用）
+      APP_DB_NAME: ${APP_DB_NAME:-konbini}
+      APP_DB_USER: ${APP_DB_USER:-konbini}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?請在 .env 設定 APP_DB_PASSWORD}
     healthcheck:
       # -h 127.0.0.1 強制走 TCP：首次初始化時映像先起一個只開 socket 的暫時伺服器，
-      # 用 localhost（socket）會在初始化完成前就誤判健康
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
+      # 用 socket 檢查會在 init 腳本跑完前就誤判健康
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d postgres"]
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 30s
     volumes:
-      - mysql-data:/var/lib/mysql
+      # postgres 18 起資料目錄為 /var/lib/postgresql/<主版本>/docker，volume 掛在上一層
+      - pg-data:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
 
 volumes:
-  mysql-data:
+  pg-data:
