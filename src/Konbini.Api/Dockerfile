@@ -18,7 +18,12 @@ RUN dotnet build "Konbini.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "Konbini.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# 版號由 CI 依標籤傳入（.github/scripts/release-info.sh）；本機建置維持預設值。
+# 寫進組件的 InformationalVersion（版號+commit），由 GET /api/version 讀出
+ARG APP_VERSION=0.0.0-dev
+ARG GIT_SHA=local
+RUN dotnet publish "Konbini.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false \
+    /p:Version=$APP_VERSION /p:InformationalVersion=$APP_VERSION+$GIT_SHA
 
 FROM base AS final
 WORKDIR /app

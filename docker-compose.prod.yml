@@ -1,7 +1,8 @@
 # 部署環境：client（nginx，唯一對外入口）+ api（不映射主機埠）+ postgres（不對外）。
 # 本專案不正式上線：此檔用於部署「演練」與完整佈局驗證，
 # 故不設備份排程、監控與自動部署（決策見 CLAUDE.md §6）。
-# 啟動：docker compose -f docker-compose.prod.yml up -d --build
+# 本機演練：docker compose -f docker-compose.prod.yml up -d --build（映像標籤 0.0.0-local）
+# 部署發行版：docker load 發行成品後，.env 設 APP_VERSION，再 up -d --no-build（docs/deployment.md）
 
 # 獨立專案名：不設的話會沿用資料夾名 konbini，與開發環境（docker-compose.yml 的
 # name: konbini）視為同一個專案，共用 pg-data volume、互相覆蓋容器
@@ -16,8 +17,12 @@ x-logging: &default-logging
 
 services:
   client:
+    # 映像標籤＝版號：部署時用 docker load 進來的發行版映像；本機 --build 時為 0.0.0-local
+    image: konbini-client:${APP_VERSION:-0.0.0-local}
     build:
       context: ./src/Konbini.Client
+      args:
+        APP_VERSION: ${APP_VERSION:-0.0.0-local}
     container_name: konbini-prod-client
     restart: unless-stopped
     logging: *default-logging
@@ -28,9 +33,12 @@ services:
         condition: service_healthy
 
   api:
+    image: konbini-api:${APP_VERSION:-0.0.0-local}
     build:
       context: .
       dockerfile: src/Konbini.Api/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-0.0.0-local}
     container_name: konbini-prod-api
     restart: unless-stopped
     logging: *default-logging

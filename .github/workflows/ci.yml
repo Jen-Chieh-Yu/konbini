@@ -16,8 +16,18 @@ on:
   pull_request:
     branches: [main]
   # 手動觸發：Actions 頁面出現「Run workflow」按鈕，可指定分支或標籤執行。
-  # 不設 inputs——要重跑或臨時驗證時按一下即可，不必推空 commit 硬湊觸發條件
+  # 勾選「測試打包」時，在任何分支跑完整的打包與冒煙測試（版號 0.0.0-test.<編號>），
+  # 不必在分支上打 v* 標籤——已推送的標籤原則上不刪，會跟正式版號混在一起
   workflow_dispatch:
+    inputs:
+      test_package:
+        description: '測試打包（任何分支；版號 0.0.0-test.<編號>，成品只能用於測試）'
+        type: boolean
+        default: false
+
+# 預設只讀；建立 Release 的 job 另外提高權限
+permissions:
+  contents: read
 
 # 同一分支的連續推送只跑最新一次，舊的自動取消
 concurrency:
@@ -30,10 +40,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # SDK 版本由根目錄 global.json 決定，本機與 CI 同一份設定；升版只改 global.json
       - name: ② 安裝 .NET SDK（依 global.json）
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       # 指定專案路徑：只建 Api（測試專案由步驟④建），不建方案檔裡的 dcproj 與網站節點
@@ -47,7 +57,7 @@ jobs:
       # 測試失敗時上傳 trx 報告，可下載到本機用 Visual Studio 開啟排查
       - name: ④-1 上傳測試報告（僅失敗時）
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: TestResults/*.trx
@@ -73,7 +83,9 @@ jobs:
         if: always()
         run: |
           dotnet list src/Konbini.Api package --vulnerable --include-transitive | tee vuln.log || true
-          if grep -q "vulnerable packages" vuln.log; then
+          # 只比對「有弱點」的句子：沒有弱點時的訊息「has no vulnerable packages」也含 vulnerable packages，
+          # 只 grep 後半句會把「沒有弱點」誤判成有弱點
+          if grep -q "has the following vulnerable packages" vuln.log; then
             echo "::warning title=NuGet 套件弱點::發現有已知弱點的套件，明細見 Summary 與步驟⑥ log"
             { echo "## NuGet 套件弱點"; echo '```'; cat vuln.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           else
@@ -88,10 +100,10 @@ jobs:
         working-directory: src/Konbini.Client
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # Node 版本由 .nvmrc 決定，本機（nvm／fnm）與 CI 同一份設定
       - name: ② 安裝 Node.js（依 .nvmrc）
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: src/Konbini.Client/.nvmrc
           cache: npm
@@ -120,21 +132,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # 建完即丟：只驗證 Dockerfile 在乾淨環境建得起來
       - name: ② 建置 api 映像
         run: docker build -f src/Konbini.Api/Dockerfile -t konbini-api:ci .
       - name: ③ 建置 client 映像
         run: docker build -t konbini-client:ci src/Konbini.Client
 
-  # 只在推送 v* 標籤時執行：產出可部署的映像封存（發行流程練習）。
+  # ═══ 以下只在打包建置執行：推 v* 標籤（正式發行），或手動執行並勾選「測試打包」═══
+  # 半自動發行：CI 產出成品並驗證，部署由人執行（docs/deployment.md）。流程見 docs/release.md。
+  release-info:
+    name: 打包：決定版號
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.test_package)
+    needs: [backend, frontend, docker]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.info.outputs.version }}
+      kind: ${{ steps.info.outputs.kind }}
+      suffix: ${{ steps.info.outputs.suffix }}
+    steps:
+      # 完整歷史：要確認正式標籤是否已在 main 上
+      - name: ① 取出原始碼（完整歷史）
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: ② 決定版號與成品名稱（正式標籤須在 main 上）
+        id: info
+        run: bash .github/scripts/release-info.sh
+
   # 映像綁 CPU 架構：amd64 給 x86_64 機器（一般雲端 VM、Windows），
-  # arm64 給 Apple Silicon（部署目標 M 系列 Mac）——matrix 各建一份，
+  # arm64 給 Apple Silicon（部署目標 M 系列 Mac）——matrix 各建一份並各自冒煙測試，
   # 部署時依機器架構下載對應成品。
   package:
-    name: 打包：產出映像成品（僅 v* 標籤，${{ matrix.arch }}）
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [backend, frontend, docker]
+    name: 打包：映像與冒煙測試（${{ matrix.arch }}）
+    needs: release-info
     strategy:
       matrix:
         include:
@@ -143,20 +174,91 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
+    env:
+      APP_VERSION: ${{ needs.release-info.outputs.version }}
+      SUFFIX: ${{ needs.release-info.outputs.suffix }}
     steps:
       - name: ① 取出原始碼
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+      # 版號與 commit 寫進後端組件（/api/version）與前端的 version.json；
+      # 映像標籤＝版號，與 docker-compose.prod.yml 的 image: 對應
       - name: ② 建置版本映像
         run: |
-          docker build -f src/Konbini.Api/Dockerfile -t "konbini-api:${GITHUB_REF_NAME}" .
-          docker build -t "konbini-client:${GITHUB_REF_NAME}" src/Konbini.Client
-      - name: ③ 封存映像（docker save）
+          docker build -f src/Konbini.Api/Dockerfile \
+            --build-arg APP_VERSION="$APP_VERSION" --build-arg GIT_SHA="${GITHUB_SHA::7}" \
+            -t "konbini-api:$APP_VERSION" .
+          docker build \
+            --build-arg APP_VERSION="$APP_VERSION" --build-arg GIT_SHA="${GITHUB_SHA::7}" \
+            -t "konbini-client:$APP_VERSION" src/Konbini.Client
+      # 用剛建好的映像跑部署佈局（prod compose，--no-build），確認成品真的能動：
+      # 三個容器都起得來且健康、首頁 200、/api 反代通、版號正確、種子資料已建立
+      - name: ③ 冒煙測試（部署佈局）
         run: |
-          docker save "konbini-api:${GITHUB_REF_NAME}"    | gzip > "konbini-api-${GITHUB_REF_NAME}-${{ matrix.arch }}.tar.gz"
-          docker save "konbini-client:${GITHUB_REF_NAME}" | gzip > "konbini-client-${GITHUB_REF_NAME}-${{ matrix.arch }}.tar.gz"
-      - name: ④ 上傳成品（Artifacts）
-        uses: actions/upload-artifact@v4
+          printf '%s\n' \
+            'POSTGRES_PASSWORD=ci-postgres-password' \
+            'APP_DB_PASSWORD=ci-app-password' \
+            'JWT_SECRET=ci-smoke-test-secret-at-least-32-characters' > .env
+          docker compose -f docker-compose.prod.yml up -d --no-build --wait --wait-timeout 180
+          curl -fsS -o /dev/null http://localhost:8080/
+          api_version=$(curl -fsS http://localhost:8080/api/version | jq -r .version)
+          web_version=$(curl -fsS http://localhost:8080/version.json | jq -r .version)
+          products=$(curl -fsS http://localhost:8080/api/products | jq length)
+          echo "後端版號：$api_version，前端版號：$web_version，商品數：$products"
+          if [ "$api_version" != "$APP_VERSION" ] || [ "$web_version" != "$APP_VERSION" ]; then
+            echo "::error::版號不符：預期 $APP_VERSION，後端 $api_version、前端 $web_version"
+            exit 1
+          fi
+          if [ "$products" -le 0 ]; then
+            echo "::error::/api/products 沒有資料，種子資料可能沒有建立"
+            exit 1
+          fi
+      - name: ③-1 印出容器日誌（僅冒煙測試失敗時）
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color
+      - name: ④ 封存映像（docker save）
+        run: |
+          docker save "konbini-api:$APP_VERSION"    | gzip > "konbini-api-$SUFFIX-${{ matrix.arch }}.tar.gz"
+          docker save "konbini-client:$APP_VERSION" | gzip > "konbini-client-$SUFFIX-${{ matrix.arch }}.tar.gz"
+      # 正式發行另外附在 Release 上（不會過期）；測試打包只留 7 天
+      - name: ⑤ 上傳成品（Artifacts）
+        uses: actions/upload-artifact@v7
         with:
-          name: konbini-images-${{ github.ref_name }}-${{ matrix.arch }}
+          name: konbini-images-${{ env.SUFFIX }}-${{ matrix.arch }}
           path: konbini-*.tar.gz
-          retention-days: 30
+          retention-days: ${{ needs.release-info.outputs.kind == 'release' && 30 || 7 }}
+
+  # 只在正式發行：建立 Release「草稿」並附上兩種架構的映像。
+  # 由人檢查內容後在網頁按 Publish——這是半自動發行的人工確認點
+  release:
+    name: 發行：建立 Release 草稿
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [release-info, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      APP_VERSION: ${{ needs.release-info.outputs.version }}
+    steps:
+      - name: ① 下載各架構的映像成品
+        uses: actions/download-artifact@v8
+        with:
+          pattern: konbini-images-*
+          merge-multiple: true
+          path: dist
+      # 版號含 - 字尾（例：0.2.0-rc.1）標為 pre-release
+      - name: ② 建立 Release 草稿
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 重跑同一個標籤（例：手動觸發重新驗證）時 Release 已存在，不重建、不覆蓋
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::notice::Release $GITHUB_REF_NAME 已存在，略過建立"
+            exit 0
+          fi
+          prerelease=()
+          [[ "$APP_VERSION" == *-* ]] && prerelease=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --draft "${prerelease[@]}" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "部署步驟見 docs/deployment.md；變更紀錄見 CHANGELOG.md。確認內容後再按 Publish release。" \
+            --generate-notes

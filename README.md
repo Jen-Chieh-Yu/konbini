@@ -51,18 +51,22 @@ Konbini/
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
+├── CHANGELOG.md                  # 變更紀錄（發行時整理）
 ├── .idea/                        # Rider 共用設定（附加前端資料夾；個人檔不進版控）
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
 ├── .githooks/pre-push            # 推送前跑後端測試與前端型別檢查
 ├── .github/
+│   ├── scripts/release-info.sh   # 打包時決定版號（格式檢查、標籤須在 main 上）
 │   ├── workflows/ci.yml          # CI：後端、前端、Docker，v* 標籤打包映像
 │   └── pull_request_template.md  # Pull Request description 範本
 ├── docker/postgres/init/         # postgres 首次初始化腳本：建立應用程式帳號與資料庫
 ├── docs/
 │   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
 │   ├── database-design.md        # 資料表、欄位型別與 Migration 規範
+│   ├── deployment.md             # 部署手冊（半自動）
+│   ├── release.md                # 版號規則與發行流程
 │   ├── ui-guidelines.md          # 前端畫面、RWD 與中文排版規範
 │   └── mockups/                  # 版面草稿（HTML），main.css 的色票出處
 ├── src/
@@ -292,6 +296,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 open http://localhost:8080
 ```
 
+本機演練用原始碼建置，映像標籤為 `0.0.0-local`。部署 CI 產出的發行版映像見 `docs/deployment.md`。
+
 ---
 
 ## 🗄️ 資料庫日常操作
@@ -461,6 +467,7 @@ public class ProductEndpoints : IEndpoint
 | Addresses | `GET /api/addresses/cities` | 縣市 |
 | | `GET /api/addresses/cities/{cityCode}/districts` | 行政區 |
 | Health | `GET /health` | 健康檢查（含資料庫連線；容器 healthcheck 亦打此端點） |
+| AppInfo | `GET /api/version` | 執行中的版號與 commit（不需登入；本機建置為 `0.0.0-dev`） |
 
 🔒 = 需要 JWT。完整規格見 Scalar（開發模式）：`http://localhost:5214/scalar`
 購物車沒有後端路由——狀態在前端 Pinia，見「Feature 內部結構」的說明。
@@ -490,7 +497,9 @@ dotnet test tests/Konbini.Tests
 | 後端：建置與單元測試 | `dotnet build` + `dotnet test`（Release、Linux、UTC——與部署環境一致） | 每次 |
 | 前端：型別檢查與打包 | `npm ci` → `vue-tsc`（型別錯誤 0 容忍）→ `vite build` → `npm audit`（僅提醒） | 每次 |
 | 容器：驗證 Dockerfile | 兩個 Dockerfile 各建置一次，建完即丟 | 每次 |
-| 打包：產出映像成品 | matrix 依 amd64／arm64 各建置 api + client 映像 → `docker save` 成 `.tar.gz` 上傳為 artifact | **僅 `v*` 標籤** |
+| 打包：決定版號 | 從標籤取版號並檢查格式、確認標籤在 main 上；測試打包為 `0.0.0-test.<編號>` | **`v*` 標籤或測試打包** |
+| 打包：映像與冒煙測試 | matrix 依 amd64／arm64 各建置版本映像 → 用 prod compose 實際啟動驗證 → `docker save` 上傳為 artifact | **`v*` 標籤或測試打包** |
+| 發行：建立 Release 草稿 | 附上兩種架構的映像檔，由人確認後 Publish | **僅 `v*` 標籤** |
 
 各 job 的步驟以 ①②③ 編號命名，警告訊息引用步驟編號（如「明細見步驟⑤ log」）。
 
@@ -501,15 +510,15 @@ dotnet test tests/Konbini.Tests
   ——PR 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。
 - 同一分支連續推送只跑最新一次（concurrency 自動取消舊的）。
 - **手動觸發**：Actions 頁面 → 左欄選「CI」→ 右上 **Run workflow** →
-  下拉選分支或標籤 → 按綠色 **Run workflow**。按鈕只在 workflow 檔案
+  下拉選分支或標籤 →（要試跑打包時勾選 **測試打包**）→ 按綠色 **Run workflow**。按鈕只在 workflow 檔案
   已存在於 `main` 時出現——在功能分支上看不到是 GitHub 的既定行為，
   不是設定沒生效。
   想重跑失敗的那一次請改用該次執行頁的 **Re-run jobs**：它保留原本的
   事件脈絡（Pull Request 編號、觸發者、ref），手動觸發是另起一次新執行。
 - CI 一律指定專案路徑（只建 Api 與測試專案，範圍明確）。
-- 取得映像成品：該次執行的 Summary 頁最下方 **Artifacts** 區下載，
-  依目標機器的 CPU 架構選 `-amd64`（x86_64）或 `-arm64`（Apple Silicon），
-  `docker load < konbini-api-vX.Y.Z-arm64.tar.gz` 即可還原。
+- 取得映像成品：正式發行從 **Releases** 頁面下載（不會過期）；測試打包從該次執行的
+  Summary 頁最下方 **Artifacts** 區下載（保留 7 天）。部署步驟見 `docs/deployment.md`，
+  發行流程與版號規則見 `docs/release.md`。
 
 #### 什麼時候用手動觸發
 
@@ -517,7 +526,8 @@ dotnet test tests/Konbini.Tests
 
 | 情境 | 為什麼不推一個 commit 了事 |
 |---|---|
-| 重新產出過期的發行成品（artifact 保留 30 天） | 選 `v*` 標籤執行即可重跑 package job，不必刪標籤重推——那會改動歷史 |
+| 合併前試跑打包（改了 ci.yml、Dockerfile、compose） | 勾選「測試打包」即可在分支上跑完整打包與冒煙測試；在分支上打 `v*` 標籤會跟正式版號混在一起 |
+| 重新驗證某個發行版 | 選 `v*` 標籤執行即可重跑打包與冒煙測試，不必刪標籤重推——那會改動歷史；Release 已存在時不會重建 |
 | 確認弱點掃描的「現在」結果 | `dotnet list package --vulnerable` 與 `npm audit` 的結果取決於外部弱點資料庫，同一份 commit 過幾週可能就不同 |
 | 純 `*.md` 推送被 paths-ignore 跳過後，想確認 main 仍是綠的 | 不必為此造一個空 commit |
 | 驗證環境本身（.NET SDK 小版本、base image、registry 行為變動） | 「上週還會過的同一份 commit」今天可能壞掉 |

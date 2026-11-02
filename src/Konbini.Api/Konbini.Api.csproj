@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>konbini-api</UserSecretsId>
+    <!-- 本機建置的預設版號；發行版由 Dockerfile 依標籤覆寫（/p:Version、/p:InformationalVersion）。
+         不讓 SDK 自動在 InformationalVersion 附加 git commit，commit 一律由 CI 傳入，格式才一致 -->
+    <Version>0.0.0-dev</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
     <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
