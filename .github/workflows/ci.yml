@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      # dcproj 只有 Visual Studio 認得，不能裸建 sln——一律指定專案路徑
+      # 指定專案路徑：只建 Api（測試專案由步驟④建），不建方案檔裡的 dcproj 與網站節點
       # shell: bash 讓指令帶 pipefail 執行——未指定 shell 時 GitHub 預設的 bash
       # 不帶 pipefail，dotnet build 失敗會被 tee 的成功結束碼蓋掉、步驟誤判綠燈
       - name: ③ 建置（Release）
