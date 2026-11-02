@@ -8,7 +8,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A1000000
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{8F4B1C6E-2D3A-4E5F-9A7B-6C8D0E1F2A3B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{A1000000-0000-0000-0000-000000000004}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A1000000-0000-0000-0000-000000000004}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 		CLAUDE.md = CLAUDE.md
