@@ -36,7 +36,7 @@
 | 部分 | 位置 | 說明 |
 |---|---|---|
 | API | `src/Konbini.Api` | .NET 10 Minimal API，單一專案 Vertical Slice，端點以 `IEndpoint` 掃描註冊 |
-| 前端 | `src/Konbini.Client` | Vue 3 + Vite + Pinia，`src/features/` 與後端同名分模組；方案中以網站專案節點（方案檔指向資料夾，無專案檔）顯示於 `src` 方案資料夾下，不參與方案建置 |
+| 前端 | `src/Konbini.Client` | Vue 3 + Vite + Pinia，`src/features/` 與後端同名分模組；不在方案檔內（沒有專案檔，由 Vite／Dockerfile 自行建置），Rider 以附加資料夾顯示 |
 | 測試 | `tests/Konbini.Tests` | 單一測試專案，內分 `Unit/` 與 `Integration/` |
 
 資料庫是 **MySQL 8.4（LTS，支援至 2032），隨 compose 啟動**（沒有既有的外部資料庫，
@@ -130,8 +130,11 @@ HTTP 動詞承載語意，路由表可預測；契約一旦對外公開，改風
 
 - **可讀、可手改**：沒有 GUID 與組態對照表，方案結構就是資料夾與路徑；diff 一眼看得懂。
   VS 拖曳調整方案資料夾後沒有寫回 `.sln` 時，`.slnx` 可以直接改檔。
-- **網站節點只保留 `Type="Website"` 與不建置**：轉換時帶出的 WebsiteProperties
-  （AspNetCompiler、VWDPort 等）是舊式 ASP.NET 網站的設定，對 Vite 專案沒有作用。
+- **前端不放進方案檔（2026-11-02 變更）**：原本以 VS 的網站專案節點（`Type="Website"`）
+  顯示前端，但 Rider 會把它當成 ASP.NET 網站載入而失敗（`Unable to load Web site`）。
+  主要 IDE 改為 Rider 後拿掉這個節點，改用 Rider 的 **Attach Existing Folder**；設定存在
+  `.idea/.idea.Konbini/.idea/indexLayout.xml` 並進版控，換機器開啟即附加。
+  放棄的東西：VS 方案總管不再列出前端，要看前端檔案改用資料夾檢視（VS 仍用於 dcproj 的 F5 容器偵錯）。
 - **不並存 `.sln`**：根目錄有兩個方案檔時，不帶路徑的 `dotnet` 指令會因為不知道選哪個而失敗。
 - **dcproj 不會讓 CLI 建置失敗**：2026-11-02 實測，Windows（已裝 VS）與 Linux（`sdk:10.0` 容器）
   裸建 `.sln`、`.slnx` 都成功——dcproj 的 `Microsoft.Docker.Sdk` 由 NuGet 還原，在 VS 以外建置時不做事。
@@ -248,7 +251,7 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
   且 CI 在 Linux/UTC/Release 下執行，能抓 Windows 開發機看不到的問題
   （檔名大小寫、時區、漏 commit 的檔案、Dockerfile 失效）。
 - **為什麼指定專案路徑、不建方案檔**：範圍明確——CI 要的是 Api 與測試專案，方案檔另含
-  dcproj 與網站節點，建它們只是多做事。原本的理由「dcproj 讓裸建必炸」2026-11-02 實測已不成立。
+  dcproj，建它只是多做事。原本的理由「dcproj 讓裸建必炸」2026-11-02 實測已不成立。
 - **為什麼 `vue-tsc` 從第一天就阻擋**：目前型別錯誤為 0，此時設阻擋的
   成本是零；等錯誤累積後再想擋，就得先還債。
 - **為什麼 `*.md` 與 `docs/` 不觸發**：文件變更跑建置是純浪費（`docs/mockups` 的 HTML 草稿也屬文件）。
@@ -256,6 +259,8 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
   Node 讀 `src/Konbini.Client/.nvmrc`，CI 不再寫死版本——本機與 CI 只有一個來源，升版只改一處。
   Node 統一為 24（Active LTS）：原本本機 24、CI 與 Dockerfile 22，三處不一致。
   Dockerfile 讀不到 `.nvmrc`，升版時要一起改（Dockerfile 內有註解提醒）。
+  `setup-dotnet` 會依 `rollForward: latestFeature` 裝 10.0 頻道的最新版（2026-11-02 實測為 10.0.403），
+  與本機「用已安裝的最新 10.0.x」行為一致。
 - **為什麼 concurrency 取消舊執行**：同分支連續推送只有最新一次有意義。
 - **為什麼加 workflow_dispatch（2026-09-02 定案）**：原本四種觸發條件全綁在
   git 事件上，想在「沒有新 commit」時跑一次 CI 只能推空 commit 汙染歷史。
