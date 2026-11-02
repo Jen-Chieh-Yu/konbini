@@ -30,7 +30,7 @@ description: 把目前分支整理成可送審的 Pull Request：自我檢查、
 6. **推送**：使用者同意後 `git push -u origin <分支>`。不 force push、不推送到 `main`（ruleset 也會擋）。
 7. **產出三段內容**（見下方格式），內容以實際做過的事為準：
    - **Title**：`type(scope): 繁體中文描述`，會直接成為 main 上的 commit 標題。
-   - **Description（Markdown）**：照 `.github/pull_request_template.md` 的章節填寫；不適用的章節不要硬填或留空，改寫成一行「不適用：原因」（例如純文件變更的「merge 後的影響」），沒有內容的「不在這次範圍」整節刪掉。結尾加 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`。
+   - **Description（Markdown）**：照 `.github/pull_request_template.md` 的章節填寫；不適用的章節不要硬填或留空，改寫成一行「不適用：原因」（例如純文件變更的「merge 後的影響」），沒有內容的「不在這次範圍」整節刪掉。不附加「Generated with Claude Code」之類的產生工具標記。
    - **Squash 用的 Extended description（純文字）**：見「為什麼要純文字版」。
 8. **建立 Pull Request**
    - 預設：給使用者 `https://github.com/Jen-Chieh-Yu/konbini/pull/new/<分支>` 與上面三段，由使用者在網頁建立。
