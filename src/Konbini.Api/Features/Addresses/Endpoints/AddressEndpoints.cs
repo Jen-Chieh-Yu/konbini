@@ -13,12 +13,14 @@ public class AddressEndpoints : IEndpoint
         group.MapGet("/cities", async (
                 IQueryHandler<GetCitiesQuery, List<CityDto>> handler,
                 CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(), ct)));
+            => Results.Ok(await handler.Handle(new(), ct)))
+            .Produces<List<CityDto>>();
 
         group.MapGet("/cities/{cityCode:int}/districts", async (
                 int cityCode,
                 IQueryHandler<GetDistrictsQuery, List<DistrictDto>> handler,
                 CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(cityCode), ct)));
+            => Results.Ok(await handler.Handle(new(cityCode), ct)))
+            .Produces<List<DistrictDto>>();
     }
 }

@@ -18,7 +18,9 @@ public class OrderEndpoints : IEndpoint
                 ICurrentUser currentUser,
                 IQueryHandler<GetOrdersQuery, List<OrderDto>> handler,
                 CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(currentUser.Id), ct)));
+            => Results.Ok(await handler.Handle(new(currentUser.Id), ct)))
+            .Produces<List<OrderDto>>()
+            .Produces(StatusCodes.Status401Unauthorized);
 
         group.MapPost("/", async (
                 CreateOrderRequest request,
@@ -31,6 +33,9 @@ public class OrderEndpoints : IEndpoint
                 return result.Success
                     ? Results.Created($"/api/orders/{result.OrderId}", result)
                     : Results.BadRequest(result);
-            });
+            })
+            .Produces<CreateOrderResult>(StatusCodes.Status201Created)
+            .Produces<CreateOrderResult>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized);
     }
 }
