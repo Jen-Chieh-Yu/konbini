@@ -33,6 +33,7 @@
 
    第一次發行沒有上一個標籤，改成盤點系統現況。草稿要人工修：刪掉過程性的項目（`ci:`、`chore:` 通常不收），
    改寫成完整句子、拿掉 `feat:` 這類前綴、放進正確分類。`[未發行]` 改成 `[x.y.z] - YYYY-MM-DD`，上面補一個空的 `[未發行]`。
+   檔案最底部的連結一併更新：`[未發行]` 改為比較 `vX.Y.Z...HEAD`，並新增 `[x.y.z]` 指向該版的 Release。
 3. **用 Pull Request 合併變更紀錄**：分支 `docs/YYYYMMDD-release-vX.Y.Z`，title `docs: 更新 vX.Y.Z 變更紀錄`。
 4. **在 main 打 annotated 標籤並推送**：
 
