@@ -14,7 +14,8 @@ public class ProductEndpoints : IEndpoint
                 int? type,
                 IQueryHandler<GetProductsQuery, List<ProductDto>> handler,
                 CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(type ?? 0), ct)));
+            => Results.Ok(await handler.Handle(new(type ?? 0), ct)))
+            .Produces<List<ProductDto>>();
 
         group.MapGet("/{id:int}", async (
                 int id,
@@ -22,6 +23,8 @@ public class ProductEndpoints : IEndpoint
                 CancellationToken ct)
             => await handler.Handle(new(id), ct) is { } detail
                 ? Results.Ok(detail)
-                : Results.NotFound());
+                : Results.NotFound())
+            .Produces<ProductDetailDto>()
+            .Produces(StatusCodes.Status404NotFound);
     }
 }

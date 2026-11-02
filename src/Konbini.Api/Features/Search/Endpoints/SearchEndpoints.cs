@@ -13,6 +13,7 @@ public class SearchEndpoints : IEndpoint
                 IQueryHandler<SearchProductsQuery, List<ProductDto>> handler,
                 CancellationToken ct)
             => Results.Ok(await handler.Handle(new(keyword), ct)))
-            .WithTags("Search");
+            .WithTags("Search")
+            .Produces<List<ProductDto>>();
     }
 }

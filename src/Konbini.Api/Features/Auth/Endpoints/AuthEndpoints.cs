@@ -20,7 +20,9 @@ public class AuthEndpoints : IEndpoint
             {
                 var result = await handler.Handle(new(request), ct);
                 return result.Success ? Results.Ok(result) : Results.BadRequest(result);
-            });
+            })
+            .Produces<AuthResult>()
+            .Produces<AuthResult>(StatusCodes.Status400BadRequest);
 
         // 未實作登入速率限制：本專案為學習用途、不正式上線（CLAUDE.md §6）。
         // 若日後對外開放，這是上線前必補項（暴力破解防護）。
@@ -32,7 +34,9 @@ public class AuthEndpoints : IEndpoint
             {
                 var result = await handler.Handle(new(request), ct);
                 return result.Success ? Results.Ok(result.Data) : Results.BadRequest(result);
-            });
+            })
+            .Produces<LoginResponse>()
+            .Produces<LoginResult>(StatusCodes.Status400BadRequest);
 
         group.MapPut("/password", async (
                 ChangePasswordRequest request,
@@ -44,6 +48,9 @@ public class AuthEndpoints : IEndpoint
                 var result = await handler.Handle(new(currentUser.Id, request), ct);
                 return result.Success ? Results.Ok(result) : Results.BadRequest(result);
             })
+            .Produces<AuthResult>()
+            .Produces<AuthResult>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
             .RequireAuthorization();
 
         group.MapGet("/me", async (
@@ -53,6 +60,9 @@ public class AuthEndpoints : IEndpoint
             => await handler.Handle(new(currentUser.Id), ct) is { } user
                 ? Results.Ok(user)
                 : Results.NotFound())
+            .Produces<UserDto>()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
             .RequireAuthorization();
     }
 }
