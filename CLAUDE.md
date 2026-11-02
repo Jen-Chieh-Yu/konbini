@@ -14,7 +14,8 @@
 ## 0. 協作慣例
 
 - **改檔前先出 diff 供審核**，不要直接動檔案
-- Commit 遵循 Conventional Commits
+- Commit 遵循 Conventional Commits：type（與 scope）用英文、描述用繁體中文
+- 回覆、報告與說明一律繁體中文（台灣用語）；程式碼識別字、指令、套件名維持原文
 - 測試由使用者自行執行，不代跑
 - 密鑰不進版控、不貼進對話。要看 `.env` 用只列 key 的方式：
   `grep -o '^[A-Za-z_][A-Za-z0-9_]*=' .env`
@@ -257,16 +258,52 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 ＋ `YYYYMMDD-描述`，與 Conventional Commits 的 type 對齊。
 
 本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（後端測試＋前端
-型別檢查；Docker 建置留給雲端）。main 未受保護，紅燈原本是「推上去才知道」，
-hook 把檢查挪到推送前。每台機器需 `git config core.hooksPath .githooks`
+型別檢查；Docker 建置留給雲端）。main 的必過檢查會擋住紅燈的 merge（見下方
+Branch protection），hook 的作用是把紅燈提早到推送前發現，省一輪 CI 等待。每台機器需 `git config core.hooksPath .githooks`
 啟用（未設定時靜默不觸發）；跳過用 `git push --no-verify`。
 hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh 無法執行。
+
+### Branch protection（2026-09-02 啟用）
+
+以 GitHub ruleset「Protect main」實施：禁止刪除與 force push、所有改動經
+Pull Request（核准數 0、討論串須全部 resolve）、merge 方式只允許 Squash、
+必過檢查為 CI 的三個 job 且分支須與 main 同步。
+
+- **核准數設 0**：單人維護，要求核准只會卡住自己；把關交給必過檢查。
+- **分支須與 main 同步**：保證「CI 測過的程式碼」就是「merge 進 main 的程式碼」。
+  代價是同時開著多個 Pull Request 時，每 merge 一個，其他的都要 Update branch
+  再跑一輪 CI——單人專案很少同時開多個，接受。
+- **改 CI job 名稱要同步改 ruleset**：必過檢查以 job 名稱比對，改名後會永遠等不到結果。
+
+### Merge 策略：Squash merge（2026-10-30 定案）
+
+#1–#5 用一般 merge，其中 4 個分支只有 1 個 commit，merge commit 沒有保留任何
+額外資訊，只讓 commit 數翻倍、`git log` 難讀。改為每個 Pull Request 在 main 上
+只留一個 commit；repo 設定與 ruleset 都只允許 Squash。
+
+- **Pull Request title 即 main 上的 commit 標題**：必須是 Conventional Commits，
+  type 英文、描述繁體中文。Squash 時 Commit message 欄位保持預設
+  （`<title> (#N)`），不要手動改——main 禁止 force push，寫錯就無法修正。
+- **Squash 的 Extended description 用純文字**：它會成為 commit 內文；`##` 開頭的行
+  在 git 裡是註解，日後 amend／rebase 時會被刪掉，`git log` 也不渲染 Markdown。
+  Pull Request 頁面上的 description 照範本用 Markdown，「驗證」不進 commit。
+- **內容不寫只有當下才懂的指涉**（「參考專案」「上一則」），直接寫改了什麼、為什麼。
+- **Dependabot**：title 是英文且由機器人產生，Squash 時例外地把 Commit message 改成
+  中文（`chore(deps): 升級 <套件> <舊> → <新>（安全性修補）(#N)`），內文換成一兩行說明。
+  未設 `dependabot.yml`——只收安全性更新，維持低噪音。
+- **分支同步用 merge 不用 rebase**：推送過的分支 rebase 要 force push；
+  同步用的 merge commit 會在 Squash 時消失。
+
+放棄的東西：main 上看不到分支內逐個 commit 的歷史（仍保留在 Pull Request 頁面）；
+Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改用 `-D`。
+#6（中文標題慣例之前）與 #10（Squash 時誤改 Commit message）的標題不符慣例，
+依「不改動歷史」保留原樣。
 
 **尚未實施、留待條件成立**：
 
 | 項目 | 觸發條件 |
 |---|---|
-| Branch protection（main 禁直推、PR 必須綠燈） | 開始走 feature 分支 + PR 流程時一併啟用（練習目的） |
+| ~~Branch protection（main 禁直推、PR 必須綠燈）~~ | 已實施（2026-09-02）：ruleset「Protect main」，見上方 Branch protection 節 |
 | 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」 |
 | EnsureCreated → EF Migrations | 與「稽核欄位＋Status 軟刪除」同分支做（欄位定案後只產一次初始 Migration） |
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
@@ -296,3 +333,5 @@ hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh �
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
 | `docs/ui-guidelines.md` | 前端畫面、RWD 與中文排版規範 |
+| `.github/pull_request_template.md` | Pull Request description 範本 |
+| `.claude/skills/` | Claude Code 專案技能：`create-pr`（送審準備）、`review-pr`（審查清單）、`dev-env`（本機環境診斷） |
