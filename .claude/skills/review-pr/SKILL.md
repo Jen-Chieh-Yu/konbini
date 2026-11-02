@@ -68,7 +68,7 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 
 ### 容器與 CI
 - compose 改動：開發埠綁 `127.0.0.1`、api 不在 prod 映射主機埠、版本釘 LTS、不用 `platform: linux/amd64` 硬撐（CLAUDE.md §4）。
-- CLI 建置與測試一律指定專案路徑，不裸建 sln（dcproj）。
+- CLI 建置與測試一律指定專案路徑，不裸建方案檔（dcproj）。
 - workflow 改動：在報告寫出對必過檢查名稱的影響（改 job 名稱會讓 ruleset 的必過檢查永遠等不到結果）。
 
 ### 文件與決策紀錄

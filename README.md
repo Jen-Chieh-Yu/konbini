@@ -42,7 +42,7 @@
 
 ```text
 Konbini/
-├── Konbini.sln
+├── Konbini.slnx                  # 方案檔（XML 格式）
 ├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api + mysql 並附加偵錯器
 ├── docker-compose.yml            # 偵錯/開發 base：api + mysql
 ├── docker-compose.override.yml   # 偵錯用環境變數與埠（自動與 base 合併）
@@ -89,7 +89,7 @@ Konbini/
 ```
 
 > `Konbini.Client` 實體位於 `src/`，在 Visual Studio 方案中以**網站專案**節點
->（sln 直接指向資料夾，無專案檔）顯示於 `src` 方案資料夾下，與 API 並列，僅供瀏覽與編輯檔案。
+>（方案檔直接指向資料夾，無專案檔）顯示於 `src` 方案資料夾下，與 API 並列，僅供瀏覽與編輯檔案。
 > 方案建置不會連動 npm build——前端由 Vite（開發）與 Dockerfile（部署）自行建置。
 
 ### Feature 內部結構
@@ -487,7 +487,7 @@ dotnet test tests/Konbini.Tests
   不是設定沒生效。
   想重跑失敗的那一次請改用該次執行頁的 **Re-run jobs**：它保留原本的
   事件脈絡（Pull Request 編號、觸發者、ref），手動觸發是另起一次新執行。
-- CI 一律指定專案路徑，不裸建 sln（dcproj 只有 Visual Studio 認得）。
+- CI 一律指定專案路徑，不裸建方案檔（dcproj 只有 Visual Studio 認得）。
 - 取得映像成品：該次執行的 Summary 頁最下方 **Artifacts** 區下載，
   依目標機器的 CPU 架構選 `-amd64`（x86_64）或 `-arm64`（Apple Silicon），
   `docker load < konbini-api-vX.Y.Z-arm64.tar.gz` 即可還原。
