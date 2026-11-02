@@ -43,6 +43,8 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
     public async Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct)
         => await db.Products.AsNoTracking()
             .Where(p => p.Type == type && p.Id != excludeId)
+            // PostgreSQL 不保證未排序查詢的順序（MySQL InnoDB 依主鍵叢集，過去「剛好」有序）
+            .OrderBy(p => p.Id)
             .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
             .ToListAsync(ct);
 

@@ -30,7 +30,7 @@ PostgreSQL 會把未加引號的識別字轉成小寫，統一小寫底線，手
 | 時間                   | DateTime（Kind=Utc）→ timestamptz               |
 | 日期（不含時間）       | DateOnly → date                                 |
 | 布林                   | bool → boolean                                  |
-| 狀態列舉               | enum → smallint（預設以數值儲存），對應 C# enum |
+| 狀態列舉               | enum → integer（依底層型別，預設 int；要 smallint 須宣告 `enum X : short`） |
 | 文字                   | string → varchar(n)，長度以 HasMaxLength 指定   |
 
 `timestamptz` 只接受 UTC：寫入的 DateTime 必須是 `DateTime.UtcNow` 這類 Kind=Utc 的值，
