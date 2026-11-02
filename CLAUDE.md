@@ -251,7 +251,11 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
   dcproj 與網站節點，建它們只是多做事。原本的理由「dcproj 讓裸建必炸」2026-11-02 實測已不成立。
 - **為什麼 `vue-tsc` 從第一天就阻擋**：目前型別錯誤為 0，此時設阻擋的
   成本是零；等錯誤累積後再想擋，就得先還債。
-- **為什麼 `*.md` 不觸發**：文件變更跑建置是純浪費。
+- **為什麼 `*.md` 與 `docs/` 不觸發**：文件變更跑建置是純浪費（`docs/mockups` 的 HTML 草稿也屬文件）。
+- **為什麼 SDK 與 Node 版本由專案檔決定（2026-11-02 定案）**：.NET SDK 讀 `global.json`、
+  Node 讀 `src/Konbini.Client/.nvmrc`，CI 不再寫死版本——本機與 CI 只有一個來源，升版只改一處。
+  Node 統一為 24（Active LTS）：原本本機 24、CI 與 Dockerfile 22，三處不一致。
+  Dockerfile 讀不到 `.nvmrc`，升版時要一起改（Dockerfile 內有註解提醒）。
 - **為什麼 concurrency 取消舊執行**：同分支連續推送只有最新一次有意義。
 - **為什麼加 workflow_dispatch（2026-09-02 定案）**：原本四種觸發條件全綁在
   git 事件上，想在「沒有新 commit」時跑一次 CI 只能推空 commit 汙染歷史。

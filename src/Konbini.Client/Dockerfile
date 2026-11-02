@@ -1,5 +1,5 @@
-# 建置階段
-FROM node:22-alpine AS build
+# 建置階段（Node 主版本與 .nvmrc 一致；Docker 讀不到 .nvmrc，升版時兩處一起改）
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
