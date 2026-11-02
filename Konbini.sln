@@ -12,6 +12,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{A1000000-0
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 		CLAUDE.md = CLAUDE.md
+		docs\api-conventions.md = docs\api-conventions.md
+		docs\database-design.md = docs\database-design.md
+		docs\ui-guidelines.md = docs\ui-guidelines.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Konbini.Api", "src\Konbini.Api\Konbini.Api.csproj", "{B1000000-0000-0000-0000-000000000001}"

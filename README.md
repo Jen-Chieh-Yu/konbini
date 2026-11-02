@@ -50,7 +50,11 @@ Konbini/
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
-├── Docs/
+├── docs/
+│   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
+│   ├── database-design.md        # 資料表、欄位型別與 Migration 規範
+│   ├── ui-guidelines.md          # 前端畫面、RWD 與中文排版規範
+│   └── mockups/                  # 版面草稿（HTML），main.css 的色票出處
 ├── src/
 │   ├── Konbini.Client/           # Vue 3 SPA（方案中以網站專案節點顯示於 src 方案資料夾）
 │   │   ├── Dockerfile            # node:22 build → nginx:alpine
