@@ -1,10 +1,10 @@
-# 部署環境：client（nginx，唯一對外入口）+ api（不映射主機埠）+ mysql（不對外）。
+# 部署環境：client（nginx，唯一對外入口）+ api（不映射主機埠）+ postgres（不對外）。
 # 本專案不正式上線：此檔用於部署「演練」與完整佈局驗證，
 # 故不設備份排程、監控與自動部署（決策見 CLAUDE.md §6）。
 # 啟動：docker compose -f docker-compose.prod.yml up -d --build
 
 # 獨立專案名：不設的話會沿用資料夾名 konbini，與開發環境（docker-compose.yml 的
-# name: konbini）視為同一個專案，共用 mysql-data volume、互相覆蓋容器
+# name: konbini）視為同一個專案，共用 pg-data volume、互相覆蓋容器
 name: konbini-prod
 
 # 共用設定：json-file 預設不輪替，長期執行會塞滿磁碟
@@ -37,7 +37,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       # compose 的 .env 只做 ${} 替換，要進容器的鍵必須在此明寫（.NET 設定鍵用 __ 雙底線）
-      ConnectionStrings__MySqlConnection: Server=mysql;Database=${MYSQL_DATABASE:-konbini};User=${MYSQL_USER:-konbini};Password=${MYSQL_PASSWORD:?請在 .env 設定 MYSQL_PASSWORD}
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${APP_DB_NAME:-konbini};Username=${APP_DB_USER:-konbini};Password=${APP_DB_PASSWORD:?請在 .env 設定 APP_DB_PASSWORD}
       Jwt__Secret: ${JWT_SECRET:?請在 .env 設定 JWT_SECRET}
     expose:
       - "8080"
@@ -49,28 +49,33 @@ services:
       retries: 10
       start_period: 40s
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
 
-  mysql:
-    image: mysql:8.4
-    container_name: konbini-prod-mysql
+  postgres:
+    image: postgres:18
+    container_name: konbini-prod-postgres
     restart: unless-stopped
     logging: *default-logging
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?請在 .env 設定 MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-konbini}
-      MYSQL_USER: ${MYSQL_USER:-konbini}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?請在 .env 設定 MYSQL_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?請在 .env 設定 POSTGRES_PASSWORD}
+      # 應用程式帳號與資料庫：由 init 腳本建立（POSTGRES_USER 是超級使用者，應用程式不使用）
+      APP_DB_NAME: ${APP_DB_NAME:-konbini}
+      APP_DB_USER: ${APP_DB_USER:-konbini}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?請在 .env 設定 APP_DB_PASSWORD}
     healthcheck:
-      # -h 127.0.0.1 強制走 TCP，避免首次初始化的暫時伺服器（只開 socket）被誤判健康
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
+      # -h 127.0.0.1 強制走 TCP：首次初始化時映像先起一個只開 socket 的暫時伺服器，
+      # 用 socket 檢查會在 init 腳本跑完前就誤判健康
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d postgres"]
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 30s
     volumes:
-      - mysql-data:/var/lib/mysql
+      # postgres 18 起資料目錄為 /var/lib/postgresql/<主版本>/docker，volume 掛在上一層
+      - pg-data:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
 
 volumes:
-  mysql-data:
+  pg-data:

@@ -40,7 +40,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         {
             errors["email"] = "Email格式不正確";
         }
-        else if (await users.EmailExistsAsync(request.Email, ct))
+        else if (await users.EmailExistsAsync(User.NormalizeEmail(request.Email), ct))
         {
             errors["email"] = "此Email已註冊過";
         }
@@ -88,7 +88,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         users.Add(new User
         {
             Name = request.LastName + request.FirstName,
-            Email = request.Email,
+            Email = User.NormalizeEmail(request.Email),
             PasswordHash = hasher.Hash(request.Password),
             Birthday = birthday,
             Phone = request.PhoneNumber,
