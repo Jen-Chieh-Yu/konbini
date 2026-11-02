@@ -50,9 +50,13 @@ Konbini/
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
-├── Docs/
+├── docs/
+│   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
+│   ├── database-design.md        # 資料表、欄位型別與 Migration 規範
+│   ├── ui-guidelines.md          # 前端畫面、RWD 與中文排版規範
+│   └── mockups/                  # 版面草稿（HTML），main.css 的色票出處
 ├── src/
-│   ├── Konbini.Client/           # Vue 3 SPA（方案中以網站專案節點顯示於根目錄）
+│   ├── Konbini.Client/           # Vue 3 SPA（方案中以網站專案節點顯示於 src 方案資料夾）
 │   │   ├── Dockerfile            # node:22 build → nginx:alpine
 │   │   ├── nginx.conf            # SPA fallback + /api 反向代理
 │   │   └── src/
@@ -80,8 +84,8 @@ Konbini/
     └── Konbini.Tests/            # 內分 Unit/ 與 Integration/
 ```
 
-> `Konbini.Client` 實體位於 `src/`，但在 Visual Studio 方案中以**網站專案**節點
->（sln 直接指向資料夾，無專案檔）顯示於根目錄，僅供瀏覽與編輯檔案。
+> `Konbini.Client` 實體位於 `src/`，在 Visual Studio 方案中以**網站專案**節點
+>（sln 直接指向資料夾，無專案檔）顯示於 `src` 方案資料夾下，與 API 並列，僅供瀏覽與編輯檔案。
 > 方案建置不會連動 npm build——前端由 Vite（開發）與 Dockerfile（部署）自行建置。
 
 ### Feature 內部結構

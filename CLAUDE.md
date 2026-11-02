@@ -35,7 +35,7 @@
 | 部分 | 位置 | 說明 |
 |---|---|---|
 | API | `src/Konbini.Api` | .NET 10 Minimal API，單一專案 Vertical Slice，端點以 `IEndpoint` 掃描註冊 |
-| 前端 | `src/Konbini.Client` | Vue 3 + Vite + Pinia，`src/features/` 與後端同名分模組；方案中以網站專案節點（sln 指向資料夾，無專案檔）顯示於根目錄，不參與方案建置 |
+| 前端 | `src/Konbini.Client` | Vue 3 + Vite + Pinia，`src/features/` 與後端同名分模組；方案中以網站專案節點（sln 指向資料夾，無專案檔）顯示於 `src` 方案資料夾下，不參與方案建置 |
 | 測試 | `tests/Konbini.Tests` | 單一測試專案，內分 `Unit/` 與 `Integration/` |
 
 資料庫是 **MySQL 8.4（LTS，支援至 2032），隨 compose 啟動**（沒有既有的外部資料庫，
