@@ -53,6 +53,7 @@ Konbini/
 ├── .env.example                  # 鍵值範本（進版控）
 ├── CHANGELOG.md                  # 變更紀錄（發行時整理）
 ├── .idea/                        # Rider 共用設定（附加前端資料夾；個人檔不進版控）
+├── .run/                         # Rider 執行設定：本機 API、容器模式、postgres（見「啟動服務」）
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
@@ -284,6 +285,22 @@ cd src/Konbini.Client && npm run dev
 
 > 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
 > 資料庫仍要先自己 `docker compose up -d postgres`。
+
+> 用 Rider 時，常用的啟動步驟已做成共用的執行設定（`.run/`），選好按 Debug 即可：
+>
+> | 執行設定 | 啟動內容 |
+> |---|---|
+> | **Konbini.Api** | 先起 postgres（容器），再建置並啟動本機 API，等同方式 B 的第 1、2 步 |
+> | **api + postgres（容器）** | api 與 postgres 都在容器內，偵錯器附加進 api 容器，等同方式 A |
+> | postgres | 只起 postgres |
+>
+> 前端兩種方式都一樣，另開終端機執行 `npm run dev`（方式 B 的第 3 步）。
+> Docker Desktop 需已在執行，建議在 Settings → General 勾選 **Start Docker Desktop when you sign in**。
+> Konbini.Api 的 Before launch 是用名稱參照 postgres，改名時要一起改。
+>
+> ⚠️ 切回本機模式前，確認 api 容器已停止：在 Debug 視窗按停止即可（postgres 會一起停，
+> 切回本機模式時 Konbini.Api 的 Before launch 會再啟動它）。api 容器若還在執行，會繼續占住 5214，
+> 本機模式的 API 拿不到這個埠，請求會打到容器內的舊版程式碼；不確定時執行 `docker compose stop api`。
 
 > CLI 建置與測試建議指定專案路徑（`dotnet build src/Konbini.Api`、
 > `dotnet test tests/Konbini.Tests`），範圍明確、只建需要的專案。裸跑 `dotnet build` 會建置整個
