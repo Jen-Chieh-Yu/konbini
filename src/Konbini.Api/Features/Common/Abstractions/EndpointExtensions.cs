@@ -2,7 +2,7 @@ namespace Konbini.Api.Features.Common.Abstractions;
 
 /// <summary>
 /// endpoint / handler 的組件掃描註冊。
-/// 手寫輕量管線（約 40 行）取代 MediatR：加新用例＝加檔案，Program.cs 不動。
+/// 手寫介面＋組件掃描（約 40 行）取代 MediatR：加新用例＝加檔案，Program.cs 不動。
 /// </summary>
 public static class EndpointExtensions
 {

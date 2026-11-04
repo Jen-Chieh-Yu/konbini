@@ -20,7 +20,7 @@ Endpoint → Command/Query → Handler → Service → Repository
   或任何 ASP.NET 型別。
 - Endpoint 不注入 DbContext，也不注入 Repository，
   只注入對應的 ICommandHandler / IQueryHandler 介面，以及取得登入身分的 ICurrentUser
-  （本專案以手寫介面取代 dispatcher／MediatR）。
+  （不經 dispatcher／ISender，理由見 CLAUDE.md §2「為什麼 Endpoint 直接注入 handler」）。
 - Handler 不直接注入 DbContext，資料存取一律透過 Repository；
   Query 端的投影（Select 成 Response）寫在 Repository 內。
 - Repository 只改狀態（Add、修改 tracked entity），不呼叫 SaveChanges；

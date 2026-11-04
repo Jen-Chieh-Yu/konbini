@@ -91,6 +91,27 @@ Why：與規範文件一致、資料存取細節（分頁、投影、軟刪除�
 分層練習價值。放棄的東西：每個用例多一層抽象與檔案的成本。
 既有 handler 由 refactor 分支一次補齊，避免兩種寫法長期並存。
 
+### 為什麼 Endpoint 直接注入 handler，不經 ISender（2026-11-04 記錄）
+
+Endpoint 的參數直接寫 `ICommandHandler<TCommand, TResult>`／`IQueryHandler<,>`，由 DI 解析，
+中間沒有 `ISender.Send(command)` 這類轉送層（dispatcher）。
+
+- **ISender 的價值在 pipeline behavior**：耗時 log、稽核、驗證這類橫切關注點寫一次，所有用例都會經過。
+  只加 ISender、不加 pipeline，換來的只有較短的 endpoint 參數。
+- **現在不用的理由**：現有的橫切關注點都已有歸屬（例外→`GlobalExceptionHandler`、
+  交易→handler 呼叫 `IUnitOfWork`、驗證→handler 回傳 Result）。多一層轉送的代價是 F12 追不到 handler，
+  反射實作在漏註冊時要到執行時期才報錯。
+- **導入前要先處理的事**：command／query 要實作 `ICommand<TResult>` 這類介面帶出結果型別，`Send()` 才推得出回傳值；
+  想做統一的驗證 behavior，得先把各用例各自的 Result 型別（`AuthResult`、`CreateOrderResult`…）收斂成泛型基底。
+- **先評估 endpoint filter**：Minimal API 內建的 `IEndpointFilter`（掛在 route group 用 `AddEndpointFilter`）
+  也是 `next()` 式的管線，位在 endpoint 之前，不必改 handler 宣告。限制是它看到的是 endpoint 參數、不是 command 物件，
+  而且只在 HTTP 路徑上生效。需求只跟 HTTP 請求有關時用它就夠，要包住 handler 本身才導入 ISender。
+- **實作選項**：自己寫（練習價值最高）或 source generator 版的 Mediator（MIT，漏寫 handler 時編譯期報錯）；
+  MediatR 為商業授權，理由同上方「為什麼不用 MediatR」。
+
+放棄的東西：沒有用例層級的統一管線（HTTP 層的 middleware 照常運作，`GlobalExceptionHandler` 即掛在這裡），
+日後要加包住 handler 的全域行為時，得一次改寫所有 handler 宣告與 Endpoints 檔。
+
 ### 為什麼 feature 內部用技術類型資料夾（Models/Commands/Queries/Endpoints）（2026-08-31 定案）
 
 與「每用例一資料夾」二選一。選這個是因為：每 feature 一支 `XxxEndpoints.cs`
@@ -396,6 +417,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
 | DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄） |
+| Endpoint 改經 ISender ＋ pipeline behavior（理由與前置工作見 §2「為什麼 Endpoint 直接注入 handler」） | 出現第一個要套用到所有用例的橫切需求（例：稽核欄位導入後記錄操作者），且 endpoint filter 不夠用。會改到全部 Endpoints 檔，不與分頁、長度驗證等同批檔案的分支並行（2026-11-04 記錄） |
 | 輸入長度驗證：超過資料庫欄位長度的輸入目前回 500 | fix 分支，優先處理 |
 | OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string） | 下一個 fix 分支 |
 | JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除） | fix 分支，隨時可做 |

@@ -16,7 +16,8 @@
 - **Vertical Slices**：按業務功能（Products, Orders, Auth, Search, Addresses, AppInfo）拆分，而非按技術層分層。
 - **REPR Pattern**：`Endpoint → Command/Query → Handler → Repository`
  （Service 僅於跨 Handler 共用業務規則時抽出），不使用 Controller。
-- **CQRS-lite**：Commands（Write）與 Queries（Read）分離；以手寫輕量管線實作，**不引入 MediatR**。
+- **CQRS-lite**：Commands（Write）與 Queries（Read）分離；以手寫的 handler 介面＋組件掃描實作，
+  Endpoint 直接注入 handler、不經 dispatcher，**不引入 MediatR**（理由見 CLAUDE.md §2）。
 - **分層紀律**：Handler 不直接使用 `AppDbContext`——資料存取一律透過
   Repository（查詢在 Repository 內投影 DTO），寫入由 `IUnitOfWork` 統一提交；
   Service 只在被 2 個以上 handler 共用時建立。
