@@ -133,7 +133,8 @@ HTTP 動詞承載語意，路由表可預測；契約一旦對外公開，改風
   顯示前端，但 Rider 會把它當成 ASP.NET 網站載入而失敗（`Unable to load Web site`）。
   主要 IDE 改為 Rider 後拿掉這個節點，改用 Rider 的 **Attach Existing Folder**；設定存在
   `.idea/.idea.Konbini/.idea/indexLayout.xml` 並進版控，換機器開啟即附加。
-  放棄的東西：VS 方案總管不再列出前端，要看前端檔案改用資料夾檢視（VS 仍用於 dcproj 的 F5 容器偵錯）。
+  放棄的東西：VS 方案總管不再列出前端，要看前端檔案改用資料夾檢視（容器偵錯改用 Rider 的
+  `.run/compose.run.xml`；dcproj 保留給使用 VS 的人）。
 - **不並存 `.sln`**：根目錄有兩個方案檔時，不帶路徑的 `dotnet` 指令會因為不知道選哪個而失敗。
 - **dcproj 不會讓 CLI 建置失敗**：2026-11-02 實測，Windows（已裝 VS）與 Linux（`sdk:10.0` 容器）
   裸建 `.sln`、`.slnx` 都成功——dcproj 的 `Microsoft.Docker.Sdk` 由 NuGet 還原，在 VS 以外建置時不做事。
@@ -141,6 +142,20 @@ HTTP 動詞承載語意，路由表可預測；契約一旦對外公開，改風
 
 放棄的東西：較舊的工具打不開。需要 Visual Studio 2022 17.13 以上（早期版本須開啟預覽功能）、
 Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0.x，已滿足）。
+
+### Rider 執行設定進版控（2026-11-03 定案）
+
+`.run/` 放三個共用執行設定：**Konbini.Api**（本機 API）、**api + postgres（容器）**、**postgres**。
+
+- **放 `.run/`，不留在 workspace.xml**：workspace.xml 是個人檔、不進版控，容器設定記的是絕對路徑；
+  `.run/*.run.xml` 用 `$PROJECT_DIR$`，clone 下來就有。勾 Store as project file 的設定由 Rider 寫到這裡。
+- **本機 API 的 Before launch 先起 postgres**：省掉「忘了起資料庫」這一步。以設定名稱參照，改名要一起改。
+- **前端不做成執行設定**：維持終端機 `npm run dev`。compound 一鍵全起要多維護一組參照，
+  換回的只是少開一個終端機。
+- **Docker Desktop 的啟動不放共用設定**：External Tools 存在使用者層級，共用設定引用它，換電腦就斷；
+  改建議勾 Docker Desktop 的登入時啟動。
+
+放棄的東西：兩種模式共用 5214（見 §4），切換時要自己確認 api 容器已停止，沒有自動互斥。
 
 ---
 
@@ -201,8 +216,9 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 
 - `docker-compose.yml`（base：api + postgres）+ `docker-compose.override.yml`
   （偵錯環境變數與埠）：VS 以 `docker-compose.dcproj` 為啟始專案按 F5 時啟動，
-  偵錯器附加進 api 容器。api 對外固定 `5214:8080`，**與本機執行同一個埠**，
-  所以 vite proxy 與 Swagger 網址在容器內外兩種模式下通用。
+  偵錯器附加進 api 容器；Rider 的「api + postgres（容器）」用同一組檔案達到相同效果（2026-11-03）。
+  api 對外固定 `5214:8080`，**與本機執行同一個埠**，
+  所以 vite proxy 與 Scalar 網址在容器內外兩種模式下通用。
 - `docker-compose.prod.yml`：部署專用，自包含三服務（client + api + postgres），
   不與 base 合併、必須明確 `-f` 指定。
 - 只要資料庫（本機熱重載模式）：`docker compose up -d postgres` 指定服務名。
@@ -214,7 +230,7 @@ Development 組合（仍不含 client、不是部署佈局）。
 ③ dcproj 與 Windows/VS 綁定；macOS 上用 Rider/VS Code 時忽略它即可，
 compose 檔本身與部署流程完全跨平台。
 
-Dockerfile 為此加了 `base` 階段（VS Fast Mode 偵錯只建 base 層、原始碼用掛載），
+Dockerfile 為此加了 `base` 階段（VS 與 Rider 的 Fast mode 偵錯都只建 base 層、原始碼用掛載），
 對 prod 建置行為無影響。
 
 ### 對外入口是 nginx（2026-08-31 定案）
@@ -298,7 +314,7 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 分支命名：`feature/` `fix/` `refactor/` `docs/` `chore/` `hotfix/`
 ＋ `YYYYMMDD-描述`，與 Conventional Commits 的 type 對齊。
 
-本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（後端測試＋前端
+本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（workflow 靜態檢查、後端測試＋前端
 型別檢查；Docker 建置留給雲端）。main 的必過檢查會擋住紅燈的 merge（見下方
 Branch protection），hook 的作用是把紅燈提早到推送前發現，省一輪 CI 等待。每台機器需 `git config core.hooksPath .githooks`
 啟用（未設定時靜默不觸發）；跳過用 `git push --no-verify`。
@@ -351,7 +367,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 - **測試打包**（`workflow_dispatch` 的 `test_package`）：在任何分支跑完整打包與冒煙測試，版號 `0.0.0-test.<編號>`。
   為了「合併前先試跑」而在分支上打 `v*` 標籤是更糟的選項——已推送的標籤原則上不刪，會跟正式版號混在一起。
 - **冒煙測試驗證的是成品，不是原始碼**：用剛建好的映像跑 `docker-compose.prod.yml`（`--no-build`），
-  確認三個容器健康、首頁與 `/api` 反代可用、版號正確、種子資料存在。兩種架構各跑一次（各自是不同的映像）。
+  確認 api 與 postgres 健康、client 執行中（nginx 未設 healthcheck）、首頁與 `/api` 反代可用、版號正確、種子資料存在。兩種架構各跑一次（各自是不同的映像）。
 - **成品放 Release 草稿**：Actions artifact 30 天就刪，Release 附件不會過期；「草稿」就是半自動的人工確認點，
   人看過內容才 Publish。重跑同一個標籤時 Release 已存在則略過，不覆蓋。
 - **版號寫進成品**：後端組件的 InformationalVersion（`GET /api/version`）與前端的 `version.json`，
@@ -369,16 +385,21 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 項目 | 觸發條件 |
 |---|---|
 | ~~Branch protection（main 禁直推、Pull Request 必須綠燈）~~ | 已實施（2026-09-02）：ruleset「Protect main」，見上方 Branch protection 節 |
-| 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」 |
-| EnsureCreated → EF Migrations | 與「稽核欄位＋Status 軟刪除」同分支做（欄位定案後只產一次初始 Migration） |
+| 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」。**handler 單元測試隨各模組 CRUD 一起寫，依模組類型決定測試種類**（2026-11-03 定案） |
+| EnsureCreated → EF Migrations | 與「稽核欄位＋Status 軟刪除」同分支做（欄位定案後只產一次初始 Migration）。**在模組 CRUD 擴充之前完成**（2026-11-03 定案）：之後新增的資料表直接帶稽核欄位，不必回頭補 |
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
 | 列表查詢分頁（docs/api-conventions.md「分頁」格式） | Repository 重構完成後接續（同批檔案，避免衝突） |
-| 稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除） | 與 EF Migrations 導入同分支 |
+| 稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除） | 與 EF Migrations 導入同分支（模組 CRUD 之前）；現有 `created_at` 一併改名 |
 | 庫存欄位與扣庫存交易 | 尚未實作；導入時依 docs/database-design.md「交易」節 |
 | ~~CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix）~~ | 已實施（2026-09-01）：另含 PR 移除 paths-ignore、前端 npm audit（僅提醒）、測試失敗上傳 trx 報告 |
 | 「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等） | fix 分支，隨時可做 |
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
+| DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄） |
+| 輸入長度驗證：超過資料庫欄位長度的輸入目前回 500 | fix 分支，優先處理 |
+| OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string） | 下一個 fix 分支 |
+| JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除） | fix 分支，隨時可做 |
+| API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、
