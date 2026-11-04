@@ -8,7 +8,7 @@ Endpoint → Command/Query → Handler → Service → Repository
 
 | 層              | 負責                                                        | 不負責              |
 | --------------- | ----------------------------------------------------------- | ------------------- |
-| Endpoint        | 路由註冊、模型繫結、呼叫 dispatcher、把結果對應成 HTTP 回應 | 任何業務邏輯        |
+| Endpoint        | 路由註冊、模型繫結、呼叫 handler、把結果對應成 HTTP 回應    | 任何業務邏輯        |
 | Command / Query | 描述一個使用案例的輸入                                      | 邏輯，它只是資料    |
 | Handler         | 編排單一使用案例的流程                                      | 資料存取細節        |
 | Service         | 跨多個 Handler 共用的業務規則（定價、庫存計算、狀態轉換）   | HTTP 概念、資料存取 |
@@ -19,10 +19,12 @@ Endpoint → Command/Query → Handler → Service → Repository
 - Service 與 Repository 都不得出現 HttpContext、IActionResult
   或任何 ASP.NET 型別。
 - Endpoint 不注入 DbContext，也不注入 Repository，
-  只注入對應的 ICommandHandler / IQueryHandler 介面
+  只注入對應的 ICommandHandler / IQueryHandler 介面，以及取得登入身分的 ICurrentUser
   （本專案以手寫介面取代 dispatcher／MediatR）。
 - Handler 不直接注入 DbContext，資料存取一律透過 Repository；
   Query 端的投影（Select 成 Response）寫在 Repository 內。
+- Repository 只改狀態（Add、修改 tracked entity），不呼叫 SaveChanges；
+  Handler 結束前以 `IUnitOfWork.SaveChangesAsync` 統一提交，同一個請求內的寫入一起成功或失敗。
 
 ## Command 與 Query
 
@@ -30,13 +32,14 @@ Endpoint → Command/Query → Handler → Service → Repository
   Query 的 Handler 不得寫入資料庫。
 - 依功能垂直切分，feature 內用技術類型資料夾；
   Command/Query＋Handler＋Result 強制放在同一個檔案，
-  一個操作不橫跨多個資料夾：
+  一個操作不橫跨多個資料夾。被多個用例共用的 Result 例外，放 Models/
+  （例：AuthResult 由註冊與改密碼共用）：
 
   Features/Products/
   Endpoints/ProductEndpoints.cs（一支檔案看到模組全部路由）
   Queries/GetProductsQuery.cs（Query + Handler + Result 同檔）
   Commands/CreateXxxCommand.cs（Command + Handler + Result 同檔）
-  Models/（Entity 與共用 DTO）
+  Models/（Entity、共用 DTO 與共用 Result）
   Services/、Repositories/（有第一個檔案才建立）
 
   不要在專案根層用 Controllers/、Services/ 這種跨 feature 的水平分法。
@@ -46,9 +49,10 @@ Endpoint → Command/Query → Handler → Service → Repository
 
 ## Endpoint
 
-- 使用 Minimal API 的 endpoint 註冊，依功能分組 MapGroup。
-- 每個 endpoint 一個檔案，只做四件事：
-  繫結輸入 → 送出 Command/Query → 對應狀態碼 → 回傳。
+- 使用 Minimal API 的 endpoint 註冊，依功能分組 MapGroup
+  （只有一條路由的模組可以不分組，例：Search）。
+- 每個模組一支 Endpoints 檔，每個 endpoint 只做四件事：
+  繫結輸入 → 呼叫 handler.Handle → 對應狀態碼 → 回傳。
 - 一律 async。
 - 明確標註 Produces 與授權需求，讓 OpenAPI 文件正確。
 
@@ -58,6 +62,7 @@ Endpoint → Command/Query → Handler → Service → Repository
 - 層級關係用巢狀：/api/orders/{orderId}/items
 - 動作型端點才用動詞，並限縮在 POST：/api/orders/{id}/cancel
 - 查詢條件走 query string，不要塞進路徑。
+- 例外：`/api/search`（跨資源的查詢）、`/api/version`（單一資訊，不是集合）。
 
 ## HTTP 狀態碼
 
@@ -65,7 +70,7 @@ Endpoint → Command/Query → Handler → Service → Repository
 | ------------------------------ | ------------------------- |
 | 查詢成功                       | 200                       |
 | 建立成功                       | 201（附 Location header） |
-| 成功但無回傳內容               | 204                       |
+| 成功但無回傳內容               | 204；回傳 Result 的命令（註冊、改密碼）回 200 |
 | 參數或驗證錯誤                 | 400                       |
 | 未登入或 token 無效            | 401                       |
 | 已登入但無權限                 | 403                       |
@@ -75,11 +80,15 @@ Endpoint → Command/Query → Handler → Service → Repository
 
 不要一律回 200 再用 body 裡的旗標表示失敗。
 
+> 現況：Result 沒有錯誤類型，可預期的失敗目前一律回 400，409 要等 Result 帶錯誤類型後才實施；
+> `POST /api/orders` 的 Location 指向 `/api/orders/{id}`，但明細路由尚未實作（見 CLAUDE.md §6）。
+
 ## Handler 的結果表達
 
 - Handler 不丟例外來表示可預期的業務失敗（庫存不足、狀態不允許）。
   用 Result 型別回傳成功或失敗，由 Endpoint 對應成狀態碼。
-- 例外保留給真正非預期的狀況，交給全域例外處理器轉成 500。
+- 例外保留給真正非預期的狀況，交給全域例外處理器轉成 500
+  （唯一的例外：`ICurrentUser` 取不到登入身分時丟的 UnauthorizedAccessException 轉成 401）。
 
 ## 回應格式
 
@@ -87,15 +96,21 @@ Endpoint → Command/Query → Handler → Service → Repository
 可預期的業務失敗（驗證錯誤、狀態不允許）由 Handler 以 Result 物件回傳，
 Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 
+```json
 {
-"success": false,
-"errors": {
-"items": "購物車是空的",
-"contactName": "請填寫聯絡人姓名"
+  "success": false,
+  "errors": {
+    "items": "購物車是空的",
+    "contactName": "請填寫聯絡人姓名"
+  }
 }
-}
+```
 
-- errors 的 key 對應輸入欄位名（camelCase），
+> 現況：`POST /api/orders` 的 201 回整個 `CreateOrderResult`（`{ success, errors, orderId }`）；
+> 失敗時 Result 的其他欄位會以 `null` 出現（login 的 `data`、下單的 `orderId`）。待清理，見 CLAUDE.md §6。
+
+- errors 的 key 對應輸入欄位名（camelCase）；由多個輸入組成的欄位用組合名稱
+  （`address` 對應 cityCode／districtCode，`birthday` 對應 year／month／day），
   不屬於特定欄位的錯誤用 "general"。
 - 錯誤訊息是給使用者看的，用繁體中文。
 - 不要把例外堆疊或 SQL 訊息放進回應。
@@ -104,21 +119,25 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 
 ## 分頁
 
+> 尚未實作：目前列表一律回傳完整清單（見 CLAUDE.md §6）。
+
 - 查詢參數：page（從 1 開始）、pageSize
 - pageSize 設上限（預設 20，上限 100），超過就夾到上限，不要照收。
 - 回傳格式：
 
+```json
 {
-"items": [],
-"page": 1,
-"pageSize": 20,
-"totalCount": 137
+  "items": [],
+  "page": 1,
+  "pageSize": 20,
+  "totalCount": 137
 }
+```
 
 ## DTO 與模型
 
 - 對外只傳 Request / Response 型別，絕對不要回傳 EF Core 的 Entity。
-- 輸入輸出分開：CreateProductRequest / ProductResponse。
+- 輸入輸出分開：CreateOrderRequest / OrderDto（回應型別以 Dto 結尾）。
 - Response 型別與使用案例放在同一個功能資料夾內，
   不要建一個全專案共用的巨大 DTO 資料夾。
 - Query 端可以直接在 Repository 內用 Select 投影成 Response，
@@ -129,6 +148,9 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 - 輸入格式驗證（必填、長度、範圍）寫在 Handler 開頭，
   彙整進 Result 的 errors 一次回傳
   （不引入 FluentValidation；引入新套件前先討論）。
+
+  > 現況：長度檢查尚未實作，超過資料庫欄位長度的輸入會變成 500；
+  > 改密碼是逐項檢查、逐一回傳。待修，見 CLAUDE.md §6。
 - 業務規則驗證（庫存、金額、狀態轉換）在 Handler 或 Service，
   不要放在 Endpoint。
 - 金額與數量一律在後端重算，不信任前端傳來的總計。
@@ -138,9 +160,11 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 - 使用 JWT Bearer Token。
 - Token 內容只放必要的識別資訊（使用者 id、角色）。
   不要放個人資料、email 全文、或任何敏感欄位。
+
+  > 現況：token 另含 `email`、`name` claim，也還沒有角色。待移除，見 CLAUDE.md §6。
 - 涉及使用者資料的端點，一律從 token 的 claims 取得使用者身分。
   絕不接受前端傳來的 userId 或 customerId 作為身分依據。
-- 授權檢查用 endpoint 上的 RequireAuthorization 與 policy，
+- 授權檢查用 endpoint 上的 RequireAuthorization（需要角色時再定義 policy，目前沒有任何 policy），
   不要在 Handler 裡零散地判斷角色字串。
 - 資源層級的擁有權檢查（這張訂單是不是這個人的）放在 Handler，
   policy 擋不住這種情況。查不到或不屬於該使用者時回 404 而非 403，
@@ -154,4 +178,4 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 
 - 使用結構化記錄，不要字串串接。
 - 不要記錄密碼、token、完整信用卡號、完整地址。
-- 錯誤記錄要帶得回請求識別碼，方便追查。
+- 錯誤記錄要帶得回請求識別碼，方便追查（尚未實作：目前只記 Path）。

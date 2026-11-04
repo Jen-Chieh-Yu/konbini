@@ -13,7 +13,7 @@
 
 ### 設計原則
 
-- **Vertical Slices**：按業務功能（Products, Orders, Auth, Search, Addresses）拆分，而非按技術層分層。
+- **Vertical Slices**：按業務功能（Products, Orders, Auth, Search, Addresses, AppInfo）拆分，而非按技術層分層。
 - **REPR Pattern**：`Endpoint → Command/Query → Handler → Repository`
  （Service 僅於跨 Handler 共用業務規則時抽出），不使用 Controller。
 - **CQRS-lite**：Commands（Write）與 Queries（Read）分離；以手寫輕量管線實作，**不引入 MediatR**。
@@ -57,7 +57,7 @@ Konbini/
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
-├── .githooks/pre-push            # 推送前跑後端測試與前端型別檢查
+├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試與前端型別檢查
 ├── .github/
 │   ├── scripts/release-info.sh   # 打包時決定版號（格式檢查、標籤須在 main 上）
 │   ├── workflows/ci.yml          # CI：後端、前端、Docker，v* 標籤打包映像
@@ -73,12 +73,12 @@ Konbini/
 ├── src/
 │   ├── Konbini.Client/           # Vue 3 SPA（不在方案檔內，Rider 以附加資料夾顯示）
 │   │   ├── .nvmrc                # Node 版本，本機與 CI 共用
-│   │   ├── Dockerfile            # node:24 build → nginx:alpine
+│   │   ├── Dockerfile            # node:24-alpine build → nginx:alpine
 │   │   ├── nginx.conf            # SPA fallback + /api 反向代理
 │   │   └── src/
 │   │       ├── assets/css/       # 全域樣式
 │   │       ├── features/         # 依模組分類：Products / Cart / Orders / Auth / Search / Addresses
-│   │       ├── shared/api/       # axios 共用實例
+│   │       ├── shared/           # api/：axios 共用實例；constants/：分類與金額格式等共用常數
 │   │       ├── router/
 │   │       ├── views/            # 首頁等不屬於特定 feature 的頁面
 │   │       └── main.ts
@@ -87,17 +87,18 @@ Konbini/
 │       ├── Dockerfile
 │       └── Features/
 │           ├── Common/           # 跨模組共用（依模組分類）
-│           │   ├── Abstractions/ #   IEndpoint、ICommandHandler、IQueryHandler
+│           │   ├── Abstractions/ #   IEndpoint、ICommandHandler、IQueryHandler、IRepository（marker）與掃描註冊
 │           │   ├── Auth/         #   PasswordHasher、JwtTokenService、CurrentUser
-│           │   ├── Persistence/  #   AppDbContext、Configurations/、Seed/
+│           │   ├── Persistence/  #   AppDbContext、UnitOfWork（IUnitOfWork）、Configurations/、Seed/
 │           │   └── Web/          #   全域例外處理
 │           ├── Products/
 │           ├── Orders/           # 購物車狀態在前端（Pinia），下單才進後端
 │           ├── Auth/             # 使用者認證（登入/註冊/me/改密碼）
 │           ├── Search/
-│           └── Addresses/
+│           ├── Addresses/
+│           └── AppInfo/          # 版號資訊（/api/version）
 └── tests/
-    └── Konbini.Tests/            # 內分 Unit/ 與 Integration/
+    └── Konbini.Tests/            # Unit/（純邏輯）；Integration/ 尚未建立
 ```
 
 > `Konbini.Client` 實體位於 `src/`，**不在方案檔內**（沒有專案檔）。Rider 以「附加資料夾」顯示，
@@ -122,7 +123,8 @@ Features/Orders/
 > 購物車不是後端 feature：狀態存於前端 Pinia（+ localStorage），
 > 下單時才把品項送進 `CreateOrderCommand`，由後端以資料庫現價重新計算金額。
 
-前端的 feature 採同樣的模組化精神，內部依技術類型分層（資料夾按需建立）：
+前端的 feature 採同樣的模組化精神，內部依技術類型分層。資料夾按需建立，下例是各層都用到時的
+完整樣子（Products 目前只有 `api/` 與 `views/`）：
 
 ```text
 src/features/Products/
@@ -164,11 +166,11 @@ src/features/Products/
 ### docker-compose 服務清單
 
 **偵錯／開發環境（`docker-compose.yml` + `docker-compose.override.yml`）**
-—— VS 以 `docker-compose` 為啟始專案按 F5 時啟動，偵錯器自動附加進 api 容器：
+—— Rider 的「api + postgres（容器）」或 VS 以 `docker-compose` 為啟始專案按 F5 時啟動，偵錯器自動附加進 api 容器：
 
 | 服務 | 用途 | 連接/備註 |
 | --- | --- | --- |
-| `api` | 後端 API（容器內偵錯） | 對外 `5214:8080`，vite proxy 不需改任何設定 |
+| `api` | 後端 API（容器內偵錯） | 對外 `127.0.0.1:5214:8080`，vite proxy 不需改任何設定 |
 | `postgres` | 開發用資料庫 | 對外 `127.0.0.1:5432`，named volume |
 
 ★ 只要資料庫、想走本機最快迭代時：`docker compose up -d postgres`（指定服務名，不會起 api）。
@@ -260,13 +262,16 @@ dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
 > `dotnet user-secrets remove "ConnectionStrings:MySqlConnection" --project src/Konbini.Api` 移除）；
 > 舊的 MySQL 容器與 volume 用 `docker rm -f konbini-mysql`、`docker volume rm konbini_mysql-data` 清掉
 >（開發資料不轉移，API 啟動時會重建 schema 與種子）。
-> `Jwt:Secret` 空值時 API 會啟動失敗——這是刻意的 fail fast。
+> `Jwt:Secret` 空值或不足 32 字元時 API 會啟動失敗——這是刻意的 fail fast。
 
 ### 啟動服務（日常開發）
 
-**方式 A：VS 容器偵錯（F5）** —— 方案總管把 `docker-compose` 設為啟始專案後按 F5：
-VS 會建映像、起 api + postgres、把偵錯器附加進 api 容器，並開啟
-`http://localhost:5214/scalar`。前端照常另開終端機跑 `npm run dev`。
+**方式 A：容器偵錯** —— api 與 postgres 都在容器內，偵錯器附加進 api 容器：
+
+- Rider：執行設定選 **api + postgres（容器）** 按 Debug（見下方 Rider 說明）。
+- Visual Studio：方案總管把 `docker-compose` 設為啟始專案後按 F5，會自動開啟 `http://localhost:5214/scalar`。
+
+前端照常另開終端機跑 `npm run dev`。
 
 **方式 B：本機最快迭代** —— API 不進容器，熱重載最快：
 
@@ -376,7 +381,7 @@ curl http://localhost:5214/health                 # 開發模式：Healthy = API
 ```text
 Features/{Feature}/Models/
 ├── {Entity}.cs
-└── {Entity}Dto.cs
+└── {Feature}Dtos.cs      # 該 feature 的 Request／Response DTO（例：ProductDtos.cs）
 ```
 
 ### Step 2: Repository —— 資料存取
@@ -394,6 +399,7 @@ Features/{Feature}/Repositories/{Entity}Repository.cs   # 介面＋實作同檔
 ### Step 3: Command / Query —— 用例本體
 
 **Command / Query、Handler、Response 一律同一個檔案**，改一個功能不用開四、五個檔案。
+被多個用例共用的 Result 例外，放 `Models/`（例：`AuthResult` 由註冊與改密碼共用）。
 
 ```csharp
 // Features/Products/Queries/GetProductsQuery.cs
@@ -422,17 +428,22 @@ public class ProductEndpoints : IEndpoint
         group.MapGet("/", async (int? type,
             IQueryHandler<GetProductsQuery, List<ProductDto>> handler,
             CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(type ?? 0), ct)));
+            => Results.Ok(await handler.Handle(new(type ?? 0), ct)))
+            .Produces<List<ProductDto>>();
 
         group.MapGet("/{id:int}", async (int id,
             IQueryHandler<GetProductDetailQuery, ProductDetailDto?> handler,
             CancellationToken ct)
             => await handler.Handle(new(id), ct) is { } dto
                 ? Results.Ok(dto)
-                : Results.NotFound());
+                : Results.NotFound())
+            .Produces<ProductDetailDto>()
+            .Produces(StatusCodes.Status404NotFound);
     }
 }
 ```
+
+每個 endpoint 都要用 `.Produces<T>()` 標註回應型別與狀態碼，Scalar 才看得到回應結構（見 `docs/api-conventions.md`）。
 
 ---
 
@@ -458,13 +469,13 @@ public class ProductEndpoints : IEndpoint
 
 | 類型 | 命名範例 |
 |---|---|
-| Command | `AddToCartCommand`, `CreateOrderCommand` |
+| Command | `CreateOrderCommand`, `ChangePasswordCommand` |
 | Query | `GetProductsQuery`, `GetProductDetailQuery` |
-| Handler | `AddToCartHandler`（與 Command/Query 同檔） |
+| Handler | `CreateOrderHandler`（與 Command/Query 同檔） |
 | Repository | `ProductRepository`（與介面 `IProductRepository` 同檔） |
 | DTO | `ProductDto`（Response）, `RegisterRequest`（Request） |
 | Endpoints | `ProductEndpoints`（每 feature 一支） |
-| 路由 | REST 資源風格、複數：`/api/products`、`/api/orders` |
+| 路由 | REST 資源風格、複數：`/api/products`、`/api/orders`（例外：`/api/search`、`/api/version`） |
 
 ---
 
@@ -495,8 +506,8 @@ public class ProductEndpoints : IEndpoint
 
 ```text
 tests/Konbini.Tests/
-├── Unit/           # Commands handler（下單、註冊、登入等商業邏輯）
-└── Integration/    # API + 真實 PostgreSQL（Testcontainers），Queries 主要在此覆蓋
+├── Unit/           # 純邏輯：PasswordHasher、Pricing（handler 測試隨各模組 CRUD 補上）
+└── Integration/    # 尚未建立（規劃：API + 真實 PostgreSQL，Testcontainers）
 ```
 
 ```bash
@@ -505,7 +516,7 @@ dotnet test tests/Konbini.Tests
 
 ### CI（GitHub Actions）
 
-`.github/workflows/ci.yml` 定義三個平行 job，推送到 `main` /
+`.github/workflows/ci.yml` 定義三個每次都跑的平行 job，另有三個只在打包時執行。推送到 `main` /
 `feature|fix|refactor|docs|chore|hotfix` 分支、Pull Request，
 以及從 Actions 頁面手動觸發時執行：
 
@@ -523,8 +534,8 @@ dotnet test tests/Konbini.Tests
 - **僅提醒、不阻擋的警告**會印在執行頁上方的 Annotations 與 Summary：
   後端編譯警告統計（依 CS 代碼分類）、NuGet 與 npm 套件弱點掃描。
   前端型別檢查不在此列——它從第一天就是 0 個錯誤、直接阻擋。
-- 純文件變更（`*.md`）的「推送」不觸發建置；Pull Request 與標籤不受此限
-  ——PR 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。
+- 純文件變更（`*.md` 與 `docs/`）的「推送」不觸發建置；Pull Request 與標籤不受此限
+  ——Pull Request 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。
 - 同一分支連續推送只跑最新一次（concurrency 自動取消舊的）。
 - **手動觸發**：Actions 頁面 → 左欄選「CI」→ 右上 **Run workflow** →
   下拉選分支或標籤 →（要試跑打包時勾選 **測試打包**）→ 按綠色 **Run workflow**。按鈕只在 workflow 檔案

@@ -49,8 +49,9 @@ docker image ls "konbini-*"     # 應看到 konbini-api:X.Y.Z、konbini-client:X
 docker compose -f docker-compose.prod.yml up -d --no-build --wait
 ```
 
-- `--no-build`：使用剛載入的映像。**不要加 `--build`**——那會用部署機器上的原始碼重建，版號變成 `0.0.0-local`
-- `--wait`：等三個容器都健康才結束；第一次啟動會初始化資料庫，約 30–60 秒
+- `--no-build`：使用剛載入的映像。**不要加 `--build`**——那會用部署機器上的原始碼重建，
+  並覆蓋同標籤的發行版映像：`/api/version` 仍顯示 X.Y.Z，只有 commit 變成 `local`，很難察覺被換掉
+- `--wait`：等 api 與 postgres 健康、client 啟動才結束（client 沒有 healthcheck）；第一次啟動會初始化資料庫，約 30–60 秒
 
 ## 5. 部署後檢查
 
@@ -70,10 +71,10 @@ curl http://localhost:8080/version.json              # 前端版號，應與後�
    docker exec konbini-prod-postgres pg_dump -U konbini -d konbini --clean --if-exists > backup-$(date +%Y%m%d).sql
    ```
 
-2. 依步驟 0–2 取得新版的部署檔案並載入新映像
-3. `.env` 的 `APP_VERSION` 改成新版號
-4. 再執行一次步驟 4 的啟動指令（compose 只會替換映像有變的容器），然後做步驟 5 的檢查
-5. 讀一下新版 `CHANGELOG.md` 的「⚠️ 升級注意」，有新的環境變數或手動步驟要先處理
+2. 讀新版 `CHANGELOG.md` 的「⚠️ 升級注意」，有新的環境變數或手動步驟要先處理
+3. 依步驟 0–2 取得新版的部署檔案並載入新映像
+4. `.env` 的 `APP_VERSION` 改成新版號
+5. 再執行一次步驟 4 的啟動指令（compose 只會替換映像有變的容器），然後做步驟 5 的檢查
 
 ## 7. 回到上一版
 
