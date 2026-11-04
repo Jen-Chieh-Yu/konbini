@@ -32,6 +32,7 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 
 ### 後端架構（CLAUDE.md §1、§2，api-conventions「架構分層」）
 - 請求路徑是 `Endpoint → Command/Query Handler → Repository → AppDbContext`。Endpoint 不注入 DbContext 或 Repository；Handler 不直接注入 DbContext。
+- Endpoint 直接注入 handler 介面，不引入 ISender／dispatcher 轉送層；要翻案須照 CLAUDE.md §2「為什麼 Endpoint 直接注入 handler」記錄理由。
 - 寫入經 `IUnitOfWork` 由 Handler 統一提交，Repository 不自己 `SaveChanges`。
 - Query 只讀：Repository 內 `AsNoTracking` ＋ `Select` 投影成 Response，不回傳 Entity；Query Handler 不寫入。
 - Command／Query ＋ Handler ＋ Result（Response）**同一個檔案**；feature 內用 `Models/` `Commands/` `Queries/` `Endpoints/` `Repositories/`，空資料夾不預建；不出現跨 feature 的根層 `Controllers/`、`Services/`。
