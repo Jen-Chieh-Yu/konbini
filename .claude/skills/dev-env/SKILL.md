@@ -20,7 +20,7 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 容器健�
 | 啟動方式 | API 的連線字串與 JWT 金鑰從哪來 |
 |---|---|
 | 本機 `dotnet watch`／`dotnet run`（方式 B） | **user-secrets**（`ConnectionStrings:DefaultConnection`、`Jwt:Secret`） |
-| 容器（VS F5、`docker compose up`、prod） | **`.env`**，經 compose 的 `environment:` 注入 |
+| 容器（Rider「api + postgres（容器）」、VS F5、`docker compose up`、prod） | **`.env`**，經 compose 的 `environment:` 注入 |
 
 兩邊的密碼必須與 postgres 的 init 腳本建立 `konbini` 帳號時用的 `.env` 一致。很多問題都是其中一邊沒設、或兩邊不一致。
 

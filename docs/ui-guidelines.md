@@ -1,5 +1,9 @@
 # Konbini UI 設計規範
 
+> 現況：目前只有 `App.vue` 與 `views/HomeView.vue` 照本規範改版。`features/` 底下的頁面是改版前的寫法
+> （自刻 button／table／input、CSS grid、640px 斷點、金額沒用 `formatMoney`、只有「載入中…」文字），
+> 會隨各模組 CRUD 一起遷移（見 CLAUDE.md §6）。新寫的畫面一律照本規範。
+
 ## 元件庫
 
 - 使用 Element Plus，沿用既有主題與樣式變數。
@@ -19,6 +23,8 @@
 | 桌機 | 4–6 欄   | 常駐左側         | 側邊抽屜或固定側欄，不跳頁   |
 | 平板 | 2–3 欄   | 收合成可展開抽屜 | 抽屜                         |
 | 手機 | 1–2 欄   | 頂部或底部導覽   | 底部固定條顯示總計與結帳入口 |
+
+> 現況：購物車是獨立頁面（`/cart`），尚未做成抽屜或底部固定條；平板以下的分類導覽是橫向捲動列。
 
 - 後台的 el-table 在窄螢幕改為卡片式列表，不要用橫向捲動硬塞
   （後台尚未實作，屆時適用）。
@@ -44,6 +50,7 @@
 - 版面預留中英文長度差異，按鈕與標籤不要寫死寬度。
 - 金額顯示格式統一：新台幣整數、無小數，千分位逗號、
   幣別符號位置一致（金額一律 int，見 database-design.md）。
+  一律用 `shared/constants/catalog.ts` 的 `formatMoney`，不要在 template 裡自己拼。
 
 ## 雜貨電商特有考量
 
@@ -63,8 +70,9 @@
 ## 參考來源
 
 - 版型密度參考真實雜貨電商：全聯 PXGo!、家樂福線上購物、Instacart。
-- 視覺草稿來自 Google Stitch，我會提供截圖。
-  Stitch 匯出的程式碼不要直接使用，它與 Element Plus 對不上。
+- 版面草稿在 `docs/mockups/`（HTML）；色票與尺寸已整理成 `assets/css/main.css` 的 `--kb-*` token，
+  寫樣式時用 token，不要寫死色碼。
+- 草稿的 HTML 不要直接搬進元件，它與 Element Plus 對不上，只拿來對照版面與層級。
 
 ## 修改流程
 

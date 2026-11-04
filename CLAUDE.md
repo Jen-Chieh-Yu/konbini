@@ -400,6 +400,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string） | 下一個 fix 分支 |
 | JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除） | fix 分支，隨時可做 |
 | API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
+| 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前只有 App.vue 與 HomeView 照規範（見 `docs/ui-guidelines.md`） |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、
