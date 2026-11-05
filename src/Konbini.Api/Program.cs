@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
@@ -57,6 +58,15 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();   // /health 同時驗證資料庫連線
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+
+// --- JSON：數字欄位只收 JSON 數字 ---
+// Web 預設 AllowReadingFromString 也收 "5"，OpenAPI 會因此把整數欄位標成 integer|string；
+// 前端一律送 number，改 Strict 讓契約與文件一致。
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
+// 請求格式錯誤一律丟 BadHttpRequestException，交給 GlobalExceptionHandler 回 400
+// （預設只有開發環境會丟；正式環境由框架直接回沒有內容的 400，兩邊回應不一致）
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
 // --- OpenAPI / Scalar（僅開發環境掛 UI）---
 builder.Services.AddOpenApi();

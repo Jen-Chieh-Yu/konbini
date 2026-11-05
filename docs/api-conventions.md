@@ -88,7 +88,8 @@ Endpoint → Command/Query → Handler → Service → Repository
 - Handler 不丟例外來表示可預期的業務失敗（庫存不足、狀態不允許）。
   用 Result 型別回傳成功或失敗，由 Endpoint 對應成狀態碼。
 - 例外保留給真正非預期的狀況，交給全域例外處理器轉成 500
-  （唯一的例外：`ICurrentUser` 取不到登入身分時丟的 UnauthorizedAccessException 轉成 401）。
+  （例外：`ICurrentUser` 取不到登入身分時丟的 UnauthorizedAccessException 轉成 401；
+  請求格式錯誤的 BadHttpRequestException 轉成 400）。
 
 ## 回應格式
 
@@ -115,7 +116,8 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 - 錯誤訊息是給使用者看的，用繁體中文。
 - 不要把例外堆疊或 SQL 訊息放進回應。
 - 全域例外處理集中在一處，不要在每個 Endpoint 各寫 try-catch；
-  未預期例外統一回 500 + { "status": 500, "title": "伺服器發生錯誤，請稍後再試。" }。
+  未預期例外統一回 500 + { "status": 500, "title": "伺服器發生錯誤，請稍後再試。" }；
+  請求格式錯誤回 400 + { "status": 400, "title": "請求格式錯誤。" }（不帶 errors，因為無法對應到欄位）。
 
 ## 分頁
 
@@ -145,6 +147,14 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 
 ## 驗證
 
+- 數字欄位只收 JSON 數字（全域 `NumberHandling = Strict`）：`"year": "2000"` 會被當成格式錯誤回 400。
+  前端送出前要確保是 number（`<select>`／`<input>` 用 `v-model.number`）。
+  - **全域嚴格，個別欄位才放寬**：只有確實需要以字串傳遞的欄位，才在該屬性加
+    `[property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]`，
+    不要為了少數欄位改回全域寬鬆。需要的情況：64 位元 ID（超過 JavaScript 能精確表示的 2⁵³）、
+    介接外部系統時對方以字串傳數字。OpenAPI 只會在這些欄位顯示 `integer | string`。
+  - 看起來像數字的代碼（電話、郵遞區號、身分證字號、條碼）一律定義成 `string`，
+    開頭的 0 才不會被吃掉；不拿來加減的值不是數字。
 - 輸入格式驗證（必填、長度、範圍）寫在 Handler 開頭，
   彙整進 Result 的 errors 一次回傳
   （不引入 FluentValidation；引入新套件前先討論）。
