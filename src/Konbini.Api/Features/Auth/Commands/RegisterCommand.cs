@@ -12,6 +12,8 @@ public record RegisterCommand(RegisterRequest Request);
 public partial class RegisterHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
     : ICommandHandler<RegisterCommand, AuthResult>
 {
+    private const string EmailTakenMessage = "此Email已註冊過";
+
     [GeneratedRegex(@"^09\d{8}$")]
     private static partial Regex PhoneRegex();
 
@@ -51,7 +53,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         }
         else if (await users.EmailExistsAsync(User.NormalizeEmail(request.Email), ct))
         {
-            errors["email"] = "此Email已註冊過";
+            errors["email"] = EmailTakenMessage;
         }
 
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
@@ -102,7 +104,16 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
             Birthday = birthday,
             Phone = request.PhoneNumber,
         });
-        await unitOfWork.SaveChangesAsync(ct);
+
+        try
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+        }
+        catch (UniqueConstraintViolationException)
+        {
+            // 先查時還沒有人用，寫入前被同時送出的請求搶先；users 只有 email 一個唯一索引
+            return AuthResult.Fail(new() { ["email"] = EmailTakenMessage });
+        }
 
         return AuthResult.Ok();
     }

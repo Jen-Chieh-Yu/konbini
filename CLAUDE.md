@@ -413,7 +413,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除） | 與 EF Migrations 導入同分支（模組 CRUD 之前）；現有 `created_at` 一併改名 |
 | 庫存欄位與扣庫存交易 | 尚未實作；導入時依 docs/database-design.md「交易」節 |
 | ~~CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix）~~ | 已實施（2026-09-01）：另含 PR 移除 paths-ignore、前端 npm audit（僅提醒）、測試失敗上傳 trx 報告 |
-| 「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等） | fix 分支，隨時可做 |
+| ~~「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等）~~ | 已實施（2026-11-06）：`UnitOfWork` 把唯一索引違反翻譯成 `UniqueConstraintViolationException`，Handler 接住後回欄位錯誤；目前只有 `users.email` 一個唯一索引 |
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
 | DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄） |
@@ -421,6 +421,8 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~輸入長度驗證：超過資料庫欄位長度的輸入目前回 500~~ | 已實施（2026-11-06）：註冊與下單的 Handler 檢查長度、回欄位錯誤；上限定義成 Entity 常數，`HasMaxLength` 與 Handler 共用同一來源 |
 | ~~下單數量上限：沒有上限時單價 × 數量可能溢位，算出錯誤的訂單金額~~ | 已實施（2026-11-06）：每項商品最多 99 件（`OrderItem.MaxQuantity`），同商品分多筆時看合計；前端購物車同步限制 |
 | ~~OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string）~~ | 已實施（2026-11-05）：`NumberHandling = Strict`，執行時與文件都只收 JSON 數字；請求格式錯誤一律由 `GlobalExceptionHandler` 回 400（原本開發環境會變成 500） |
+| 字串含 NUL 字元（`\u0000`）：PostgreSQL 的文字欄位不接受，推論會回 500（尚未重現） | fix 分支，先重現再修 |
+| 密碼長度上限：目前只有下限，超長密碼不會超過資料庫欄位（存的是雜湊值），但會多花雜湊的運算時間 | fix 分支，隨時可做 |
 | JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除） | fix 分支，隨時可做 |
 | API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前只有 App.vue 與 HomeView 照規範（見 `docs/ui-guidelines.md`） |

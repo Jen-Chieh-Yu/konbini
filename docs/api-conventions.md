@@ -164,6 +164,8 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
   由 `HasMaxLength` 與 Handler 共用，兩邊才不會改了一邊忘了另一邊。
 - 業務規則驗證（庫存、金額、狀態轉換）在 Handler 或 Service，
   不要放在 Endpoint。
+- 唯一性檢查分兩段：先查，回友善訊息；提交時再接 `UniqueConstraintViolationException`，
+  因為先查再寫有競態，同時送出的請求只會被唯一索引擋下。
 - 金額與數量一律在後端重算，不信任前端傳來的總計。
 - 每項商品數量上限 99 件（`OrderItem.MaxQuantity`），同商品分多筆送來時看合計；
   前端購物車的 `MAX_ITEM_QUANTITY` 要與它對齊。
