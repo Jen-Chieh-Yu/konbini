@@ -2,6 +2,10 @@ namespace Konbini.Api.Features.Auth.Models;
 
 public class User
 {
+    // 資料庫欄位長度的單一來源：UserConfiguration 與 Handler 的輸入驗證共用
+    public const int NameMaxLength = 100;
+    public const int EmailMaxLength = 254;
+
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;

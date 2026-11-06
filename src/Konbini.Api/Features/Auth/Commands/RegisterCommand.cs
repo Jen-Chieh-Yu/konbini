@@ -31,10 +31,19 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         {
             errors["firstName"] = "請輸入名字";
         }
+        // 姓與名合併存進 users.name，上限看的是兩者合計
+        if ((request.LastName?.Length ?? 0) + (request.FirstName?.Length ?? 0) > User.NameMaxLength)
+        {
+            errors["name"] = $"姓名合計不可超過 {User.NameMaxLength} 個字元";
+        }
 
         if (string.IsNullOrWhiteSpace(request.Email))
         {
             errors["email"] = "請填寫Email";
+        }
+        else if (request.Email.Length > User.EmailMaxLength)
+        {
+            errors["email"] = $"Email不可超過 {User.EmailMaxLength} 個字元";
         }
         else if (!EmailRegex().IsMatch(request.Email))
         {
