@@ -33,18 +33,43 @@ public class CreateOrderHandler(
         {
             errors["items"] = "商品數量必須大於 0";
         }
+        // 先擋單筆再加總：單筆都在上限內，Sum 才不會溢位；同商品分多筆送來時看合計
+        else if (request.Items.Any(i => i.Quantity > OrderItem.MaxQuantity)
+            || request.Items.GroupBy(i => i.ProductId).Any(g => g.Sum(i => i.Quantity) > OrderItem.MaxQuantity))
+        {
+            errors["items"] = $"每項商品數量不可超過 {OrderItem.MaxQuantity} 件";
+        }
 
         if (string.IsNullOrWhiteSpace(request.ContactName))
         {
             errors["contactName"] = "請填寫聯絡人姓名";
         }
+        else if (request.ContactName.Length > Order.ContactNameMaxLength)
+        {
+            errors["contactName"] = $"聯絡人姓名不可超過 {Order.ContactNameMaxLength} 個字元";
+        }
+
         if (string.IsNullOrWhiteSpace(request.ContactPhone))
         {
             errors["contactPhone"] = "請填寫聯絡電話";
         }
+        else if (request.ContactPhone.Length > Order.ContactPhoneMaxLength)
+        {
+            errors["contactPhone"] = $"聯絡電話不可超過 {Order.ContactPhoneMaxLength} 個字元";
+        }
+
         if (string.IsNullOrWhiteSpace(request.StreetAddress))
         {
             errors["streetAddress"] = "請填寫地址";
+        }
+        else if (request.StreetAddress.Length > Order.StreetAddressMaxLength)
+        {
+            errors["streetAddress"] = $"地址不可超過 {Order.StreetAddressMaxLength} 個字元";
+        }
+
+        if (request.Memo?.Length > Order.MemoMaxLength)
+        {
+            errors["memo"] = $"備註不可超過 {Order.MemoMaxLength} 個字元";
         }
 
         var cityName = await addresses.GetCityNameAsync(request.CityCode, ct);

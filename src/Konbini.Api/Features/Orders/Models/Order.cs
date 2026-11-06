@@ -2,6 +2,12 @@ namespace Konbini.Api.Features.Orders.Models;
 
 public class Order
 {
+    // 資料庫欄位長度的單一來源：OrderConfiguration 與 Handler 的輸入驗證共用
+    public const int ContactNameMaxLength = 100;
+    public const int ContactPhoneMaxLength = 20;
+    public const int StreetAddressMaxLength = 200;
+    public const int MemoMaxLength = 500;
+
     public int Id { get; set; }
     public int UserId { get; set; }
     public int Subtotal { get; set; }

@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ProductService } from '../api/services/ProductService'
 import type { ProductDetailDTO } from '../api/interfaces/ProductDTO'
-import { useCartStore } from '@features/Cart/stores/useCartStore'
+import { MAX_ITEM_QUANTITY, useCartStore } from '@features/Cart/stores/useCartStore'
 
 const route = useRoute()
 const cart = useCartStore()
@@ -26,7 +26,7 @@ onMounted(load)
       <h2>{{ detail.product.name }}</h2>
       <p class="price">NT$ {{ detail.product.price }}</p>
       <div class="buy">
-        <input v-model.number="qty" type="number" min="1" />
+        <input v-model.number="qty" type="number" min="1" :max="MAX_ITEM_QUANTITY" />
         <button
           @click="cart.add({ productId: detail.product.id, name: detail.product.name, price: detail.product.price, imageUrl: detail.product.imageUrl }, qty)">
           加入購物車

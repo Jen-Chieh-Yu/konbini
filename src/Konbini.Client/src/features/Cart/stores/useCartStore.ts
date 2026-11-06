@@ -15,6 +15,8 @@ const STORAGE_KEY = 'konbini.cart'
 // export：header 的免運公告條要顯示同一個門檻，不在畫面上另外寫死
 export const FREE_DELIVERY_THRESHOLD = 500
 const DELIVERY_FEE = 60
+// 與後端 OrderItem.MaxQuantity 對齊；是否超過上限最終以後端驗證為準
+export const MAX_ITEM_QUANTITY = 99
 
 /** 購物車狀態放前端（localStorage 持久化），下單時才把品項送給後端重新計價。 */
 export const useCartStore = defineStore('cart', () => {
@@ -36,11 +38,14 @@ export const useCartStore = defineStore('cart', () => {
   const total = computed(() => (items.value.length ? subtotal.value + deliveryFee.value : 0))
 
   function add(item: Omit<CartItem, 'quantity'>, qty = 1) {
+    // 輸入框清空時 v-model.number 會給空字串，也可能輸入小數，這裡統一成正整數
+    const amount = Math.trunc(Number(qty))
+    if (!(amount > 0)) return
     const existing = items.value.find((i) => i.productId === item.productId)
     if (existing) {
-      existing.quantity += qty
+      existing.quantity = Math.min(existing.quantity + amount, MAX_ITEM_QUANTITY)
     } else {
-      items.value.push({ ...item, quantity: qty })
+      items.value.push({ ...item, quantity: Math.min(amount, MAX_ITEM_QUANTITY) })
     }
   }
 
@@ -50,7 +55,7 @@ export const useCartStore = defineStore('cart', () => {
     if (qty <= 0) {
       remove(productId)
     } else {
-      item.quantity = qty
+      item.quantity = Math.min(qty, MAX_ITEM_QUANTITY)
     }
   }
 

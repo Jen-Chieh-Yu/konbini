@@ -111,7 +111,7 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 > 失敗時 Result 的其他欄位會以 `null` 出現（login 的 `data`、下單的 `orderId`）。待清理，見 CLAUDE.md §6。
 
 - errors 的 key 對應輸入欄位名（camelCase）；由多個輸入組成的欄位用組合名稱
-  （`address` 對應 cityCode／districtCode，`birthday` 對應 year／month／day），
+  （`address` 對應 cityCode／districtCode，`birthday` 對應 year／month／day，`name` 對應 lastName／firstName），
   不屬於特定欄位的錯誤用 "general"。
 - 錯誤訊息是給使用者看的，用繁體中文。
 - 不要把例外堆疊或 SQL 訊息放進回應。
@@ -159,11 +159,14 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
   彙整進 Result 的 errors 一次回傳
   （不引入 FluentValidation；引入新套件前先討論）。
 
-  > 現況：長度檢查尚未實作，超過資料庫欄位長度的輸入會變成 500；
-  > 改密碼是逐項檢查、逐一回傳。待修，見 CLAUDE.md §6。
+  > 現況：改密碼是逐項檢查、逐一回傳，尚未彙整。
+- 會存進資料庫的輸入都要檢查長度上限。上限定義成 Entity 常數（例：`User.NameMaxLength`），
+  由 `HasMaxLength` 與 Handler 共用，兩邊才不會改了一邊忘了另一邊。
 - 業務規則驗證（庫存、金額、狀態轉換）在 Handler 或 Service，
   不要放在 Endpoint。
 - 金額與數量一律在後端重算，不信任前端傳來的總計。
+- 每項商品數量上限 99 件（`OrderItem.MaxQuantity`），同商品分多筆送來時看合計；
+  前端購物車的 `MAX_ITEM_QUANTITY` 要與它對齊。
 
 ## 認證授權
 

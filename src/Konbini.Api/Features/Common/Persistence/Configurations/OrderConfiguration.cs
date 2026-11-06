@@ -10,11 +10,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
     {
         builder.ToTable("orders");
         builder.HasKey(o => o.Id);
-        builder.Property(o => o.ContactName).HasMaxLength(100).IsRequired();
-        builder.Property(o => o.ContactPhone).HasMaxLength(20).IsRequired();
-        builder.Property(o => o.StreetAddress).HasMaxLength(200).IsRequired();
+        builder.Property(o => o.ContactName).HasMaxLength(Order.ContactNameMaxLength).IsRequired();
+        builder.Property(o => o.ContactPhone).HasMaxLength(Order.ContactPhoneMaxLength).IsRequired();
+        builder.Property(o => o.StreetAddress).HasMaxLength(Order.StreetAddressMaxLength).IsRequired();
+        // 縣市（50）＋行政區（50）＋街道地址（200）的組合，上限足夠，不需另外驗證
         builder.Property(o => o.DeliveryAddress).HasMaxLength(300).IsRequired();
-        builder.Property(o => o.Memo).HasMaxLength(500);
+        builder.Property(o => o.Memo).HasMaxLength(Order.MemoMaxLength);
         builder.HasIndex(o => o.UserId);
         builder.HasMany(o => o.Items)
             .WithOne()

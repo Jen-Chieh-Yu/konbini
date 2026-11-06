@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useCartStore } from '../stores/useCartStore'
+import { MAX_ITEM_QUANTITY, useCartStore } from '../stores/useCartStore'
 
 const cart = useCartStore()
 </script>
@@ -24,7 +24,7 @@ const cart = useCartStore()
           <td>
             <button @click="cart.updateQuantity(item.productId, item.quantity - 1)">－</button>
             {{ item.quantity }}
-            <button @click="cart.updateQuantity(item.productId, item.quantity + 1)">＋</button>
+            <button :disabled="item.quantity >= MAX_ITEM_QUANTITY" @click="cart.updateQuantity(item.productId, item.quantity + 1)">＋</button>
           </td>
           <td>NT$ {{ item.price * item.quantity }}</td>
           <td><button @click="cart.remove(item.productId)">移除</button></td>
