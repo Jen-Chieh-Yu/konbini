@@ -176,7 +176,7 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 - Token 內容只放必要的識別資訊（使用者 id、角色）。
   不要放個人資料、email 全文、或任何敏感欄位。
 
-  > 現況：token 另含 `email`、`name` claim，也還沒有角色。待移除，見 CLAUDE.md §6。
+  > 現況：token 只有使用者 id（`sub`），還沒有角色。
 - 涉及使用者資料的端點，一律從 token 的 claims 取得使用者身分。
   絕不接受前端傳來的 userId 或 customerId 作為身分依據。
 - 授權檢查用 endpoint 上的 RequireAuthorization（需要角色時再定義 policy，目前沒有任何 policy），
