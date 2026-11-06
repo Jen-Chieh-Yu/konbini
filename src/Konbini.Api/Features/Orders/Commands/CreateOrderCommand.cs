@@ -33,6 +33,12 @@ public class CreateOrderHandler(
         {
             errors["items"] = "商品數量必須大於 0";
         }
+        // 先擋單筆再加總：單筆都在上限內，Sum 才不會溢位；同商品分多筆送來時看合計
+        else if (request.Items.Any(i => i.Quantity > OrderItem.MaxQuantity)
+            || request.Items.GroupBy(i => i.ProductId).Any(g => g.Sum(i => i.Quantity) > OrderItem.MaxQuantity))
+        {
+            errors["items"] = $"每項商品數量不可超過 {OrderItem.MaxQuantity} 件";
+        }
 
         if (string.IsNullOrWhiteSpace(request.ContactName))
         {

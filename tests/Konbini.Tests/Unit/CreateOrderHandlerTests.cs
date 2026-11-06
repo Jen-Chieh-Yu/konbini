@@ -68,6 +68,49 @@ public class CreateOrderHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
+    [Theory]
+    [InlineData(OrderItem.MaxQuantity + 1)]
+    [InlineData(int.MaxValue)]   // 原本會讓金額溢位
+    public async Task QuantityOverLimit_ReturnsItemsError_WithoutSaving(int quantity)
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with { Items = [new CreateOrderItemDto(ProductId, quantity)] };
+
+        var result = await Handle(request, uow);
+
+        Assert.False(result.Success);
+        Assert.Contains("items", result.Errors.Keys);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task QuantityAtLimit_IsAccepted()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with { Items = [new CreateOrderItemDto(ProductId, OrderItem.MaxQuantity)] };
+
+        var result = await Handle(request, uow);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task SameProductSplitAcrossItems_OverLimitInTotal_ReturnsItemsError()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with
+        {
+            Items = [new CreateOrderItemDto(ProductId, OrderItem.MaxQuantity), new CreateOrderItemDto(ProductId, 1)],
+        };
+
+        var result = await Handle(request, uow);
+
+        Assert.False(result.Success);
+        Assert.Contains("items", result.Errors.Keys);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
     private static Task<CreateOrderResult> Handle(CreateOrderRequest request, FakeUnitOfWork uow) =>
         new CreateOrderHandler(new FakeOrderRepository(), new FakeProductRepository(), new FakeAddressRepository(), uow)
             .Handle(new CreateOrderCommand(1, request), CancellationToken.None);
