@@ -10,10 +10,10 @@ const routes = [
   { path: '/products/:id', name: 'ProductDetail', component: () => import('@features/Products/views/ProductDetailView.vue') },
   { path: '/search', name: 'Search', component: () => import('@features/Search/views/SearchView.vue') },
 
-  // --- 購物車與訂單 ---
+  // --- 購物車與訂單（需要登入的頁面要加 requiresAuth，token 失效時才會導回登入頁）---
   { path: '/cart', name: 'Cart', component: () => import('@features/Cart/views/CartView.vue') },
-  { path: '/checkout', name: 'Checkout', component: () => import('@features/Orders/views/CheckoutView.vue') },
-  { path: '/orders', name: 'Orders', component: () => import('@features/Orders/views/OrdersView.vue') },
+  { path: '/checkout', name: 'Checkout', component: () => import('@features/Orders/views/CheckoutView.vue'), meta: { requiresAuth: true } },
+  { path: '/orders', name: 'Orders', component: () => import('@features/Orders/views/OrdersView.vue'), meta: { requiresAuth: true } },
 
   // --- 會員 ---
   { path: '/login', name: 'Login', component: () => import('@features/Auth/views/LoginView.vue') },
