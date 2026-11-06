@@ -423,7 +423,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string）~~ | 已實施（2026-11-05）：`NumberHandling = Strict`，執行時與文件都只收 JSON 數字；請求格式錯誤一律由 `GlobalExceptionHandler` 回 400（原本開發環境會變成 500） |
 | 字串含 NUL 字元（`\u0000`）：PostgreSQL 的文字欄位不接受，推論會回 500（尚未重現） | fix 分支，先重現再修 |
 | 密碼長度上限：目前只有下限，超長密碼不會超過資料庫欄位（存的是雜湊值），但會多花雜湊的運算時間 | fix 分支，隨時可做 |
-| JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除） | fix 分支，隨時可做 |
+| ~~JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除）~~ | 已實施（2026-11-06）：token 只留 `sub`；JWT 只簽章不加密，內容任何人都讀得到 |
 | API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前只有 App.vue 與 HomeView 照規範（見 `docs/ui-guidelines.md`） |
 
