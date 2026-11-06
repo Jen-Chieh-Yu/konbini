@@ -25,8 +25,10 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
     try {
       user.value = await AuthService.getMe()
-    } catch {
-      logout()
+    } catch (e: any) {
+      // 401 由 axios 攔截器統一登出；404 代表帳號已不存在（例：重建資料庫）。
+      // 其他錯誤（網路中斷、500）可能只是暫時的，保留 token
+      if (e.response?.status === 404) logout()
     }
   }
 

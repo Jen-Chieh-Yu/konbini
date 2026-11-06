@@ -17,4 +17,19 @@ instance.interceptors.request.use((config) => {
   return config
 })
 
+let unauthorizedHandler: (() => void) | null = null
+
+/** 收到 401 時要做什麼由 main.ts 決定，shared 不依賴 feature 與 router。 */
+export function setUnauthorizedHandler(handler: () => void) {
+  unauthorizedHandler = handler
+}
+
+instance.interceptors.response.use(undefined, (error) => {
+  // 多個請求同時回 401 時，第一個登出後 token 已清除，不會重複處理
+  if (error.response?.status === 401 && localStorage.getItem(TOKEN_KEY)) {
+    unauthorizedHandler?.()
+  }
+  return Promise.reject(error)
+})
+
 export default instance
