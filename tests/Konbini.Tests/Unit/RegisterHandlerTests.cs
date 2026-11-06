@@ -82,6 +82,17 @@ public class RegisterHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
+    [Fact]
+    public async Task EmailTakenByConcurrentRequest_ReturnsEmailError()
+    {
+        var uow = new FakeUnitOfWork { ThrowOnSave = new UniqueConstraintViolationException(new Exception()) };
+
+        var result = await Handle(ValidRequest(), uow);
+
+        Assert.False(result.Success);
+        Assert.Contains("email", result.Errors.Keys);
+    }
+
     private static Task<AuthResult> Handle(RegisterRequest request, FakeUnitOfWork uow) =>
         new RegisterHandler(new FakeUserRepository(), new FakePasswordHasher(), uow)
             .Handle(new RegisterCommand(request), CancellationToken.None);
@@ -89,9 +100,11 @@ public class RegisterHandlerTests
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
         public int SaveCount { get; private set; }
+        public Exception? ThrowOnSave { get; init; }
 
         public Task SaveChangesAsync(CancellationToken ct)
         {
+            if (ThrowOnSave is not null) throw ThrowOnSave;
             SaveCount++;
             return Task.CompletedTask;
         }

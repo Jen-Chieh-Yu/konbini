@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+
 namespace Konbini.Api.Features.Common.Persistence;
 
 /// <summary>
@@ -11,7 +14,21 @@ public interface IUnitOfWork
     Task SaveChangesAsync(CancellationToken ct);
 }
 
+/// <summary>寫入違反唯一索引。由 UnitOfWork 翻譯，Handler 不必依賴資料庫驅動的例外型別。</summary>
+public sealed class UniqueConstraintViolationException(Exception innerException)
+    : Exception("寫入違反唯一索引。", innerException);
+
 public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 {
-    public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+    public async Task SaveChangesAsync(CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new UniqueConstraintViolationException(ex);
+        }
+    }
 }
