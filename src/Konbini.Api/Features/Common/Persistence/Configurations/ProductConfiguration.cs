@@ -13,5 +13,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Name).HasMaxLength(200).IsRequired();
         builder.Property(p => p.ImageUrl).HasMaxLength(500);
         builder.HasIndex(p => p.Type);
+        builder.HasIndex(p => p.Status);
+        builder.HasQueryFilter(p => p.Status != EntityStatus.Deleted);
     }
 }

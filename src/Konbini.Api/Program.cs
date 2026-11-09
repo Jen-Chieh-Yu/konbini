@@ -20,8 +20,11 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "ConnectionStrings:DefaultConnection 未設定。本機開發請用 dotnet user-secrets，容器請確認 .env 與 compose 的 environment。");
 }
 // 資料表、欄位、索引一律 snake_case（PostgreSQL 慣例：未加引號的識別字會轉小寫，PascalCase 手寫 SQL 時都要加雙引號）
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+builder.Services.AddScoped<AuditInterceptor>();
+builder.Services.AddDbContext<AppDbContext>((services, options) =>
+    options.UseNpgsql(connectionString)
+        .UseSnakeCaseNamingConvention()
+        .AddInterceptors(services.GetRequiredService<AuditInterceptor>()));
 
 // --- 認證（JWT；Secret 空值或不足 32 字元直接啟動失敗，不帶病上線）---
 // HS256 金鑰至少 256 bits，太短要到簽發 token（登入）時才報錯，提前到啟動時擋
@@ -87,7 +90,7 @@ app.UseAuthorization();
 app.MapEndpoints();
 app.MapHealthChecks("/health");
 
-// 建立 schema 並匯入種子資料（導入 EF Migrations 後改為 MigrateAsync）
+// 套用 EF Migrations 並匯入種子資料
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

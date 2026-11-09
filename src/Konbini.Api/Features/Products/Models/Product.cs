@@ -1,6 +1,8 @@
+using Konbini.Api.Features.Common.Persistence;
+
 namespace Konbini.Api.Features.Products.Models;
 
-public class Product
+public class Product : AuditableEntity
 {
     public int Id { get; set; }
 

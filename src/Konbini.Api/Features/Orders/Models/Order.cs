@@ -1,6 +1,8 @@
+using Konbini.Api.Features.Common.Persistence;
+
 namespace Konbini.Api.Features.Orders.Models;
 
-public class Order
+public class Order : AuditableEntity
 {
     // 資料庫欄位長度的單一來源：OrderConfiguration 與 Handler 的輸入驗證共用
     public const int ContactNameMaxLength = 100;
@@ -21,7 +23,6 @@ public class Order
     public string StreetAddress { get; set; } = string.Empty;
     public string DeliveryAddress { get; set; } = string.Empty;
     public string? Memo { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<OrderItem> Items { get; set; } = [];
 }

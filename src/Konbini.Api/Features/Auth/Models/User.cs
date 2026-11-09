@@ -1,6 +1,8 @@
+using Konbini.Api.Features.Common.Persistence;
+
 namespace Konbini.Api.Features.Auth.Models;
 
-public class User
+public class User : AuditableEntity
 {
     // 資料庫欄位長度的單一來源：UserConfiguration 與 Handler 的輸入驗證共用
     public const int NameMaxLength = 100;
@@ -12,7 +14,6 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public DateOnly? Birthday { get; set; }
     public string? Phone { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
     /// Email 以正規化後的小寫儲存與比對：主流信箱帳號都不分大小寫，

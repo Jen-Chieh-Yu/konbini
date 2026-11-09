@@ -1,6 +1,8 @@
+using Konbini.Api.Features.Common.Persistence;
+
 namespace Konbini.Api.Features.Orders.Models;
 
-public class OrderItem
+public class OrderItem : AuditableEntity
 {
     /// <summary>每項商品的數量上限。沒有上限時，單價 × 數量可能溢位，算出錯誤的訂單金額。</summary>
     public const int MaxQuantity = 99;
