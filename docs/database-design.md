@@ -46,20 +46,21 @@ Kind=Local／Unspecified 會在寫入時丟例外（Npgsql 的刻意設計，避
 
 - id
 - created_on（timestamptz，UTC）
-- created_by（建立者 user id）
+- created_by（建立者 user id；null 表示沒有登入身分，例：註冊、種子資料）
 - modified_on（timestamptz，UTC）
-- modified_by（最後異動者 user id）
+- modified_by（最後異動者 user id；null 同上）
 - status（smallint，對應 C# enum）
 
 C# 屬性名為 CreatedOn / CreatedBy / ModifiedOn / ModifiedBy / Status，
 資料庫欄位名依本文件命名規則轉為小寫底線。
 
-status 兼作軟刪除：enum 內含 Deleted 狀態，不另設 is_deleted 欄位；
-一般查詢預設過濾 Deleted。刪除商品時將 status 標為 Deleted，
-因為歷史訂單需要保留當時的商品資訊。
+繼承 `AuditableEntity`，由 `AuditInterceptor` 在寫入前填入，Handler 不用自己設定。
+代碼表（cities、districts）不包含這些欄位。created_by、modified_by 沒有外鍵約束。
 
-（既有資料表尚未包含這些欄位，由「稽核欄位＋EF Migrations」分支補齊；
-現有的 `created_at` 一併改名為 `created_on`。）
+status 兼作軟刪除：enum 內含 Deleted 狀態，不另設 is_deleted 欄位；
+一般查詢由 `HasQueryFilter` 預設過濾 Deleted，新的業務表要記得加。
+刪除商品時將 status 標為 Deleted，
+因為歷史訂單需要保留當時的商品資訊。
 
 ## 訂單快照
 
@@ -73,20 +74,18 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 
 - 所有外鍵欄位建索引。
 - 常用查詢條件建索引：orders.user_id、orders.created_on、
-  products.type、products.status（created_on、status 隨稽核欄位導入）
+  products.type、products.status
 - 商品搜尋目前用 `ILIKE '%關鍵字%'`（無法使用一般索引）；量大時改用
   `pg_trgm` 的 GIN 索引或全文檢索，不要硬撐。
 
 > 現況：只有 order_items.order_id 設了外鍵約束；orders.user_id、orders.city_code／district_code、
 > order_items.product_id、districts.city_code 是邏輯關聯（沒有 FK 約束），其中有索引的是
-> orders.user_id 與 districts.city_code。orders.created_at 用於排序，但尚未建索引。
+> orders.user_id 與 districts.city_code。
 
 ## Migration
 
-> 尚未導入：目前由 `EnsureCreated` 建立 schema，改了 Entity 要重置資料庫（見 README「重置資料庫」）。
-> 導入 EF Migrations 後本節生效（排在模組 CRUD 擴充之前，見 CLAUDE.md §6）。
-
 - 所有 schema 變更走 EF Core Migration，不手寫 DDL、不直接改資料庫。
+- API 啟動時自動套用（`MigrateAsync`）；指令見 README「修改資料表結構」。
 - Migration 命名描述意圖：AddProductWeightUnit，不要 Update1。
 - 產生 Migration 後先讀產出的檔案再套用，特別注意有沒有
   意外的 DROP COLUMN。

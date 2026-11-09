@@ -17,6 +17,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.DeliveryAddress).HasMaxLength(300).IsRequired();
         builder.Property(o => o.Memo).HasMaxLength(Order.MemoMaxLength);
         builder.HasIndex(o => o.UserId);
+        builder.HasIndex(o => o.CreatedOn);
+        builder.HasQueryFilter(o => o.Status != EntityStatus.Deleted);
         builder.HasMany(o => o.Items)
             .WithOne()
             .HasForeignKey(i => i.OrderId)
@@ -32,5 +34,6 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.HasKey(i => i.Id);
         builder.Property(i => i.ProductName).HasMaxLength(200).IsRequired();
         builder.Property(i => i.ImageUrl).HasMaxLength(500);
+        builder.HasQueryFilter(i => i.Status != EntityStatus.Deleted);
     }
 }

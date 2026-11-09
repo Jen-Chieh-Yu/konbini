@@ -67,7 +67,8 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 容器健�
 | `port is already allocated`／`address already in use` | 埠被占用（其他專案的容器、上次沒關的 `dotnet watch`） | 依步驟 2 找出占用者，請使用者自行停止 |
 | 改了程式碼、也重新啟動了，API 行為卻沒變 | Compose Deployment／VS F5 留下的 `konbini-api-1` 容器占著 5214，請求打到容器內的舊版程式碼；本機 API 啟動時的 `address already in use` 容易被其他輸出蓋過 | 請使用者執行 `docker compose rm -sf api`（只移除 api 容器，postgres 與資料不受影響），再重新啟動本機 API，確認主控台出現 `Now listening on: http://localhost:5214` |
 | 前端 `/api` 回 502 或 `ECONNREFUSED` | API 沒在 5214 監聽 | 啟動 API（README 方式 A 或 B） |
-| 改了 Entity 後出現資料表或欄位不存在 | 目前用 `EnsureCreated`，既有資料庫不會自動更新結構 | README「重置資料庫」（會清掉開發資料，由使用者決定） |
+| API 啟動時出現 `relation ... already exists` | 資料庫是 `EnsureCreated` 建立的，無法套用 Migration | README「重置資料庫」（會清掉開發資料，由使用者決定） |
+| API 啟動時出現 `PendingModelChangesWarning` | 改了 Entity 但沒有產生 Migration | README「修改資料表結構」 |
 | prod 與開發環境互相影響 | — | 兩者已分離（`konbini` 與 `konbini-prod` 兩個 compose 專案）；確認 prod 指令有帶 `-f docker-compose.prod.yml` |
 
 ## 回報

@@ -5,18 +5,16 @@ using Microsoft.EntityFrameworkCore;
 namespace Konbini.Api.Features.Common.Persistence.Seed;
 
 /// <summary>
-/// 啟動時建立 schema 並在空表時匯入種子資料。
-/// TODO（練習項）：導入 EF Migrations 後，把 EnsureCreatedAsync 換成 MigrateAsync
-///（EnsureCreated 建的資料庫無法再套用 migration）。本專案不正式上線、
-/// 資料皆可重建，EnsureCreated 無實質風險；動 entity 結構前導入最順。
+/// 啟動時套用 EF Migrations，並在空表時匯入種子資料。
 /// </summary>
 public static class DataSeeder
 {
     public static async Task SeedAsync(AppDbContext db)
     {
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
 
-        if (!await db.Products.AnyAsync())
+        // 商品全被軟刪除時不該重新匯入種子
+        if (!await db.Products.IgnoreQueryFilters().AnyAsync())
         {
             var csvPath = Path.Combine(AppContext.BaseDirectory,
                 "Features", "Common", "Persistence", "Seed", "products.csv");

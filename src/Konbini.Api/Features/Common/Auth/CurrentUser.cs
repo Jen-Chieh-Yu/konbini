@@ -5,6 +5,9 @@ namespace Konbini.Api.Features.Common.Auth;
 public interface ICurrentUser
 {
     int Id { get; }
+
+    /// <summary>未登入時為 null，給註冊、種子資料這類沒有登入身分的流程使用。</summary>
+    int? IdOrNull { get; }
 }
 
 /// <summary>
@@ -13,15 +16,16 @@ public interface ICurrentUser
 /// </summary>
 public sealed class CurrentUser(IHttpContextAccessor accessor) : ICurrentUser
 {
-    public int Id
+    public int Id => IdOrNull
+        ?? throw new UnauthorizedAccessException("目前請求沒有已驗證的使用者。");
+
+    public int? IdOrNull
     {
         get
         {
             var value = accessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
                         ?? accessor.HttpContext?.User.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
-            return value is not null && int.TryParse(value, out var id)
-                ? id
-                : throw new UnauthorizedAccessException("目前請求沒有已驗證的使用者。");
+            return int.TryParse(value, out var id) ? id : null;
         }
     }
 }

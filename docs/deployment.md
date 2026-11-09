@@ -84,8 +84,8 @@ curl http://localhost:8080/version.json              # 前端版號，應與後�
 2. `git checkout v<上一版>`（部署檔案也回到那一版）
 3. 執行步驟 4 的啟動指令
 
-> 目前資料庫結構由 API 啟動時的 `EnsureCreated` 建立，不會因升級而改變既有結構。
-> 導入 EF Migrations 之後，若新版有改資料庫結構，回到上一版要先還原升級前的備份。
+> 資料庫結構由 API 啟動時套用 EF Migrations，新版有改結構時，回到上一版要先還原升級前的備份。
+> `v0.1.0` 的資料庫由 `EnsureCreated` 建立，無法套用 Migration，升級到下一版時要重建。
 
 ## 8. 清理
 

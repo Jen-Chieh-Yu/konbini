@@ -220,6 +220,18 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 放棄的東西：既有 MySQL 開發資料不轉移（`EnsureCreated` 與種子資料可隨時重建）；
 `.env` 與 user-secrets 的鍵名改變，每台機器要重設一次（README「初次設定」）。
 
+### 稽核欄位與 EF Migrations（2026-11-09 定案）
+
+- **攔截器填欄位，不放 UnitOfWork**：種子資料不經過 UnitOfWork，攔截器才涵蓋所有寫入。
+- **`CreatedBy`／`ModifiedBy` 可為 null、沒有外鍵**：註冊與種子資料沒有登入身分；
+  稽核紀錄不該因為使用者資料異動而受牽連。
+- **軟刪除用 `HasQueryFilter`**：新查詢不會忘記過濾，例外才用 `IgnoreQueryFilters`。
+- **API 的 `createdAt` 不改名**：`CreatedOn` 是資料庫與 Entity 的命名，改 API 只是多一次破壞性變更。
+- **啟動時自動套用 Migration**：單一 API 實例、不正式上線，不需要獨立的遷移步驟。
+
+放棄的東西：`EnsureCreated` 建的資料庫要重建一次；軟刪除的 Email 仍佔著唯一索引；
+`Remove()` 不會自動轉成軟刪除，要等第一個刪除功能再決定。
+
 ### 為什麼資料庫放進 Docker（2026-08-31 定案）
 
 沒有既有的外部資料庫，要的是「clone 下來 `docker compose up` 就有完整環境」
@@ -407,10 +419,10 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 |---|---|
 | ~~Branch protection（main 禁直推、Pull Request 必須綠燈）~~ | 已實施（2026-09-02）：ruleset「Protect main」，見上方 Branch protection 節 |
 | 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」。**handler 單元測試隨各模組 CRUD 一起寫，依模組類型決定測試種類**（2026-11-03 定案） |
-| EnsureCreated → EF Migrations | 與「稽核欄位＋Status 軟刪除」同分支做（欄位定案後只產一次初始 Migration）。**在模組 CRUD 擴充之前完成**（2026-11-03 定案）：之後新增的資料表直接帶稽核欄位，不必回頭補 |
+| ~~EnsureCreated → EF Migrations~~ | 已實施（2026-11-09）：API 啟動時套用 Migrations，見 §3 |
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
 | 列表查詢分頁（docs/api-conventions.md「分頁」格式） | Repository 重構完成後接續（同批檔案，避免衝突） |
-| 稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除） | 與 EF Migrations 導入同分支（模組 CRUD 之前）；現有 `created_at` 一併改名 |
+| ~~稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除）~~ | 已實施（2026-11-09）：`AuditableEntity`＋`AuditInterceptor`，見 §3 |
 | 庫存欄位與扣庫存交易 | 尚未實作；導入時依 docs/database-design.md「交易」節 |
 | ~~CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix）~~ | 已實施（2026-09-01）：另含 PR 移除 paths-ignore、前端 npm audit（僅提醒）、測試失敗上傳 trx 報告 |
 | ~~「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等）~~ | 已實施（2026-11-06）：`UnitOfWork` 把唯一索引違反翻譯成 `UniqueConstraintViolationException`，Handler 接住後回欄位錯誤；目前只有 `users.email` 一個唯一索引 |

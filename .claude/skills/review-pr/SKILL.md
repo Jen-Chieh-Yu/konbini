@@ -52,7 +52,7 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 ### 資料庫（docs/database-design.md）
 - 欄位型別、命名、共用欄位照文件；金額一律 int。
 - 「先查再寫」的唯一性檢查要考慮競態（唯一索引擋下時應回友善的 400，不是 500）。
-- 目前仍是 `EnsureCreated`：改了 Entity 結構時提醒使用者需要重置資料庫（README「重置資料庫」）。
+- 改了 Entity 結構要附上 EF Migration；審查產出的檔案有沒有意外的 DROP COLUMN。新的業務表要繼承 `AuditableEntity` 並設定 `HasQueryFilter`。
 
 ### 機密與設定（CLAUDE.md §0、§3、§5）
 - 沒有任何密碼、金鑰、連線字串進入版控；`appsettings.json` 只留空值佔位。

@@ -325,13 +325,13 @@ open http://localhost:8080
 
 ## 🗄️ 資料庫日常操作
 
-資料庫不需要安裝——它是 compose 裡的容器，schema 與種子資料由 API 首次啟動時自動建立。
+資料庫不需要安裝——它是 compose 裡的容器，API 啟動時會自動套用 EF Migrations，並在空表時匯入種子資料。
 
-### 重置資料庫（改了 `.env` 密碼、更新種子、改了 Entity 結構之後）
+### 重置資料庫（改了 `.env` 密碼、更新種子之後）
 
 ```bash
 docker compose down -v          # 停容器並刪除 pg-data volume
-docker compose up -d postgres   # 全新初始化（重跑 init 腳本）；下次 API 啟動會重建 schema + 種子
+docker compose up -d postgres   # 全新初始化（重跑 init 腳本）；下次 API 啟動會套用 Migrations 並匯入種子
 ```
 
 > ⚠️ **`.env` 的資料庫帳密只在 volume「第一次初始化」時生效**，之後再改
@@ -340,6 +340,17 @@ docker compose up -d postgres   # 全新初始化（重跑 init 腳本）；下�
 >
 > ⚠️ **升級 PostgreSQL 主版本**（例如 18 → 19）不能只改映像版本：資料目錄綁定主版本，
 > 新映像會拒絕啟動。開發環境直接 `down -v` 重建；要保留資料則先 `pg_dump`、升級後再還原。
+
+### 修改資料表結構（EF Migrations）
+
+```bash
+dotnet tool restore   # 還原 repo 固定版本的 dotnet-ef，每台機器一次
+dotnet ef migrations add <描述意圖的名稱> --project src/Konbini.Api --startup-project src/Konbini.Api
+```
+
+先讀產出的檔案，確認沒有意外的 DROP COLUMN，下次啟動 API 就會自動套用。需要先設好 user-secrets。
+
+> ⚠️ 以 `EnsureCreated` 建立的舊資料庫無法套用 Migration（2026-11-09 之前），要重置一次。
 
 ### 進 SQL 命令列 / 圖形介面
 

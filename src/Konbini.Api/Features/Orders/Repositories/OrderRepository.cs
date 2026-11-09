@@ -19,7 +19,7 @@ public sealed class OrderRepository(AppDbContext db) : IOrderRepository
     public async Task<List<OrderDto>> GetByUserAsync(int userId, CancellationToken ct)
         => await db.Orders.AsNoTracking()
             .Where(o => o.UserId == userId)
-            .OrderByDescending(o => o.CreatedAt)
+            .OrderByDescending(o => o.CreatedOn)
             .Select(o => new OrderDto(
                 o.Id,
                 o.Subtotal,
@@ -29,7 +29,7 @@ public sealed class OrderRepository(AppDbContext db) : IOrderRepository
                 o.ContactPhone,
                 o.DeliveryAddress,
                 o.Memo,
-                o.CreatedAt,
+                o.CreatedOn,   // API 契約維持 createdAt
                 o.Items.Select(i => new OrderItemDto(
                     i.ProductId, i.ProductName, i.UnitPrice, i.Quantity, i.Subtotal, i.ImageUrl))
                     .ToList()))
