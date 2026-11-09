@@ -121,10 +121,11 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 
 ## 分頁
 
-> 尚未實作：目前列表一律回傳完整清單（見 CLAUDE.md §6）。
-
 - 查詢參數：page（從 1 開始）、pageSize
-- pageSize 設上限（預設 20，上限 100），超過就夾到上限，不要照收。
+- pageSize 設上限（預設 20，上限 100），超過就夾到上限，不要照收；page、pageSize 小於 1 時夾到 1。
+  page 也有上限（`PageRequest.MaxPage`），否則計算 Offset 會溢位。超過總頁數時回空的 items，totalCount 照實回傳。
+- 排序要含唯一鍵（例：`CreatedOn` 之後接 `Id`），否則換頁時資料可能重複或遺漏。
+- 不分頁的例外：資料量固定的代碼表（縣市、鄉鎮區）；明細內嵌的清單改設固定上限（相關商品 8 筆）。
 - 回傳格式：
 
 ```json

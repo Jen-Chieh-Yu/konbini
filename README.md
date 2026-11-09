@@ -415,13 +415,13 @@ Features/{Feature}/Repositories/{Entity}Repository.cs   # 介面＋實作同檔
 
 ```csharp
 // Features/Products/Queries/GetProductsQuery.cs
-public record GetProductsQuery(int Type);
+public record GetProductsQuery(int Type, PageRequest Paging);
 
 public class GetProductsHandler(IProductRepository products)
-    : IQueryHandler<GetProductsQuery, List<ProductDto>>
+    : IQueryHandler<GetProductsQuery, PagedResult<ProductDto>>
 {
-    public async Task<List<ProductDto>> Handle(GetProductsQuery query, CancellationToken ct)
-        => await products.GetListAsync(query.Type, ct);
+    public async Task<PagedResult<ProductDto>> Handle(GetProductsQuery query, CancellationToken ct)
+        => await products.GetListAsync(query.Type, query.Paging, ct);
 }
 ```
 
@@ -437,11 +437,11 @@ public class ProductEndpoints : IEndpoint
     {
         var group = app.MapGroup("/api/products").WithTags("Products");
 
-        group.MapGet("/", async (int? type,
-            IQueryHandler<GetProductsQuery, List<ProductDto>> handler,
+        group.MapGet("/", async (int? type, int? page, int? pageSize,
+            IQueryHandler<GetProductsQuery, PagedResult<ProductDto>> handler,
             CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(type ?? 0), ct)))
-            .Produces<List<ProductDto>>();
+            => Results.Ok(await handler.Handle(new(type ?? 0, PageRequest.From(page, pageSize)), ct)))
+            .Produces<PagedResult<ProductDto>>();
 
         group.MapGet("/{id:int}", async (int id,
             IQueryHandler<GetProductDetailQuery, ProductDetailDto?> handler,
@@ -495,15 +495,15 @@ public class ProductEndpoints : IEndpoint
 
 | Feature | 路由 | 說明 |
 |---|---|---|
-| Products | `GET /api/products?type=` | 商品列表（type=0 為全部） |
+| Products | `GET /api/products?type=&page=&pageSize=` | 商品列表（type=0 為全部），分頁 |
 | | `GET /api/products/{id}` | 商品明細 + 同類推薦 |
-| Orders | `GET /api/orders` 🔒 | 訂單列表 |
+| Orders | `GET /api/orders?page=&pageSize=` 🔒 | 訂單列表，分頁 |
 | | `POST /api/orders` 🔒 | 建立訂單 |
 | Auth | `POST /api/auth/register` | 註冊 |
 | | `POST /api/auth/login` | 登入，回傳 JWT |
 | | `PUT /api/auth/password` 🔒 | 修改密碼 |
 | | `GET /api/auth/me` 🔒 | 目前使用者 |
-| Search | `GET /api/search?keyword=` | 商品搜尋 |
+| Search | `GET /api/search?keyword=&page=&pageSize=` | 商品搜尋，分頁 |
 | Addresses | `GET /api/addresses/cities` | 縣市 |
 | | `GET /api/addresses/cities/{cityCode}/districts` | 行政區 |
 | Health | `GET /health` | 健康檢查（含資料庫連線；容器 healthcheck 亦打此端點） |

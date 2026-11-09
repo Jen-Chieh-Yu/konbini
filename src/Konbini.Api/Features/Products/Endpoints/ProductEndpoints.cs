@@ -12,10 +12,12 @@ public class ProductEndpoints : IEndpoint
 
         group.MapGet("/", async (
                 int? type,
-                IQueryHandler<GetProductsQuery, List<ProductDto>> handler,
+                int? page,
+                int? pageSize,
+                IQueryHandler<GetProductsQuery, PagedResult<ProductDto>> handler,
                 CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(type ?? 0), ct)))
-            .Produces<List<ProductDto>>();
+            => Results.Ok(await handler.Handle(new(type ?? 0, PageRequest.From(page, pageSize)), ct)))
+            .Produces<PagedResult<ProductDto>>();
 
         group.MapGet("/{id:int}", async (
                 int id,

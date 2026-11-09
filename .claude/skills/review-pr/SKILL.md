@@ -47,7 +47,7 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 - 可預期的業務失敗用 Result 回傳，不丟例外；錯誤格式 `{ success: false, errors: { 欄位: 訊息 } }`，訊息為繁體中文，不外洩例外堆疊或 SQL。
 - 金額、數量、庫存由後端重算，不信任前端數字（CLAUDE.md §5 購物車節）。
 - 使用者身分只從 token claims 取得，不接受前端傳 userId；擁有權檢查在 Handler，查不到或不屬於本人回 404。
-- 列表查詢若新增分頁，格式照 api-conventions「分頁」，pageSize 有上限。
+- 新的列表查詢要分頁，格式照 api-conventions「分頁」，用 `PageRequest`／`ToPagedResultAsync`，排序要含唯一鍵。
 
 ### 資料庫（docs/database-design.md）
 - 欄位型別、命名、共用欄位照文件；金額一律 int。

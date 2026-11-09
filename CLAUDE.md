@@ -421,7 +421,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」。**handler 單元測試隨各模組 CRUD 一起寫，依模組類型決定測試種類**（2026-11-03 定案） |
 | ~~EnsureCreated → EF Migrations~~ | 已實施（2026-11-09）：API 啟動時套用 Migrations，見 §3 |
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
-| 列表查詢分頁（docs/api-conventions.md「分頁」格式） | Repository 重構完成後接續（同批檔案，避免衝突） |
+| ~~列表查詢分頁（docs/api-conventions.md「分頁」格式）~~ | 已實施（2026-11-09）：商品、搜尋、訂單列表；代碼表資料量固定不分頁，相關商品固定最多 8 筆。頁碼放網址（與分類、關鍵字一致），API 回傳格式改變，前後端同一個 Pull Request 上線 |
 | ~~稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除）~~ | 已實施（2026-11-09）：`AuditableEntity`＋`AuditInterceptor`，見 §3 |
 | 庫存欄位與扣庫存交易 | 尚未實作；導入時依 docs/database-design.md「交易」節 |
 | ~~CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix）~~ | 已實施（2026-09-01）：另含 PR 移除 paths-ignore、前端 npm audit（僅提醒）、測試失敗上傳 trx 報告 |

@@ -202,7 +202,7 @@ jobs:
           curl -fsS -o /dev/null http://localhost:8080/
           api_version=$(curl -fsS http://localhost:8080/api/version | jq -r .version)
           web_version=$(curl -fsS http://localhost:8080/version.json | jq -r .version)
-          products=$(curl -fsS http://localhost:8080/api/products | jq length)
+          products=$(curl -fsS http://localhost:8080/api/products | jq .totalCount)
           echo "後端版號：$api_version，前端版號：$web_version，商品數：$products"
           if [ "$api_version" != "$APP_VERSION" ] || [ "$web_version" != "$APP_VERSION" ]; then
             echo "::error::版號不符：預期 $APP_VERSION，後端 $api_version、前端 $web_version"
