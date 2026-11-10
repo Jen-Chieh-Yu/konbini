@@ -56,9 +56,9 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
             errors["email"] = EmailTakenMessage;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+        if (PasswordPolicy.Validate(request.Password) is { } passwordError)
         {
-            errors["password"] = "密碼至少需要 8 個字元";
+            errors["password"] = passwordError;
         }
         if (request.Password != request.ConfirmPassword)
         {

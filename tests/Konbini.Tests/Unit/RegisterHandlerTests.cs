@@ -13,8 +13,8 @@ public class RegisterHandlerTests
         LastName: "王",
         FirstName: "小明",
         Email: "user@example.com",
-        Password: "password123",
-        ConfirmPassword: "password123",
+        Password: "Password!23",
+        ConfirmPassword: "Password!23",
         PhoneNumber: "0912345678",
         Year: 2000,
         Month: 1,
@@ -91,6 +91,19 @@ public class RegisterHandlerTests
 
         Assert.False(result.Success);
         Assert.Contains("email", result.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task PasswordOverLimit_ReturnsPasswordError_WithoutSaving()
+    {
+        var uow = new FakeUnitOfWork();
+        var password = "Aa1!" + new string('a', PasswordPolicy.MaxLength - 3);
+
+        var result = await Handle(ValidRequest() with { Password = password, ConfirmPassword = password }, uow);
+
+        Assert.False(result.Success);
+        Assert.Contains("password", result.Errors.Keys);
+        Assert.Equal(0, uow.SaveCount);
     }
 
     private static Task<AuthResult> Handle(RegisterRequest request, FakeUnitOfWork uow) =>
