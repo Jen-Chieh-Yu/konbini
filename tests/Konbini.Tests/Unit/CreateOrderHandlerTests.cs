@@ -1,5 +1,6 @@
 using Konbini.Api.Features.Addresses.Models;
 using Konbini.Api.Features.Addresses.Repositories;
+using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Persistence;
 using Konbini.Api.Features.Orders.Commands;
 using Konbini.Api.Features.Orders.Models;
@@ -130,7 +131,7 @@ public class CreateOrderHandlerTests
     {
         public void Add(Order order) { }
 
-        public Task<List<OrderDto>> GetByUserAsync(int userId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<PagedResult<OrderDto>> GetByUserAsync(int userId, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class FakeProductRepository : IProductRepository
@@ -141,10 +142,10 @@ public class CreateOrderHandlerTests
                 [ProductId] = new(ProductId, "商品", 100, null),
             });
 
-        public Task<List<ProductDto>> GetListAsync(int type, CancellationToken ct) => throw new NotSupportedException();
+        public Task<PagedResult<ProductDto>> GetListAsync(int type, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
         public Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<ProductDto>> SearchAsync(string[] keywords, CancellationToken ct) => throw new NotSupportedException();
+        public Task<PagedResult<ProductDto>> SearchAsync(string[] keywords, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class FakeAddressRepository : IAddressRepository

@@ -3,11 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { ProductService } from '@features/Products/api/services/ProductService'
 import type { ProductDTO } from '@features/Products/api/interfaces/ProductDTO'
 import { SHOWCASE_TYPES, categoryName, formatMoney } from '@shared/constants/catalog'
+import type { PagedResult } from '@shared/api/interfaces/PagedResult'
 
 /** 每個分類在首頁露出的品項數（桌機 4 欄、平板 3 欄，兩邊都排得滿） */
 const PREVIEW_COUNT = 12
 
-const groups = ref<Record<number, ProductDTO[]>>({})
+const groups = ref<Record<number, PagedResult<ProductDTO>>>({})
 const loading = ref(true)
 const failed = ref(false)
 
@@ -16,7 +17,7 @@ async function load() {
   failed.value = false
   try {
     const lists = await Promise.all(
-      SHOWCASE_TYPES.map((type) => ProductService.getProducts(type)),
+      SHOWCASE_TYPES.map((type) => ProductService.getProducts(type, 1, PREVIEW_COUNT)),
     )
     groups.value = Object.fromEntries(SHOWCASE_TYPES.map((type, i) => [type, lists[i]]))
   } catch {
@@ -30,15 +31,11 @@ onMounted(load)
 
 /** 首頁只露出前幾筆，看全部走 /products */
 function preview(type: number): ProductDTO[] {
-  return (groups.value[type] ?? []).slice(0, PREVIEW_COUNT)
+  return groups.value[type]?.items ?? []
 }
 
-/**
- * 品項數暫時取自回傳陣列長度。
- * 之後商品列表 API 若改成分頁、回傳 total，這裡要換成讀 total。
- */
 function total(type: number): number {
-  return (groups.value[type] ?? []).length
+  return groups.value[type]?.totalCount ?? 0
 }
 
 const totalAll = computed(() =>

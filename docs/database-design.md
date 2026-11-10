@@ -94,7 +94,7 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 
 ## 查詢注意事項
 
-- 列表查詢一律分頁，不使用無條件 ToList()（尚未實作，見 `docs/api-conventions.md`「分頁」）。
+- 列表查詢一律分頁，不使用無條件 ToList()（見 `docs/api-conventions.md`「分頁」）。
 - 只取需要的欄位，用 Select 投影成 DTO，不要整個 Entity 撈出來。
 - 唯讀查詢加 AsNoTracking()。
 - 注意會 fallback 成 client-side evaluation 的寫法

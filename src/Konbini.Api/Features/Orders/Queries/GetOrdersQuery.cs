@@ -4,11 +4,11 @@ using Konbini.Api.Features.Orders.Repositories;
 
 namespace Konbini.Api.Features.Orders.Queries;
 
-public record GetOrdersQuery(int UserId);
+public record GetOrdersQuery(int UserId, PageRequest Paging);
 
 public class GetOrdersHandler(IOrderRepository orders)
-    : IQueryHandler<GetOrdersQuery, List<OrderDto>>
+    : IQueryHandler<GetOrdersQuery, PagedResult<OrderDto>>
 {
-    public async Task<List<OrderDto>> Handle(GetOrdersQuery query, CancellationToken ct)
-        => await orders.GetByUserAsync(query.UserId, ct);
+    public async Task<PagedResult<OrderDto>> Handle(GetOrdersQuery query, CancellationToken ct)
+        => await orders.GetByUserAsync(query.UserId, query.Paging, ct);
 }

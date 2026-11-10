@@ -10,10 +10,12 @@ public class SearchEndpoints : IEndpoint
     {
         app.MapGet("/api/search", async (
                 string keyword,
-                IQueryHandler<SearchProductsQuery, List<ProductDto>> handler,
+                int? page,
+                int? pageSize,
+                IQueryHandler<SearchProductsQuery, PagedResult<ProductDto>> handler,
                 CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(keyword), ct)))
+            => Results.Ok(await handler.Handle(new(keyword, PageRequest.From(page, pageSize)), ct)))
             .WithTags("Search")
-            .Produces<List<ProductDto>>();
+            .Produces<PagedResult<ProductDto>>();
     }
 }

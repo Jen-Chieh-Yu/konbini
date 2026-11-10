@@ -15,11 +15,13 @@ public class OrderEndpoints : IEndpoint
             .RequireAuthorization();
 
         group.MapGet("/", async (
+                int? page,
+                int? pageSize,
                 ICurrentUser currentUser,
-                IQueryHandler<GetOrdersQuery, List<OrderDto>> handler,
+                IQueryHandler<GetOrdersQuery, PagedResult<OrderDto>> handler,
                 CancellationToken ct)
-            => Results.Ok(await handler.Handle(new(currentUser.Id), ct)))
-            .Produces<List<OrderDto>>()
+            => Results.Ok(await handler.Handle(new(currentUser.Id, PageRequest.From(page, pageSize)), ct)))
+            .Produces<PagedResult<OrderDto>>()
             .Produces(StatusCodes.Status401Unauthorized);
 
         group.MapPost("/", async (

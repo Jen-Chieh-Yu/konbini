@@ -7,8 +7,8 @@ namespace Konbini.Api.Features.Orders.Repositories;
 
 public interface IOrderRepository : IRepository
 {
-    /// <summary>某使用者的全部訂單（含明細），依建立時間新到舊。</summary>
-    Task<List<OrderDto>> GetByUserAsync(int userId, CancellationToken ct);
+    /// <summary>某使用者的訂單（含明細），依建立時間新到舊。</summary>
+    Task<PagedResult<OrderDto>> GetByUserAsync(int userId, PageRequest paging, CancellationToken ct);
 
     /// <summary>加入新訂單（含明細）；由呼叫端以 IUnitOfWork 提交。</summary>
     void Add(Order order);
@@ -16,10 +16,11 @@ public interface IOrderRepository : IRepository
 
 public sealed class OrderRepository(AppDbContext db) : IOrderRepository
 {
-    public async Task<List<OrderDto>> GetByUserAsync(int userId, CancellationToken ct)
+    public async Task<PagedResult<OrderDto>> GetByUserAsync(int userId, PageRequest paging, CancellationToken ct)
         => await db.Orders.AsNoTracking()
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedOn)
+            .ThenByDescending(o => o.Id)   // 建立時間相同時順序才固定，換頁不會重複或遺漏
             .Select(o => new OrderDto(
                 o.Id,
                 o.Subtotal,
@@ -33,7 +34,7 @@ public sealed class OrderRepository(AppDbContext db) : IOrderRepository
                 o.Items.Select(i => new OrderItemDto(
                     i.ProductId, i.ProductName, i.UnitPrice, i.Quantity, i.Subtotal, i.ImageUrl))
                     .ToList()))
-            .ToListAsync(ct);
+            .ToPagedResultAsync(paging, ct);
 
     public void Add(Order order) => db.Orders.Add(order);
 }
