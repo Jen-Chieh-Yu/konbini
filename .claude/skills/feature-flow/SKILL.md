@@ -1,6 +1,6 @@
 ---
 name: feature-flow
-description: 從業務需求到可送審的分支：釐清需求與待決定的規則、對應到後端／前端模組與要動的檔案、出 diff 供審核、列出驗證清單由使用者執行，再依「後端 → 前端 → 文件」分段 commit，接 create-pr 送審，merge 後確認 main 並清理分支。使用時機：使用者說「開始做 X」「新增一個功能／用例」「做 §6 的下一項」「修 X 的問題」「照 feature-flow」「已經合併了，請確認」「清理並開始」。不代跑測試、不未經同意推送、不 merge。
+description: 從業務需求到可送審的分支：釐清需求與待決定的規則、對應到後端／前端模組與要動的檔案、出 diff 供審核、先自行驗證，再把指令、測試項目與流程交給使用者確認，確認後依「後端 → 前端 → 文件」分段 commit，接 create-pr 送審，merge 後確認 main 並清理分支。使用時機：使用者說「開始做 X」「新增一個功能／用例」「做 §6 的下一項」「修 X 的問題」「照 feature-flow」「已經合併了，請確認」「清理並開始」。不未經同意 commit 與推送、不 merge。
 ---
 
 # 功能開發流程（feature-flow）
@@ -15,7 +15,8 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 |---|---|---|
 | A | ① 結束 | 「待決定事項」每一項都有使用者的答案 |
 | B | ③ 套用前 | 使用者說「照 diff 套用」 |
-| C | ⑤ 推送前 | 使用者審核過 commit，說「可以推送」 |
+| C | ④ 結束 | 使用者回報驗證無誤 |
+| D | ⑤ 推送前 | 使用者審核過整體的提交，說「可以推送」 |
 
 使用者中途改需求時，回到對應的階段重新產出，不要在舊的 diff 上直接補。
 
@@ -66,30 +67,56 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
    - 輸入驗證寫在 Handler，彙整進 errors 一次回傳。
    - 路由用 REST 資源風格、複數名詞。
 3. 使用者說「照 diff 套用」（關卡 B）才改檔。
-4. 套用後自己跑建置與型別檢查（不算測試，可以代跑）：
+4. 套用後跑建置與型別檢查：
    - `dotnet build tests/Konbini.Tests/Konbini.Tests.csproj -v q -nologo`
    - 在 `src/Konbini.Client` 執行 `npx vue-tsc --noEmit`
    失敗就修正後重跑，不要帶著錯誤進 ④。
 
-## ④ 驗證（使用者執行）
+## ④ 驗證
 
-列出可以直接複製執行的指令與預期結果，由使用者執行（§0：測試不代跑）：
+### ④-1 AI 先驗證
 
-- **單元測試**：`dotnet test tests/Konbini.Tests`，寫出預期的總數。
-- **API**：需要 API 在跑時，先提醒啟動方式（Rider 的 Konbini.Api，或 `docker compose up -d postgres` 加
-  `dotnet run --project src/Konbini.Api`）。PowerShell 送中文或全形字元要加
-  `-ContentType 'application/json; charset=utf-8'`；錯誤訊息用 `ConvertFrom-Json` 解碼後再顯示。
-  用「輸入 → 預期結果」表格列出來，涵蓋 ① 的驗收條件，包含上下限剛好和超過一點的情況。
-- **畫面**：寫出網址與要看什麼；新畫面要看四種狀態（載入中、空、錯誤、有資料）。
-- 改到 compose 或 `.env.example`：`docker compose config -q` 與 `docker compose -f docker-compose.prod.yml config -q`
-  （一定要加 `-q`，不加會印出 `.env` 的實際值）。
-- 改到 `ci.yml`、Dockerfile、compose：建議推送後手動觸發 CI，勾選「測試打包」。
+1. **單元測試**：`dotnet test tests/Konbini.Tests`，確認總數符合預期、沒有失敗。
+2. **API**：先用 `GET http://localhost:5214/health` 確認 API 有沒有在跑。
+   - 使用者已經用 Rider 或容器啟動：直接使用，不另外啟動（兩種模式共用 5214）。
+   - 沒有在跑：先 `docker compose up -d postgres`，再用 `.claude/launch.json` 的 Konbini.Api 啟動。
+   依「輸入 → 預期結果」表逐項送出請求，涵蓋 ① 的驗收條件，包含上下限剛好和超過一點的情況。
+   PowerShell 送中文或全形字元時加 `-ContentType 'application/json; charset=utf-8'`。
+   需要建立資料時用 `t<亂數>@example.com` 這類測試帳號。
+3. **畫面**：先寫好 ④-2 要交給使用者的「畫面操作流程」，再用 `.claude/launch.json` 的 Konbini.Client 啟動，
+   在內建瀏覽器照同一份步驟實際操作一遍，逐步對照預期結果。步驟寫不出來或走不通，就表示流程本身有問題，
+   先修正再交出去。新畫面要看四種狀態（載入中、空、錯誤、有資料），畫面有變更時附截圖。
+4. 改到 compose 或 `.env.example`：`docker compose config -q` 與 `docker compose -f docker-compose.prod.yml config -q`
+   （一定要加 `-q`，不加會印出 `.env` 的實際值）。
+5. 結束時關掉自己啟動的服務；不停止使用者的服務，不刪除容器與 volume（不執行 `docker compose down -v`）。
 
-使用者貼回結果後逐項對照。不符合就回 ③ 修正（一樣先出 diff），再請使用者重測受影響的項目。
+有任何一項失敗，就回 ③ 修正（一樣先出 diff），修好後重跑 ④-1；全部通過才進 ④-2。
+
+### ④-2 交給使用者確認
+
+寫出下面三件事：
+- **AI 已驗證的項目與結果**，一項一句。
+- **使用者要執行的指令、測試項目與預期結果**：單元測試的總數、API 的「輸入 → 預期結果」表。
+  指令要能直接複製執行；API 沒在跑時，先寫啟動方式（Rider 的 Konbini.Api，或 `docker compose up -d postgres` 加
+  `dotnet run --project src/Konbini.Api`）。
+- **畫面操作流程**：和 ④-1 實際操作的是同一份步驟，用表格寫，每一步都有「操作」和「預期結果」：
+
+  | 步驟 | 操作 | 預期結果 |
+  |---|---|---|
+  | 0 | （前置）`npm --prefix src/Konbini.Client run dev`；需要登入或資料時，先寫要用哪個帳號、要準備什麼 | 終端機出現 `Local: http://localhost:5173/` |
+  | 1 | 開啟 `http://localhost:5173/register` | 密碼欄下方出現規則提示 |
+  | 2 | 密碼輸入 `Password!!`，其他欄位填合法的值，按「建立帳號」 | 錯誤清單出現「密碼需包含大寫英文字母、小寫英文字母、數字與符號」 |
+  | 3 | 密碼改成 `Password!23`，再按「建立帳號」 | 導向登入頁 |
+
+  操作要寫到「按哪個按鈕、在哪個欄位輸入什麼」，預期結果要寫畫面上看得到的文字或變化，不寫「畫面正常」這種沒辦法核對的描述。
+  手機版或 RWD 有影響時，另外列出要在多寬的畫面重做哪幾步。
+- **推送後才能驗的項目**：改到 `ci.yml`、Dockerfile、compose 時，要手動觸發 CI 並勾選「測試打包」。
+
+使用者貼回結果後逐項對照；不符合就回 ③。使用者確認無誤（關卡 C）才進 ⑤。
 
 ## ⑤ 提交
 
-驗證通過後，依「**後端 → 前端 → 文件**」分段 commit。沒有內容的段跳過，例如純後端的修正就只有後端和文件兩段。
+使用者確認驗證無誤（關卡 C）後，依「**後端 → 前端 → 文件**」分段 commit。沒有內容的段跳過，例如純後端的修正就只有後端和文件兩段。
 
 | 段 | 路徑 | type(scope) 例 |
 |---|---|---|
@@ -105,9 +132,16 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 - commit message：Conventional Commits，type 英文、描述繁體中文，內文寫改了什麼、為什麼，結尾加
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`。
   PowerShell 用 `git commit -m @'...'@`，不要用 `git commit -F -`（here-string 傳不進去）。
-- 完成後列出 `git log --oneline origin/main..HEAD` 給使用者審核（關卡 C）。
+- 完成後列出 `git log --oneline origin/main..HEAD` 與 `git diff origin/main --stat`，確認整體的提交：
+  commit 的數量和順序、每一段只包含該段的路徑、沒有漏掉的檔案。使用者審核通過（關卡 D）才推送。
 - 使用者說「可以推送」後，接 `create-pr` skill。Pull Request title 寫整體的變更，type 取最主要的那一段。
-- **推送之後的修正接在後面**，例如 `fix(api): 審查修正 …`。不 amend、不 rebase、不 force push，
+- **推送前可以整理 commit**：關卡 D 之前，同一段出現多個 commit，而且後來的是修正前面的
+  （例如驗證後才補的後端修正），就併回該段，維持每段一個 commit。新增另一個決定的 commit 不合併，獨立審查比較清楚。
+  - 修正時用 `git commit --fixup=<該段的 commit>`，再執行 `git rebase --autosquash origin/main` 自動併入
+    （Git 2.44 起不需要開編輯器；這台是 2.51）。
+  - 整理前，先列出「哪幾個 commit 要併到哪一個」，使用者同意才執行；
+    整理後，列出 `git log --oneline origin/main..HEAD`，並確認 `git diff ORIG_HEAD HEAD` 沒有輸出（內容沒變）。
+- **推送之後不整理**：修正接在後面，例如 `fix(api): 審查修正 …`。不 amend、不 rebase、不 force push，
   所以「後端 → 前端 → 文件」只保證第一次推送時的順序。
 
 ## ⑥ 送審與合併後
@@ -127,7 +161,8 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 ## 不可以做的事
 
 - 關卡 B 之前不改任何檔案。
-- 不代跑 `dotnet test`、`npm run` 這類測試；建置、型別檢查與 pre-push hook 例外。
+- 關卡 C 之前不 commit，關卡 D 之前不推送。
+- 驗證時不停止使用者的服務，不刪除容器與 volume。
 - 不未經同意推送，不 merge，不 force push，不推送到 `main`。
 - 不讀取、不印出機密；看 `.env` 只列 key：`grep -o '^[A-Za-z_][A-Za-z0-9_]*=' .env`。
 - 不順手修範圍外的問題：記下來在結尾提出，由使用者決定另開分支，或加進 `CLAUDE.md` §6。

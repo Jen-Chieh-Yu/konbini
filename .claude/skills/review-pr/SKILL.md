@@ -22,7 +22,7 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 2. **CI 結果**：用公開 API 看 head commit 的檢查結果
    `curl -s https://api.github.com/repos/Jen-Chieh-Yu/konbini/commits/<sha>/check-runs`。
    必過檢查是「後端：建置與單元測試」「前端：型別檢查與打包」「容器：驗證 Dockerfile」。
-   **不要在本機代跑測試**（CLAUDE.md §0）；CI 沒跑或失敗就照實寫，需要本機驗證時把指令交給使用者。
+   需要本機驗證時，可以自己跑 `dotnet test tests/Konbini.Tests`，結果寫進報告；CI 沒跑或失敗就照實寫。
 3. **逐項檢查**：依下方清單。每個問題都要有「檔案:行號 — 問題 — 為什麼 — 建議做法」。
 4. **產出報告**（繁體中文，固定格式見下方）。
 
