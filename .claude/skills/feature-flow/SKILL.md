@@ -152,6 +152,7 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
    - main 上最新的 commit 標題是 `<Pull Request title> (#N)`，內文是純文字版，沒有混進 `##` 行或 Markdown。
    - `git fetch origin --prune` 後，`git diff <分支> origin/main --stat` 沒有輸出，表示內容都已進 main。
    - main 這次 push 的 CI 已完成且通過（`https://api.github.com/repos/Jen-Chieh-Yu/konbini/actions/runs?head_sha=<sha>`，公開 repo 不需登入）。
+     只改 `*.md` 或 `docs/` 時，main 的 push 會被 paths-ignore 跳過、沒有 CI 紀錄，改為確認 Pull Request 的必過檢查已經通過。
    - 遠端分支已刪除。
    有任何一項不符合就停下來回報，**不要修改 main**。main 上寫錯的訊息依 §6 保留原樣。
 3. **清理本機**：都確認後，執行 `git switch main`、`git pull --ff-only`、`git branch -D <分支>`。

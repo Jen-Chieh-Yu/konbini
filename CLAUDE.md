@@ -139,6 +139,22 @@ UI 元件庫用 **Element Plus**，走 unplugin 按需自動引入：template �
 `vue-tsc` 先於 build 執行，沒有這兩個檔型別檢查會報 Cannot find name。
 zh-TW 語系由 App.vue 的 `<el-config-provider>` 統一設定。
 
+### 表單錯誤：按送出才檢查，錯誤用 modal（2026-11-11 暫定）
+
+登入、註冊只在按送出時檢查：前端 rules（必填、格式）沒過，或伺服器回了錯誤，都用 `ElMessageBox`
+彈出 modal 列出，同時在欄位下方標示；修改某一欄時清掉那一欄的錯誤，下次送出再檢查。
+
+- **為什麼按送出才檢查**：原本離開欄位就檢查，清空重打時馬上出現「請輸入…」，使用者還沒打算送出就看到錯誤（驗收時回報）。
+- **為什麼用 modal**：原本的 `ElMessage` 會自己消失，登入失敗時來不及對照著改；modal 要按按鈕才關。
+- **為什麼欄位下方也留一份**：只放 modal 的話，關掉之後就不知道要改哪一欄，也違反 ui-guidelines 的「錯誤指到具體欄位」。
+- **密碼規則前後端各一份**：輸入時要顯示強度、送出時要列出缺少哪些條件，前端得自己判斷，
+  所以 `passwordRules.ts` 複製了後端的 `PasswordPolicy`；後端仍會再檢查一次，前端算錯也不會放行。
+- **用 ElMessageBox，不引入 modal 套件**：已經安裝、主題色已接上 `--kb-*`，焦點鎖定與 Esc 關閉都是現成的。
+
+放棄的東西：沒有即時檢查，格式打錯要按送出才知道；錯誤在 modal 與欄位各出現一次；每次失敗都要多按一下才能繼續輸入；
+密碼規則有兩份，改規則時要記得兩邊一起改。
+暫定：之後有其他表單（Email 驗證、改密碼）時再檢視一次。
+
 ### 路由風格（2026-08-31 定案）
 
 一律 REST 資源風格、複數名詞（`GET /api/products`、`POST /api/orders`），
@@ -461,9 +477,10 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | refresh token（短效 access token ＋ 可撤銷的 refresh token） | 目前不導入（2026-11-06 評估）：不正式上線，8 小時重新登入可接受；導入要多資料表、旋轉與重用偵測、撤銷，以及前端的 401 重試與同時刷新處理。條件：想當練習題、要讓舊 token 能提早作廢（改密碼、登出），或定位改為正式上線。導入時不放 localStorage（效期長，XSS 的風險比現行 8 小時 token 大），要搭配旋轉或 `HttpOnly` cookie；前置工作是前端 401 統一處理 |
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
 | API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
-| 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前只有 App.vue 與 HomeView 照規範（見 `docs/ui-guidelines.md`） |
+| 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView 與 Auth 的登入、註冊頁（2026-11-11）照規範（見 `docs/ui-guidelines.md`） |
 | Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。開發環境用 Mailpit 收信，寄信抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；驗證 token 存雜湊值、不存原文。先決定未驗證帳號能否登入與下單、token 效期、重寄次數 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
+| 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、
