@@ -434,12 +434,14 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~下單數量上限：沒有上限時單價 × 數量可能溢位，算出錯誤的訂單金額~~ | 已實施（2026-11-06）：每項商品最多 99 件（`OrderItem.MaxQuantity`），同商品分多筆時看合計；前端購物車同步限制 |
 | ~~OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string）~~ | 已實施（2026-11-05）：`NumberHandling = Strict`，執行時與文件都只收 JSON 數字；請求格式錯誤一律由 `GlobalExceptionHandler` 回 400（原本開發環境會變成 500） |
 | 字串含 NUL 字元（`\u0000`）：PostgreSQL 的文字欄位不接受，推論會回 500（尚未重現） | fix 分支，先重現再修 |
-| 密碼長度上限：目前只有下限，超長密碼不會超過資料庫欄位（存的是雜湊值），但會多花雜湊的運算時間 | fix 分支，隨時可做 |
+| ~~密碼長度上限：目前只有下限~~ | 已實施（2026-11-10）：8–20 字元，需含大寫、小寫英文字母、數字與半形符號，不可有空白（`PasswordPolicy`），比照常見線上服務；註冊與改密碼共用，登入不檢查（舊帳號可能不符）。放棄的東西：NIST SP 800-63B 建議至少允許 64 字元、不規定字元種類，密碼管理工具產生的長密碼與密碼片語會被擋 |
 | ~~JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除）~~ | 已實施（2026-11-06）：token 只留 `sub`；JWT 只簽章不加密，內容任何人都讀得到 |
 | refresh token（短效 access token ＋ 可撤銷的 refresh token） | 目前不導入（2026-11-06 評估）：不正式上線，8 小時重新登入可接受；導入要多資料表、旋轉與重用偵測、撤銷，以及前端的 401 重試與同時刷新處理。條件：想當練習題、要讓舊 token 能提早作廢（改密碼、登出），或定位改為正式上線。導入時不放 localStorage（效期長，XSS 的風險比現行 8 小時 token 大），要搭配旋轉或 `HttpOnly` cookie；前置工作是前端 401 統一處理 |
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
 | API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前只有 App.vue 與 HomeView 照規範（見 `docs/ui-guidelines.md`） |
+| Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。開發環境用 Mailpit 收信，寄信抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；驗證 token 存雜湊值、不存原文。先決定未驗證帳號能否登入與下單、token 效期、重寄次數 |
+| 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、

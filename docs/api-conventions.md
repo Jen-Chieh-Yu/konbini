@@ -163,6 +163,10 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
   > 現況：改密碼是逐項檢查、逐一回傳，尚未彙整。
 - 會存進資料庫的輸入都要檢查長度上限。上限定義成 Entity 常數（例：`User.NameMaxLength`），
   由 `HasMaxLength` 與 Handler 共用，兩邊才不會改了一邊忘了另一邊。
+- 密碼 8–20 個字元，需包含大寫、小寫英文字母、數字與半形符號，不可有空白（`PasswordPolicy`），
+  註冊與改密碼共用。存的是雜湊值，上限與資料庫欄位無關；登入不檢查，以免先前註冊、
+  不符合現行規則的帳號登不進去。前端密碼欄位不加 `maxlength`：貼上時會被默默截斷，
+  使用者不知道實際存了什麼。
 - 業務規則驗證（庫存、金額、狀態轉換）在 Handler 或 Service，
   不要放在 Endpoint。
 - 唯一性檢查分兩段：先查，回友善訊息；提交時再接 `UniqueConstraintViolationException`，

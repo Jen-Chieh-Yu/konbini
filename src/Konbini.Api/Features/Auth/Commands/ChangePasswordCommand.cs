@@ -24,9 +24,9 @@ public class ChangePasswordHandler(IUserRepository users, IPasswordHasher hasher
         {
             return AuthResult.Fail(new() { ["currentPassword"] = "目前密碼不正確" });
         }
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+        if (PasswordPolicy.Validate(request.NewPassword) is { } passwordError)
         {
-            return AuthResult.Fail(new() { ["newPassword"] = "密碼至少需要 8 個字元" });
+            return AuthResult.Fail(new() { ["newPassword"] = passwordError });
         }
 
         user.PasswordHash = hasher.Hash(request.NewPassword);

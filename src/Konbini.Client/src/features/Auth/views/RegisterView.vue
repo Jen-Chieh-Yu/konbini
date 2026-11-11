@@ -40,7 +40,9 @@ async function submit() {
       <label>名字<input v-model="form.firstName" /></label>
     </div>
     <label>Email<input v-model="form.email" type="email" autocomplete="email" /></label>
-    <label>密碼<input v-model="form.password" type="password" autocomplete="new-password" /></label>
+    <label>密碼<input v-model="form.password" type="password" autocomplete="new-password" />
+      <small class="hint">8–20 個字元，需包含大寫、小寫英文字母、數字與符號，不可有空白</small>
+    </label>
     <label>確認密碼<input v-model="form.confirmPassword" type="password" autocomplete="new-password" /></label>
     <label>手機號碼<input v-model="form.phoneNumber" placeholder="09xxxxxxxx" /></label>
     <label>出生年月日
@@ -63,4 +65,5 @@ async function submit() {
 .row { display: flex; gap: 0.5rem; }
 .row > * { flex: 1; }
 .errors { color: #d33; }
+.hint { color: #666; }
 </style>
