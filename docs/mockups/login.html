@@ -72,7 +72,7 @@ body.annot .anchor{outline:1px dashed var(--flag);outline-offset:3px}
 .head h2{font-size:clamp(24px,3.4vw,30px);font-weight:900}
 .head p{font-size:13.5px;color:var(--muted);max-width:52ch}
 
-.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.cols{display:grid;grid-template-columns:minmax(0,480px);justify-content:center;gap:24px;align-items:start}
 .box{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:30px 32px;display:flex;flex-direction:column;gap:20px}
 .box h3{font-size:17px;font-weight:900;letter-spacing:.02em}
 .box .sub{font-size:12.5px;color:var(--muted);margin-top:-14px}
@@ -102,12 +102,7 @@ body.annot .anchor{outline:1px dashed var(--flag);outline-offset:3px}
 .btn-main{background:var(--brand);color:#fff;font-weight:700;font-size:15px;border-radius:4px;min-height:52px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
 .btn-main:hover{background:var(--brand-dark)}
 .btn-main[disabled]{background:var(--line-strong);cursor:default}
-.btn-out{
-  border:1.5px solid var(--brand);color:var(--brand);background:var(--surface);
-  font-weight:700;font-size:15px;border-radius:4px;min-height:52px;
-  display:flex;align-items:center;justify-content:center;width:100%;
-}
-.btn-out:hover{background:var(--brand-soft)}
+.signup{text-align:center;font-size:13px;color:var(--muted)}
 
 /* 錯誤提示 */
 .alert{
@@ -132,18 +127,6 @@ body.annot .anchor{outline:1px dashed var(--flag);outline-offset:3px}
   display:flex;align-items:center;justify-content:center;
 }
 .oauth-note{font-size:11.5px;color:var(--muted);line-height:1.7}
-
-/* 註冊引導 */
-.perks{display:flex;flex-direction:column;gap:14px}
-.perk{display:grid;grid-template-columns:26px 1fr;gap:11px;align-items:start}
-.perk .n{
-  width:26px;height:26px;border-radius:50%;background:var(--brand-soft);color:var(--brand);
-  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex:none;
-}
-.perk b{font-size:13.5px;font-weight:700;display:block}
-.perk span{font-size:12.5px;color:var(--muted);line-height:1.75}
-.guest{border-top:1px solid var(--line);padding-top:18px;display:flex;flex-direction:column;gap:9px}
-.guest p{font-size:12.5px;color:var(--muted);line-height:1.75}
 
 /* 狀態示意 */
 .sec{display:flex;flex-direction:column;gap:18px}
@@ -192,7 +175,6 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--sur
 
 @media (max-width:820px){
   .cols{grid-template-columns:1fr}
-  .cols .box.login{order:-1}
   .states{grid-template-columns:repeat(2,1fr)}
   .ftr-in{grid-template-columns:repeat(2,1fr)}
   .hdr-top{flex-wrap:wrap}
@@ -247,28 +229,10 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--sur
     <div class="head anchor"><span class="mark">01 頁面標題</span>
       <span class="k">MEMBER</span>
       <h2>登入 Konbini</h2>
-      <p>已經有帳號就從右邊登入；第一次來的話，左邊三十秒可以註冊完。</p>
+      <p>已經有帳號就直接登入；第一次來的話，表單下方可以建立帳號。</p>
     </div>
 
     <div class="cols">
-
-      <!-- 02 註冊引導 -->
-      <div class="box reg anchor"><span class="mark">02 註冊引導 ← 初めての方へ</span>
-        <h3>第一次來 Konbini</h3>
-        <p class="sub">註冊不用付費，也不會寄行銷信。</p>
-
-        <div class="perks">
-          <div class="perk"><span class="n">1</span><span><b>訂單查得到</b><span>出貨進度、歷史訂單都在會員中心，不用去信箱翻通知信。</span></span></div>
-          <div class="perk"><span class="n">2</span><span><b>再買一次</b><span>買過的品項一鍵重下。日韓零食多半是回購型商品，這個最省時間。</span></span></div>
-          <div class="perk"><span class="n">3</span><span><b>地址記起來</b><span>結帳不用每次重打收件資訊。</span></span></div>
-        </div>
-
-        <button class="btn-out" type="button">建立帳號</button>
-
-        <div class="guest anchor"><span class="mark need">訪客結帳（後端未支援）</span>
-          <p>目前結帳需要先登入。要不要開放訪客結帳還沒決定——雜貨電商的回購率高，強制註冊的代價其實不大，但第一次購買的轉換會掉。</p>
-        </div>
-      </div>
 
       <!-- 03 登入表單 -->
       <div class="box login anchor"><span class="mark">03 登入表單 ← ログイン</span>
@@ -295,6 +259,8 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--sur
           </div>
 
           <button class="btn-main" type="submit">登入</button>
+
+          <p class="signup">還沒有帳號？<a class="link" href="#">建立帳號</a></p>
 
           <div class="oauth anchor"><span class="mark need">第三方登入（後端未支援）</span>
             <div class="or"><span>或用其他帳號</span></div>
@@ -341,7 +307,7 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--sur
 
     <!-- 05 登入失敗的完整樣子 -->
     <section class="sec anchor"><span class="mark">05 登入失敗時的完整版面</span>
-      <div class="sec-h"><h3>登入失敗</h3><span class="cap">錯誤訊息出現在表單上方</span></div>
+      <div class="sec-h"><h3>登入失敗</h3><span class="cap">實作已改為 modal，見下方 Layout 說明</span></div>
       <div class="box" style="max-width:480px">
         <h3>已經有帳號</h3>
         <div class="alert">
@@ -388,7 +354,7 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--sur
     <ul class="plain">
       <li><b>Email ＋ 密碼登入</b> — <code>POST /api/auth/login</code> 收 <code>{email, password}</code>，回 <code>{token, user}</code>。</li>
       <li><b>登入中狀態</b> — <code>LoginView.vue</code> 已有 <code>submitting</code> 與 <code>:loading</code>。</li>
-      <li><b>登入失敗訊息</b> — 已在讀 <code>e.response?.data?.errors?.general</code>，草稿只是把它從 <code>ElMessage</code> 改成表單上方的 alert。錯誤訊息刻意不區分「帳號不存在」與「密碼錯誤」，避免洩漏哪些 Email 有註冊。</li>
+      <li><b>登入失敗訊息</b> — 已在讀 <code>e.response?.data?.errors?.general</code>，實作改用 <code>ElMessageBox</code> 彈出 modal。錯誤訊息刻意不區分「帳號不存在」與「密碼錯誤」，避免洩漏哪些 Email 有註冊。</li>
       <li><b>前端欄位驗證</b> — 換成 <code>el-form</code> 的 <code>rules</code> 就有，<code>ui-guidelines</code> 要求錯誤要指到具體欄位。目前 LoginView 沒有 rules。</li>
       <li><b>註冊入口</b> — <code>/register</code> 路由已存在。</li>
       <li><b>顯示密碼</b> — <code>el-input</code> 的 <code>show-password</code>，LoginView 已經在用。</li>
@@ -413,15 +379,15 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--sur
 
   <section>
     <p class="k">Layout</p>
-    <h2>為什麼是左右兩欄</h2>
+    <h2>為什麼是單欄置中</h2>
     <div class="tblwrap" style="margin-top:14px">
       <table>
         <thead><tr><th>做法</th><th>說明</th></tr></thead>
         <tbody>
-          <tr><td><b>左註冊／右登入</b></td><td>把新客人放在視線起點，登入放右邊。日本 EC 兩種排法都常見（KALDI、成城石井是登入在左）；這版選擇讓第一次來的人先看到註冊的理由，代價是回頭客每次都要往右找。回頭客佔多數的話，這個取捨要重新評估。</td></tr>
-          <tr><td><b>右欄列出註冊好處</b></td><td>只放一顆「註冊」按鈕的轉換率低。三點寫的是這個站實際有的功能，不是空泛的「享有會員優惠」。</td></tr>
-          <tr><td><b>手機版堆疊</b></td><td>820px 以下改單欄，用 CSS <code>order</code> 把登入拉到最上面、註冊在下——手機上多半是回頭客。</td></tr>
-          <tr><td><b>錯誤訊息放表單上方</b></td><td>目前是 <code>ElMessage</code> 快顯，會自己消失。登入失敗需要停留在畫面上，讓人能對照著改。欄位層級的錯誤另外指到欄位。</td></tr>
+          <tr><td><b>單欄置中、寬 480px</b></td><td>原本左欄是「第一次來 Konbini」的註冊引導，已拿掉。登入頁只做一件事：讓有帳號的人登入，表單不用跟引導文字搶視線。</td></tr>
+          <tr><td><b>註冊入口放在登入按鈕下方</b></td><td>沒帳號的人填不了表單，視線自然往下找，「還沒有帳號？建立帳號」剛好在那裡。</td></tr>
+          <tr><td><b>手機版</b></td><td>單欄本來就適合手機，不需要另外調順序；460px 以下只縮小卡片內距。</td></tr>
+          <tr><td><b>按送出才檢查，錯誤用 modal（暫定）</b></td><td>草稿原本放在表單上方、離開欄位就檢查。實作改為按送出才檢查，前端檢查沒過或伺服器回了錯誤都用 <code>ElMessageBox</code> 列出，要按按鈕才關；出錯的欄位同時在下方標示，修改該欄就清掉。</td></tr>
           <tr><td><b>輸入框 48px、按鈕 52px</b></td><td>跟商品頁的數量選擇器同一組尺寸，手機上不會誤觸。</td></tr>
         </tbody>
       </table>
@@ -432,7 +398,8 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--sur
     <p class="k">Notes</p>
     <h2>下一步</h2>
     <ul class="plain" style="margin-top:12px">
-      <li><b>註冊頁還沒畫。</b><code>RegisterView.vue</code> 目前是原生 <code>&lt;form&gt;</code>／<code>&lt;input&gt;</code>，完全沒有用 Element Plus，跟其他頁不一致。而且欄位不少（姓、名、Email、密碼、確認密碼、手機、生日三個下拉），要排版才會好用。</li>
+      <li><b>圖片牆之後導入。</b>拿掉註冊引導後，登入卡片兩側是空的；之後以商品照片牆補上，位置與內容另外定稿。</li>
+      <li><b>註冊頁沒有另外畫草稿。</b>直接比照這頁的卡片實作在 <code>RegisterView.vue</code>：姓與名並排、生日三個下拉、密碼欄下方列出規則。</li>
       <li><b>登入後導向哪裡</b>目前寫死回首頁。從商品頁點登入的人，登入後應該回到原本那頁——這要在路由上帶 <code>redirect</code> 參數。</li>
       <li><b>結帳流程中的登入</b>還沒想過。如果結帳一定要登入，那從購物車進登入頁的動線要跟這頁不一樣（要保留購物車內容）。</li>
     </ul>

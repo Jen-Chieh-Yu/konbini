@@ -1,6 +1,6 @@
 # Konbini UI 設計規範
 
-> 現況：目前只有 `App.vue` 與 `views/HomeView.vue` 照本規範改版。`features/` 底下的頁面是改版前的寫法
+> 現況：目前只有 `App.vue`、`views/HomeView.vue` 與 Auth 的登入、註冊頁照本規範改版。`features/` 底下的其他頁面是改版前的寫法
 > （自刻 button／table／input、CSS grid、640px 斷點、金額沒用 `formatMoney`、只有「載入中…」文字），
 > 會隨各模組 CRUD 一起遷移（見 CLAUDE.md §6）。新寫的畫面一律照本規範。
 
@@ -43,6 +43,26 @@
 
 非同步操作要有明確回饋：加入購物車、送出訂單、更新數量。
 表單驗證用 el-form 的 rules，訊息用繁體中文，錯誤指到具體欄位。
+
+## 表單頁
+
+登入、註冊這類「填完送出」的頁面（範例：`features/Auth/views/`）：
+
+- 版面用 `AuthCard`：標題區加上置中的卡片，寬度 `el-col` `xs=24 sm=16 md=12 lg=10`（桌機約 480px）。
+- 輸入框 48px、主要按鈕 52px（`class="auth-submit"`）；尺寸用 `--el-component-size` 設定。
+  `el-select` 沒有高度變數，是唯一用 `:deep()` 指定的例外。
+- 錯誤只在按送出時檢查（rules 的 trigger 用 `SUBMIT_ONLY`），理由見 CLAUDE.md §2「表單錯誤」：
+  - 前端檢查（必填、格式、兩次密碼一致）沒過，或伺服器回了錯誤，都用 `useErrorDialog` 彈出 modal 列出，
+    同時在欄位下方標示（伺服器的錯誤用 `el-form-item` 的 `:error`）。
+  - 關掉 modal 後游標移到第一個出錯的欄位；修改某一欄時清掉那一欄的錯誤，下次送出再檢查（`useClearErrorOnEdit`）。
+  - 連不到 API 時（沒有回應、502–504、代理回的空白 500）顯示「連線失敗」。
+- 註冊的密碼欄下方放 `PasswordStrength` 五格強度條：每符合一條亮一格，全部符合才是「強」；
+  輸入時只顯示等級，不符合的條件按送出時才列出。規則在 `features/Auth/constants/passwordRules.ts`，
+  與後端 `PasswordPolicy` 一致，改規則兩邊一起改。登入頁不放（登入不檢查密碼規則）。
+- 密碼欄用 `PasswordInput`：顯示切換的圖示常駐，點擊範圍 44px；不加 `maxlength`。
+- 輸入框前面用 Element Plus Icons 的 `prefix-icon` 放圖示（Email `Message`、密碼 `Lock`、姓名 `User`、
+  手機 `Iphone`），只做裝飾；並排的窄欄位（生日下拉選單）不加。
+- 送出中：按鈕 `loading`，文字改成「登入中」這類進行式，不能重複送出。
 
 ## 中文排版
 

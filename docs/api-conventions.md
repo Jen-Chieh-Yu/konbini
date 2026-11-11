@@ -167,6 +167,8 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
   註冊與改密碼共用。存的是雜湊值，上限與資料庫欄位無關；登入不檢查，以免先前註冊、
   不符合現行規則的帳號登不進去。前端密碼欄位不加 `maxlength`：貼上時會被默默截斷，
   使用者不知道實際存了什麼。
+  前端 `features/Auth/constants/passwordRules.ts` 有同一份規則，用來顯示強度、在送出時列出不符合的條件；
+  改規則時兩邊要一起改。
 - 業務規則驗證（庫存、金額、狀態轉換）在 Handler 或 Service，
   不要放在 Endpoint。
 - 唯一性檢查分兩段：先查，回友善訊息；提交時再接 `UniqueConstraintViolationException`，
