@@ -57,7 +57,7 @@ Konbini/
 ├── .run/                         # Rider 執行設定：本機 API、容器模式、postgres（見「啟動服務」）
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
-│   └── skills/                   # 專案技能：create-pr、review-pr、dev-env
+│   └── skills/                   # 專案技能：feature-flow、create-pr、review-pr、dev-env
 ├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試與前端型別檢查
 ├── .github/
 │   ├── scripts/release-info.sh   # 打包時決定版號（格式檢查、標籤須在 main 上）
@@ -578,7 +578,8 @@ main 受 ruleset 保護：只能經 Pull Request、只能 Squash merge、三個 
 且分支要與 main 同步（理由見 `CLAUDE.md` §6）。
 
 1. 從最新的 main 開分支：`git switch -c <type>/YYYYMMDD-描述`
-2. commit（Conventional Commits，type 英文、描述中文）→ `git push -u origin <分支>`
+2. commit（Conventional Commits，type 英文、描述中文），依「後端 → 前端 → 文件」分段，
+   測試跟著程式碼同一段（理由見 `CLAUDE.md` §6）→ `git push -u origin <分支>`
 3. 建立 Pull Request：title 同 commit 格式，description 照 `.github/pull_request_template.md`
 4. 分支顯示 out-of-date 時按 **Update branch**，等 CI 綠燈
 5. **Squash and merge**：Commit message 欄位不要動；Extended description 換成純文字
@@ -592,6 +593,7 @@ git branch -D <分支>
 ```
 
 使用 Claude Code 時，`.claude/skills/` 的專案技能會跟著 git 同步到每台機器：
+說「開始做 X」會執行 `feature-flow`（需求 → 模組分類 → diff → 驗證清單 → 分段 commit，每個關卡都會停下來等你確認），
 說「建立 PR」會執行 `create-pr`（自我檢查、推送、產出 title／description／Squash 純文字版），
 說「審查分支 X」會執行 `review-pr`（依本專案的架構決策與規範逐項檢查），
 兩者都不會核准或 merge；說「API 起不來」會執行 `dev-env`（只看 key、不印出機密值的環境診斷）。
