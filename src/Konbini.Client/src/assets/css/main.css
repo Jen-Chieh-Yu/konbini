@@ -18,6 +18,7 @@
   --kb-line: #e2dcd7;
   --kb-line-strong: #cfc6bf;
   --kb-ok: #2e7d5b;
+  --kb-warn: #946214; /* 密碼強度「中」；白底對比約 5.2:1 */
 
   /* 版面 */
   --kb-page-width: 1180px;
@@ -63,6 +64,28 @@ button {
 /* 數字對齊：金額、數量、計數都用這個 */
 .kb-num {
   font-variant-numeric: tabular-nums;
+}
+
+/* ── 錯誤 modal（ElMessageBox，掛在 body 下，所以寫在全站樣式）── */
+/* 按鈕符合觸控下限 44px；el-button 沒有只管高度的變數 */
+.el-message-box__btns .el-button {
+  min-height: var(--kb-tap);
+  padding-inline: 20px;
+}
+.kb-dialog-lead {
+  margin: 0;
+}
+.kb-dialog-sub {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--kb-muted);
+}
+.kb-dialog-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1em;
+}
+.kb-dialog-list li::marker {
+  color: var(--kb-brand);
 }
 
 @media (prefers-reduced-motion: reduce) {
