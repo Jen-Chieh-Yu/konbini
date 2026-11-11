@@ -389,6 +389,20 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 #6（中文標題慣例之前）與 #10（Squash 時誤改 Commit message）的標題不符慣例，
 依「不改動歷史」保留原樣。
 
+### 開發流程與提交順序（2026-11-11 定案）
+
+流程寫成 `.claude/skills/feature-flow`：業務需求 → 模組分類 → 實作 → 驗證 → 提交，中間有三個要使用者回覆才能過的關卡
+（待決定事項都有答案、同意套用 diff、同意推送）。
+
+- **一支 Pull Request 內依「後端 → 前端 → 文件」分段 commit**：Pull Request 的 Commits 分頁可以逐層審查；
+  Squash 後 main 上仍然只有一個 commit，分段不影響 main 的歷史。
+- **測試跟著程式碼同一段**：另開「測試」commit 的話，前一個 commit 就是沒有測試的程式碼。
+- **驗證在 commit 之前**：驗證發現的問題直接修在工作目錄，不會多出修正用的 commit。
+- **中間的 commit 不保證能單獨運作**：例如後端改了回傳格式、前端還沒跟上。這種狀態不會進 main，
+  CI 也只跑最新的 commit（concurrency），接受。
+
+放棄的東西：推送後不改寫歷史，審查後的修正只能接在後面，分段順序只保證第一次推送時成立。
+
 ### 半自動發行（2026-11-02 定案）
 
 **CI 產出並驗證成品，部署由人執行**。流程見 `docs/release.md`、部署見 `docs/deployment.md`。
@@ -466,4 +480,4 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | `docs/deployment.md` | 部署手冊：載入映像、啟動、檢查、升級與回到上一版 |
 | `CHANGELOG.md` | 變更紀錄（發行時整理） |
 | `.github/pull_request_template.md` | Pull Request description 範本 |
-| `.claude/skills/` | Claude Code 專案技能：`create-pr`（送審準備）、`review-pr`（審查清單）、`dev-env`（本機環境診斷） |
+| `.claude/skills/` | Claude Code 專案技能：`feature-flow`（需求到提交的開發流程）、`create-pr`（送審準備）、`review-pr`（審查清單）、`dev-env`（本機環境診斷） |
