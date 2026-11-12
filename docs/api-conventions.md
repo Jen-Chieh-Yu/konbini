@@ -40,7 +40,7 @@ Endpoint → Command/Query → Handler → Service → Repository
   Queries/GetProductsQuery.cs（Query + Handler + Response 同檔）
   Commands/CreateXxxCommand.cs（Command + Handler + Response 同檔）
   Models/（Entity、共用 DTO）
-  Services/、Repositories/（有第一個檔案才建立）
+  Errors/ProductErrors.cs（業務錯誤）、Services/、Repositories/（有第一個檔案才建立）
 
   不要在專案根層用 Controllers/、Services/ 這種跨 feature 的水平分法。
 
@@ -91,7 +91,11 @@ Endpoint → Command/Query → Handler → Service → Repository
 - 會失敗的用例才回 Result；不會失敗的查詢（列表、代碼表）直接回資料，不包一層。
 - 失敗是一個 `Error`：錯誤類型＋欄位錯誤字典。Handler 內直接寫 `return Error.Validation(errors);`，
   成功時 `return dto;`（無回傳值的命令 `return Result.Success();`），由隱式轉換變成 Result。
-  查無資料要明寫 `Error.NotFound(...)`，沒有「null 自動變失敗」的轉換。
+  查無資料要明寫 NotFound，沒有「null 自動變失敗」的轉換。
+- 業務錯誤（找不到、帳號或密碼錯誤、目前密碼錯誤、商品不存在）事先定義在
+  `Features/{Feature}/Errors/{Feature}Errors.cs`，Handler 只寫 `return AuthErrors.InvalidCredentials;`，
+  測試用 `Assert.Same` 比對，不比對訊息字串。訊息帶參數的寫成方法（`OrderErrors.ProductsNotFound(ids)`）。
+- 欄位格式的檢查（必填、長度、格式）不收進錯誤目錄：訊息寫在 Handler 的檢查旁邊，彙整進 errors 字典一次回傳。
 
   | ErrorType    | 狀態碼 | 用在 |
   | ------------ | ------ | ---- |

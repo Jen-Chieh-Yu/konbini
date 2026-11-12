@@ -120,7 +120,7 @@ Endpoint 的參數直接寫 `ICommandHandler<TCommand, TResult>`／`IQueryHandle
 原本每個用例各一個 Result（`AuthResult`、`LoginResult`、`CreateOrderResult`），沒有錯誤類型，可預期的失敗一律 400，
 失敗時 body 帶出 `null` 欄位。改為 `Common/Abstractions/Result.cs` 的 `Result`／`Result<T>` ＋ `Error`
 （Validation 400、Unauthorized 401、Forbidden 403、NotFound 404、Conflict 409），Endpoint 失敗時用 `ToProblem()`。
-對照的寫法來自使用者另一個專案（`Result`＋`Error`＋`ApiResponse` 信封），只取前兩者。
+對照的寫法來自使用者另一個專案（`Result`＋`Error`＋各模組的錯誤目錄＋`ApiResponse` 信封），不取 `ApiResponse`。
 
 - **時機在 Email 驗證之前**：驗證與重寄會有找不到、已驗證過、未驗證不能登入這類錯誤，先有錯誤類型就不必寫兩次。
 - **失敗用 ProblemDetails，不用 `ApiResponse` 信封**：成功直接回資料是既有規範；ProblemDetails 與 `GlobalExceptionHandler`
@@ -133,6 +133,9 @@ Endpoint 的參數直接寫 `ICommandHandler<TCommand, TResult>`／`IQueryHandle
   409 留給狀態衝突（重複下單、庫存不足）。
 - **登入失敗回 401，已登入的操作不回 401**：前端攔截器收到 401 會登出，所以改密碼的「目前密碼錯誤」回 400。
 - **只有會失敗的用例回 Result**：列表與代碼表直接回資料，包一層只是儀式。
+- **業務錯誤集中在 `{Feature}Errors`，欄位檢查的訊息留在 Handler**：業務錯誤會被多處回傳（「找不到使用者」有兩個用例），
+  集中後測試可以比對錯誤本身、不比對字串；欄位檢查的訊息一條規則只用一次，寫在規則旁邊才看得出檢查什麼，
+  比照對照專案把欄位訊息留在 Validator 的做法。
 - **只做轉換失敗的 `ToProblem()`**：成功有 200、201、204 三種形狀，各 Endpoint 明寫比包裝成 `ToSuccessResult` 好讀。
 
 放棄的東西：沒有機器可讀的錯誤代碼；errors 與 ASP.NET 標準的 `ValidationProblemDetails` 不相容；
