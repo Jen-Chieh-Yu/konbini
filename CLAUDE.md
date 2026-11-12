@@ -24,7 +24,8 @@
 - 主分支為 **`main`**（GitHub 預設）
 - GitHub 的操作名稱寫全名，與網頁介面一致：**Pull Request**（不寫 PR）、
   Branch protection、Merge。CI／CD 屬產業通稱，不在此限
-- 文件分工：「怎麼做」寫 `README.md`，「為什麼」寫這裡，各維護一份、不重複
+- 文件分工：「怎麼做」寫 `README.md`，架構與技術的「為什麼」寫這裡，業務規則（各模組的現況規則與業務決策）
+  寫 `docs/modules/`，各維護一份、不重複
 
 ---
 
@@ -518,6 +519,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
 | `docs/ui-guidelines.md` | 前端畫面、RWD 與中文排版規範 |
+| `docs/modules/` | 各模組的業務規則、用例流程與業務決策紀錄（索引：`docs/modules/README.md`） |
 | `docs/release.md` | 版號規則、發行步驟、測試打包 |
 | `docs/deployment.md` | 部署手冊：載入映像、啟動、檢查、升級與回到上一版 |
 | `CHANGELOG.md` | 變更紀錄（發行時整理） |

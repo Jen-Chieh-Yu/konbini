@@ -23,6 +23,8 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 ## ① 業務需求
 
 1. 先查 `CLAUDE.md` §6「尚未實施」有沒有這一項：觸發條件、前置工作、已經決定的事，照著做，不要重新推導。
+   再讀 `docs/modules/<模組>.md` 的現況規則與 `docs/modules/decisions/<模組>.md` 的決策，新規則不要和它們衝突；
+   關卡 A 定案的規則與決定，在 ② 的文件對照列為要更新的文件。
 2. 寫出：
    - **情境**：誰、要做什麼、為什麼（兩三句）。
    - **驗收條件**：可驗證的「輸入 → 預期結果」條列。這份清單之後直接變成測試案例和 ④ 的驗證清單。
@@ -45,7 +47,7 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 | CI／容器 | `.github/workflows/ci.yml`、`Dockerfile`、compose | 改到的話，④ 要加測試打包 |
 | 文件 | 見下方對照 | |
 
-文件對照（依 §0 的分工：怎麼做寫 README，為什麼寫 CLAUDE.md）：
+文件對照（依 §0 的分工：怎麼做寫 README，架構與技術的為什麼寫 CLAUDE.md，業務規則寫 `docs/modules/`）：
 
 | 變更 | 要更新 |
 |---|---|
@@ -53,7 +55,9 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 | 驗證規則、錯誤格式、分頁 | `docs/api-conventions.md` |
 | 資料表、欄位 | `docs/database-design.md` |
 | 畫面規範 | `docs/ui-guidelines.md` |
-| 設計決策與理由；§6 表格的項目完成（畫刪除線並寫明「已實施（日期）」） | `CLAUDE.md` |
+| 業務規則、用例流程（現況） | `docs/modules/<模組>.md` |
+| 業務規則的決定與理由（① 定案的上限、錯誤訊息、流程） | `docs/modules/decisions/<模組>.md`，格式見 `docs/modules/README.md` |
+| 架構與技術的設計決策與理由；§6 表格的項目完成（畫刪除線並寫明「已實施（日期）」） | `CLAUDE.md` |
 | 本機指令、開發步驟 | `README.md` |
 
 分支：從最新的 main 開，`feature/` `fix/` `refactor/` `docs/` `chore/` `hotfix/` ＋ `YYYYMMDD-描述`。
