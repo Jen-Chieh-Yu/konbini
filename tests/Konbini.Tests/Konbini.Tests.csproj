@@ -11,6 +11,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
     <PackageReference Include="xunit" Version="2.9.*" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.*" />
+    <!-- CI 用：dotnet test 指定 GitHubActions logger 時，把失敗測試標到檔案行號並寫 Step Summary；本機不指定就不作用 -->
+    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.*" />
   </ItemGroup>
 
   <ItemGroup>

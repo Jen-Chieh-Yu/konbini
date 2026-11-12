@@ -1,6 +1,6 @@
 ---
 name: dev-env
-description: 檢查本機開發環境為什麼跑不起來：postgres 容器健康狀態、埠號占用、.env 與 user-secrets 是否齊全（只看 key，不印值）、API 的 /health，並對照常見錯誤給出修正方式。使用時機：使用者說「API 起不來」「/api 回 502」「health 不是 Healthy」「改了程式碼但 API 行為沒變」「連不到資料庫」「換了電腦」「設定開發環境」，或畫面出現「ConnectionStrings 未設定」「Jwt:Secret 未設定或長度不足」「password authentication failed」「port is already allocated」。只檢查與說明，不替使用者填機密、不停止或刪除容器與 volume。
+description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpit 容器健康狀態、埠號占用、.env 與 user-secrets 是否齊全（只看 key，不印值）、API 的 /health，並對照常見錯誤給出修正方式。使用時機：使用者說「API 起不來」「/api 回 502」「health 不是 Healthy」「改了程式碼但 API 行為沒變」「連不到資料庫」「收不到信」「收信畫面打不開」「換了電腦」「設定開發環境」，或畫面出現「ConnectionStrings 未設定」「Jwt:Secret 未設定或長度不足」「password authentication failed」「port is already allocated」。只檢查與說明，不替使用者填機密、不停止或刪除容器與 volume。
 ---
 
 # 開發環境檢查（dev-env）
@@ -26,14 +26,16 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 容器健�
 
 ## 步驟（在 repo 根目錄）
 
-1. **資料庫**：`docker compose ps`
+1. **資料庫與收信**：`docker compose ps`
    - postgres 應為 `Up … (healthy)`，埠為 `127.0.0.1:5432->5432/tcp`。
-   - 沒有 postgres：請使用者執行 `docker compose up -d postgres`；`starting` 超過 30 秒看 `docker compose logs postgres`（init 腳本的錯誤也在這裡）。
+   - mailpit 應為 `Up … (healthy)`，埠為 `127.0.0.1:1025->1025/tcp` 與 `127.0.0.1:8025->8025/tcp`。
+   - 少了其中一個：請使用者執行 `docker compose up -d postgres mailpit`；`starting` 超過 30 秒看 `docker compose logs postgres`（init 腳本的錯誤也在這裡）。
    - Docker Desktop 沒開（`failed to connect to the docker API`）：請使用者執行 `docker desktop start`。
-2. **埠號占用**：API 5214、前端 5173、postgres 5432（prod 的 client 用 8080）
-   - Windows：`Get-NetTCPConnection -State Listen -LocalPort 5214,5173,5432,8080`，再用 `Get-Process -Id <OwningProcess>` 看是誰。
-   - macOS：`lsof -nP -iTCP -sTCP:LISTEN | grep -E ':(5214|5173|5432|8080)'`
+2. **埠號占用**：API 5214、前端 5173、postgres 5432、Mailpit 1025（SMTP）與 8025（收信畫面）（prod 的 client 用 8080、收信畫面用 8026）
+   - Windows：`Get-NetTCPConnection -State Listen -LocalPort 5214,5173,5432,1025,8025,8080,8026`，再用 `Get-Process -Id <OwningProcess>` 看是誰。
+   - macOS：`lsof -nP -iTCP -sTCP:LISTEN | grep -E ':(5214|5173|5432|1025|8025|8080|8026)'`
    - 本機另外裝了 PostgreSQL 服務時也會占 5432，容器會起不來。
+   - 其他專案的 Mailpit／MailHog 容器常占用 1025、8025。
    - 也看 `docker ps --format "{{.Names}}\t{{.Ports}}"`：其他專案的容器可能占用相同的埠。
    - **`konbini-api-1` 占著 5214**：Rider 的 Compose Deployment 或 VS F5 留下的 api 容器（停止偵錯後不會自動移除）。
      這時本機的 `dotnet watch`／Rider 的 Konbini.Api 拿不到 5214，請求全部打進容器裡的**舊版程式碼**。
@@ -51,7 +53,8 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 容器健�
    - `Healthy`：API 與資料庫都正常，問題在前端或別處。
    - 連不上（HTTP 000）：API 沒在跑，請使用者看啟動 API 的那個終端機的錯誤訊息，對照下表。
    - 有回應但行為和程式碼對不上：先確認回應來自哪裡——`docker ps` 有 `konbini-api-1` 綁著 5214，就是容器在回應，不是本機剛啟動的 API。
-7. **前端**：`/api` 由 vite proxy 轉到 `http://127.0.0.1:5214`（`src/Konbini.Client/vite.config.ts`）。API 的 `/health` 正常但頁面拿不到資料時，確認 `npm run dev` 有在跑、瀏覽器打的是 5173。
+7. **收信畫面**：`curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8025/readyz` 應為 `HTTP 200`；打不開時回到步驟 1、2。
+8. **前端**：`/api` 由 vite proxy 轉到 `http://127.0.0.1:5214`（`src/Konbini.Client/vite.config.ts`）。API 的 `/health` 正常但頁面拿不到資料時，確認 `npm run dev` 有在跑、瀏覽器打的是 5173。
 
 ## 常見錯誤對照
 
@@ -69,6 +72,7 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 容器健�
 | 前端 `/api` 回 502 或 `ECONNREFUSED` | API 沒在 5214 監聽 | 啟動 API（README 方式 A 或 B） |
 | API 啟動時出現 `relation ... already exists` | 資料庫是 `EnsureCreated` 建立的，無法套用 Migration | README「重置資料庫」（會清掉開發資料，由使用者決定） |
 | API 啟動時出現 `PendingModelChangesWarning` | 改了 Entity 但沒有產生 Migration | README「修改資料表結構」 |
+| 收信畫面 `localhost:8025` 打不開、看不到 API 寄的信 | mailpit 沒有啟動（直接 `dotnet watch` 時要自己起；Rider 的 Konbini.Api 會在 Before launch 起），或 1025／8025 被其他專案占用 | `docker compose up -d mailpit`；依步驟 2 找出占用者 |
 | prod 與開發環境互相影響 | — | 兩者已分離（`konbini` 與 `konbini-prod` 兩個 compose 專案）；確認 prod 指令有帶 `-f docker-compose.prod.yml` |
 
 ## 回報

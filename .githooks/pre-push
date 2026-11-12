@@ -1,8 +1,13 @@
 #!/bin/sh
-# pre-push：推送前在本機跑 CI 的核心子集（後端測試 + 前端型別檢查，約 30–60 秒）。
+# pre-push：推送前在本機跑 CI 的核心子集（後端測試、Migration 檢查、前端型別檢查，約 40–70 秒）。
 # Docker 建置不在此執行，留給雲端 CI。
 # 緊急跳過：git push --no-verify
 set -e
+
+# hook 檢查的是工作目錄，不是要推送的 commit：有未提交的修改時，結果不代表推上去的內容（只警告、不擋）
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "[pre-push] ⚠ 工作目錄有未提交的修改：以下檢查的是工作目錄，不是要推送的 commit"
+fi
 
 # workflow 檔靜態檢查（actionlint，未安裝則提示略過）：
 # 壞掉的 workflow 無法用 CI 驗自己，只能在推送前擋
@@ -15,6 +20,14 @@ fi
 
 echo "[pre-push] 後端建置與測試..."
 dotnet test tests/Konbini.Tests -c Release --nologo -v q
+
+# 與 CI 步驟③-1 相同：假的連線字串與金鑰只讓 EF 建得出 DbContext，不連資料庫，也不依賴 user-secrets
+echo "[pre-push] 檢查是否有待產生的 Migration..."
+# dotnet ef 的 -c 是 --context，組態一定要寫完整的 --configuration
+dotnet tool restore > /dev/null
+ConnectionStrings__DefaultConnection='Host=localhost;Database=design-time-only' \
+Jwt__Secret='ci-design-time-only-secret-at-least-32-chars' \
+  dotnet ef migrations has-pending-model-changes --project src/Konbini.Api --startup-project src/Konbini.Api --no-build --configuration Release
 
 if [ -d src/Konbini.Client/node_modules ]; then
   echo "[pre-push] 前端型別檢查..."
