@@ -1,0 +1,617 @@
+<title>Konbini 結帳頁版面草稿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --brand:#D33A2C;--brand-dark:#B32B1F;--brand-soft:#FCEDEB;
+  --ground:#F8F6F4;--surface:#FFFFFF;--surface-2:#EFEBE7;
+  --ink:#1E1917;--muted:#7A716C;--line:#E2DCD7;--line-strong:#CFC6BF;
+  --ok:#2E7D5B;--ok-soft:#E4F1EA;--warn:#946214;--flag:#9A6B12;--flag-soft:#FBF0D9;--shell:#EFEBE7;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--shell);color:var(--ink);
+  font-family:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
+  font-size:14px;line-height:1.7;-webkit-font-smoothing:antialiased;
+  padding:0 16px;padding-block:0 56px;
+}
+h1,h2,h3,h4{margin:0;line-height:1.35;text-wrap:balance}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:3px}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:"IBM Plex Mono",monospace}
+
+/* ══ 工具列 ══ */
+.toolbar{max-width:1280px;margin:0 auto;padding-block:22px 14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.toolbar .who{display:flex;flex-direction:column;gap:2px}
+.toolbar h1{font-size:19px;font-weight:700}
+.toolbar .sub{font-size:12.5px;color:var(--muted)}
+.tgl{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:4px;padding:9px 14px;min-height:44px;background:var(--surface);font-size:13px;font-weight:500}
+.tgl .dot{width:9px;height:9px;border-radius:50%;background:var(--line-strong)}
+.tgl[aria-pressed="true"]{border-color:var(--flag);background:var(--flag-soft);color:var(--flag)}
+.tgl[aria-pressed="true"] .dot{background:var(--flag)}
+
+.frame{max-width:1280px;margin:0 auto;background:var(--ground);border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;position:relative}
+.frame + .frame,.frame-cap + .frame{margin-top:14px}
+.frame-cap{max-width:1280px;margin:34px auto 0;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.frame-cap .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--brand);font-weight:500}
+.frame-cap h2{font-size:17px;font-weight:900}
+.frame-cap p{font-size:12.5px;color:var(--muted)}
+
+.mark{display:none!important;position:absolute;z-index:30;top:6px;left:6px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;background:var(--flag);color:#fff;border-radius:2px;padding:2px 6px;white-space:nowrap;line-height:1.5}
+.mark.need{background:var(--brand)}
+body.annot .mark{display:inline-block!important}
+body.annot .anchor{outline:1px dashed var(--flag);outline-offset:3px}
+.anchor{position:relative}
+
+/* ══ header（與 App.vue 一致）══ */
+.notice{background:var(--brand);color:#fff;text-align:center;font-size:12.5px;font-weight:500;padding:7px 16px}
+.notice b{font-weight:700}
+.notice .sep{opacity:.7;margin:0 6px}
+.hdr{background:var(--surface);border-bottom:1px solid var(--line)}
+.hdr-top{max-width:1180px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;gap:16px}
+.logo{display:flex;align-items:baseline;gap:7px;font-weight:900;font-size:21px;letter-spacing:.02em;white-space:nowrap}
+.logo .jp{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.14em}
+.searchbar{flex:1;min-width:0;display:flex;align-items:stretch;border:1.5px solid var(--line-strong);border-radius:4px;overflow:hidden;background:var(--surface)}
+.searchbar input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);padding:0 12px;font:inherit;font-size:13.5px;min-height:42px}
+.searchbar input::placeholder{color:var(--muted)}
+.searchbar .go{background:var(--brand);color:#fff;padding:0 18px;font-weight:700;font-size:13px;min-height:42px;min-width:56px}
+.util{display:flex;gap:4px;align-items:center}
+.util a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:56px;min-height:44px;padding:4px 6px;border-radius:4px;font-size:11px;color:var(--muted);white-space:nowrap}
+.util a .ico{font-size:16px;line-height:1}
+.util a.on{color:var(--brand);font-weight:700}
+.util .badge{position:absolute;top:0;right:6px;background:var(--brand);color:#fff;font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;font-variant-numeric:tabular-nums}
+.hdr-nav{border-top:1px solid var(--line)}
+.hdr-nav ul{max-width:1180px;margin:0 auto;padding:0 18px;list-style:none;display:flex;gap:2px;overflow-x:auto}
+.hdr-nav a{display:block;padding:11px 14px;font-size:13.5px;font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;min-height:44px}
+.hdr-nav a.on{border-bottom-color:var(--brand);color:var(--brand);font-weight:700}
+
+.crumb{max-width:1180px;margin:0 auto;padding:16px 20px 0;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.crumb .sep{opacity:.5}
+.crumb .cur{color:var(--ink)}
+
+/* ══ 主體 ══ */
+.page{max-width:1180px;margin:0 auto;padding:22px 20px 56px;display:flex;flex-direction:column;gap:34px}
+.page.narrow{max-width:1000px}
+.head{display:flex;flex-direction:column;gap:7px}
+.head.center{align-items:center;text-align:center}
+.head .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;color:var(--brand);font-weight:500}
+.head h2{font-size:clamp(22px,3vw,28px);font-weight:900}
+.head p{font-size:13.5px;color:var(--muted);max-width:60ch}
+
+.box{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:26px 28px;display:flex;flex-direction:column;gap:18px}
+.box h3{font-size:17px;font-weight:900;letter-spacing:.02em}
+.box .sub{font-size:12.5px;color:var(--muted);margin-top:-12px}
+
+/* 區塊標題 */
+.sec{display:flex;flex-direction:column;gap:18px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line-strong);padding-bottom:9px;flex-wrap:wrap}
+.sec-h h3{font-size:17px;font-weight:900;letter-spacing:.02em}
+.sec-h .cap{font-size:11.5px;color:var(--muted)}
+
+/* ── 按鈕 ── */
+.btn-main{background:var(--brand);color:#fff;font-weight:700;font-size:15px;border-radius:4px;min-height:52px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:0 18px}
+.btn-main:hover{background:var(--brand-dark)}
+.btn-main[disabled],.btn-main.wait{background:var(--line-strong);cursor:default}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);font-size:13.5px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--ink)}
+.btn.plain-brand{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.btn.solid{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:700}
+.btn.text{border-color:transparent;background:transparent;color:var(--muted);padding:0 8px}
+.btn.sm{min-height:36px;font-size:12.5px;padding:0 12px}
+.link{font-size:13px;color:var(--brand);font-weight:500}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;flex:none}
+.spin.dark{border-color:rgba(0,0,0,.12);border-top-color:var(--brand)}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── 數量增減（el-input-number 放大到 44px）── */
+.stepper{display:inline-flex;align-items:stretch;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);height:44px;overflow:hidden}
+.stepper button{width:44px;font-size:17px;color:var(--ink);display:flex;align-items:center;justify-content:center}
+.stepper button:hover{background:var(--surface-2)}
+.stepper button[disabled]{color:var(--line-strong);cursor:default;background:var(--surface)}
+.stepper .v{min-width:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-variant-numeric:tabular-nums;border-inline:1px solid var(--line)}
+.stepper.full{display:flex;width:100%}
+.stepper.full .v{flex:1}
+.stepper.brand{border-color:var(--brand)}
+.stepper.brand button{color:var(--brand)}
+
+/* ── 商品格線與卡片（與 HomeView 一致）── */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:30px 18px}
+.grid.g5{grid-template-columns:repeat(5,1fr)}
+.card{display:flex;flex-direction:column;position:relative;gap:0}
+.thumb{aspect-ratio:1/1;max-width:100%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;border-radius:8px;overflow:hidden;position:relative}
+.thumb .ph{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;color:var(--muted);opacity:.75}
+.t1{background:linear-gradient(150deg,#F7EDE2,#EFE0CF)}
+.t2{background:linear-gradient(150deg,#F8E7E3,#F0D3CC)}
+.t3{background:linear-gradient(150deg,#E4EEEF,#D2E2E4)}
+.t4{background:linear-gradient(150deg,#EFEDE4,#E2DFCF)}
+.card-b{padding:10px 2px 0;display:flex;flex-direction:column;gap:6px;flex:1}
+.pname{font-size:12.5px;line-height:1.55;min-height:calc(12.5px * 1.55 * 2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.price{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.price small{font-size:11px;font-weight:500;margin-right:1px}
+.card .act{margin-top:auto;padding-top:4px}
+.btn-add{width:100%;min-height:44px;border:1px solid var(--brand);color:var(--brand);background:var(--surface);border-radius:4px;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-add:hover{background:var(--brand-soft)}
+.incart{position:absolute;top:6px;left:6px;background:var(--brand);color:#fff;font-size:10.5px;font-weight:700;border-radius:2px;padding:2px 7px}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:2px;letter-spacing:.03em;display:inline-block;line-height:1.6}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--flag-soft);color:var(--flag)}
+.tag.line{border:1px solid var(--line-strong);color:var(--muted);background:var(--surface)}
+
+/* ── 骨架、空、錯誤（el-skeleton／el-empty）── */
+.sk{background:linear-gradient(90deg,var(--surface-2) 25%,#F6F3F0 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}
+.sk.img{aspect-ratio:1/1;border-radius:8px}
+.sk.t{height:12px;margin-top:9px}
+.state .sk.img{aspect-ratio:4/3}
+.state .sk.t:nth-child(4){display:none}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:34px 16px}
+.empty .ill{width:84px;height:84px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:34px}
+.empty .ill.err{background:var(--brand-soft);color:var(--brand);font-weight:900;font-size:30px}
+.empty .ill.ok{background:var(--ok-soft);color:var(--ok);font-weight:900}
+.empty h4{font-size:15px;font-weight:700}
+.empty p{font-size:12.5px;color:var(--muted);max-width:36ch}
+.empty .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+
+/* 四種狀態縮圖 */
+.states{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.state{border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:10px;min-height:200px}
+.state .h{font-size:11px;letter-spacing:.12em;color:var(--muted);font-family:"IBM Plex Mono",monospace;display:flex;justify-content:space-between;gap:8px}
+.state .h em{font-style:normal;color:var(--ink);letter-spacing:0;font-family:"Noto Sans TC",sans-serif;font-size:11.5px}
+.state .empty{padding:14px 6px}
+.state .empty .ill{width:56px;height:56px;font-size:22px}
+.state .empty h4{font-size:13px}
+.state .empty p{font-size:11.5px}
+.mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.mini-card .thumb{border-radius:6px}
+.mini-card .l{font-size:11px;line-height:1.5;margin-top:6px}
+.mini-card .p{font-size:12px;font-weight:900;font-variant-numeric:tabular-nums}
+.mini-inp{border:1px solid var(--line-strong);border-radius:3px;min-height:36px;display:flex;align-items:center;padding:0 10px;font-size:12px;color:var(--muted)}
+.mini-inp.bad{border-color:var(--brand);background:var(--brand-soft);color:var(--brand)}
+.mini-btn{background:var(--brand);color:#fff;border-radius:3px;min-height:36px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;gap:6px}
+.mini-btn.wait{background:var(--line-strong)}
+.mini-note{font-size:11.5px;color:var(--brand);line-height:1.6}
+.mini-ok{font-size:11.5px;color:var(--ok);line-height:1.6}
+
+/* ── 表單（與 login.html 一致：輸入框 48px）── */
+.form{display:flex;flex-direction:column;gap:17px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.field .lb{font-size:13px;font-weight:500;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.field .req{color:var(--brand);font-size:11px;font-weight:700}
+.field .hint{font-size:11.5px;color:var(--muted);font-weight:400}
+.inp{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:0 13px;min-height:48px}
+.inp .pi{color:var(--muted);font-size:14px;flex:none;width:16px;text-align:center}
+.inp input,.inp textarea{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;min-height:46px;outline:0}
+.inp textarea{resize:none;padding:11px 0;min-height:76px}
+.inp.area{align-items:flex-start}
+.inp input::placeholder,.inp textarea::placeholder{color:var(--muted)}
+.inp:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.inp.bad{border-color:var(--brand);background:var(--brand-soft)}
+.inp.sel{justify-content:space-between;color:var(--ink);font-size:14px}
+.inp.sel::after{content:"⌄";color:var(--muted);font-size:15px;margin-top:-6px}
+.inp.sel.ph{color:var(--muted)}
+.inp.dis{background:var(--surface-2);color:var(--muted)}
+.counter{font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.msg{font-size:12px;color:var(--brand);display:flex;align-items:flex-start;gap:5px;line-height:1.6}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.radio-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rc{border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:12px 14px;min-height:56px;display:flex;gap:10px;align-items:flex-start;position:relative}
+.rc i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-strong);flex:none;margin-top:3px}
+.rc.on{border-color:var(--brand);background:var(--brand-soft)}
+.rc.on i{border:5px solid var(--brand)}
+.rc.off{background:var(--surface-2);color:var(--muted)}
+.rc b{font-size:13.5px;display:block}
+.rc span{font-size:11.5px;color:var(--muted)}
+
+/* ── 錯誤 modal（ElMessageBox）── */
+.modal-scrim{position:absolute;inset:0;background:rgba(30,25,23,.45);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:6px;width:min(420px,100%);padding:20px 22px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.modal .mh{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700}
+.modal .mh .ic{width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none}
+.modal ul{margin:0;padding-left:1.2em;font-size:13.5px;line-height:1.8}
+.modal .mf{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+
+/* ── 分頁（el-pagination）── */
+.pager{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.pager a,.pager span{min-width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:13.5px;font-weight:500}
+.pager a{background:var(--surface);border:1px solid var(--line)}
+.pager a.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:700}
+.pager a.dis{color:var(--line-strong)}
+.pager .total{color:var(--muted);font-size:12.5px;margin-right:8px;min-width:auto}
+
+/* ── 手機底部固定條 ── */
+.bbar{display:none}
+
+/* footer */
+.ftr{background:var(--surface);border-top:1px solid var(--line)}
+.ftr-in{max-width:1180px;margin:0 auto;padding:34px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.ftr h4{font-size:12.5px;font-weight:700;margin-bottom:8px}
+.ftr ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.ftr li{font-size:12.5px;color:var(--muted)}
+.ftr-btm{border-top:1px solid var(--line);padding:13px 18px;text-align:center;font-size:11.5px;color:var(--muted)}
+
+/* ══ 說明 ══ */
+.notes{max-width:1180px;margin:0 auto;padding-block:44px 0;display:flex;flex-direction:column;gap:28px}
+.notes h2{font-size:20px;font-weight:900}
+.notes .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.notes .lead{font-size:13px;color:var(--muted);margin-top:6px}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:13px}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;letter-spacing:.08em;color:var(--muted);font-weight:500;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+.warnbox{background:var(--brand-soft);border:1px solid var(--brand);border-radius:4px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.warnbox .k{color:var(--brand)}
+.warnbox p{font-size:13.5px;line-height:1.85}
+.okbox{background:var(--ok-soft);border:1px solid var(--ok);border-radius:4px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.okbox .k{color:var(--ok)}
+.okbox p{font-size:13.5px;line-height:1.85}
+ul.plain{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:6px}
+ul.plain li{font-size:13.5px;line-height:1.75}
+ul.plain li::marker{color:var(--brand)}
+code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface-2);padding:1px 5px;border-radius:2px}
+
+@media (max-width:820px){
+  .states{grid-template-columns:repeat(2,1fr)}
+  .ftr-in{grid-template-columns:repeat(2,1fr)}
+  .hdr-top{flex-wrap:wrap;gap:10px 12px;padding:10px 14px}
+  .util{margin-left:auto}
+  .searchbar{order:3;width:100%;flex-basis:100%}
+  .grid,.grid.g5{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:560px){
+  body{padding:0 10px 40px}
+  .box{padding:20px 18px}
+  .states{grid-template-columns:1fr}
+  .ftr-in{grid-template-columns:1fr 1fr;padding:26px 16px}
+  .grid,.grid.g5{grid-template-columns:repeat(2,1fr);gap:24px 12px}
+  .logo .jp{display:none}
+  .util a{min-width:48px;padding:4px 3px}
+  .page{padding:16px 14px 40px;gap:26px}
+  .crumb{padding:12px 14px 0}
+  .row2,.radio-cards{grid-template-columns:1fr}
+  .notice{font-size:11.5px}
+  .notice .sep,.notice .tail{display:none}
+  .bbar{display:flex;position:sticky;bottom:0;z-index:15;background:var(--surface);border-top:1px solid var(--line-strong);box-shadow:0 -4px 14px rgba(0,0,0,.06);padding:10px 14px calc(10px + env(safe-area-inset-bottom));align-items:center;gap:12px}
+  .bbar .sum{flex:1;display:flex;flex-direction:column;line-height:1.35;min-width:0}
+  .bbar .sum small{font-size:11.5px;color:var(--muted)}
+  .bbar .sum b{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}
+  .bbar .btn-main{width:auto;min-height:48px;padding:0 22px;font-size:14.5px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ══════ 本頁 ══════ */
+.steps{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.steps .s{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.steps .n{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--surface)}
+.steps .s.done .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.steps .s.cur{color:var(--ink);font-weight:700}
+.steps .s.cur .n{background:var(--brand);border-color:var(--brand);color:#fff}
+.steps .ln{width:40px;height:1px;background:var(--line-strong)}
+.co{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+.co-form{display:flex;flex-direction:column;gap:16px}
+.fs{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:20px 24px 22px;display:flex;flex-direction:column;gap:16px}
+.fs h3{font-size:15.5px;font-weight:900;display:flex;align-items:baseline;gap:10px}
+.fs h3 small{font-size:12px;color:var(--muted);font-weight:400}
+.fs .fill{font-size:12.5px;color:var(--brand);font-weight:500;margin-left:auto}
+.addr{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.slots{display:flex;gap:8px;flex-wrap:wrap}
+.slots span{min-height:44px;padding:0 16px;border:1px solid var(--line-strong);border-radius:4px;display:flex;align-items:center;font-size:13px;background:var(--surface)}
+.slots span.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);font-weight:700}
+.pay{display:flex;align-items:center;gap:10px;font-size:13.5px;border:1px solid var(--line);border-radius:4px;padding:12px 14px;background:var(--ground)}
+.co-sum{background:var(--surface);border:1px solid var(--line);border-radius:6px;position:sticky;top:12px;overflow:hidden}
+.co-sum .hd{padding:16px 20px 10px;display:flex;align-items:baseline;justify-content:space-between}
+.co-sum .hd h3{font-size:15.5px;font-weight:900}
+.co-sum .hd a{font-size:12.5px;color:var(--brand)}
+.ol{list-style:none;margin:0;padding:0 20px;display:flex;flex-direction:column}
+.ol li{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.ol .thumb{width:44px;border-radius:5px}
+.ol .q{color:var(--muted);font-variant-numeric:tabular-nums}
+.ol .v{font-weight:700;font-variant-numeric:tabular-nums}
+.tot{padding:14px 20px 20px;display:flex;flex-direction:column;gap:7px}
+.tot .r{display:flex;justify-content:space-between;font-size:13.5px;font-variant-numeric:tabular-nums}
+.tot .r.big{font-size:15px;font-weight:700;border-top:1px solid var(--line);padding-top:10px;margin-top:3px;align-items:baseline}
+.tot .r.big b{font-size:24px;font-weight:900}
+.tot .note{font-size:11.5px;color:var(--muted);line-height:1.6}
+.tot .btn-main{margin-top:8px}
+.mini-steps{display:flex;flex-direction:column;gap:6px}
+@media (max-width:820px){
+  .co{grid-template-columns:1fr}
+  .co-sum{position:static}
+}
+@media (max-width:560px){
+  .fs{padding:16px 16px 18px}
+  .addr{grid-template-columns:1fr 1fr}
+  .addr .full{grid-column:1/-1}
+  .steps .ln{width:14px}
+  .steps .s span:not(.n){font-size:12px}
+  .co-sum .btn-main{display:none}
+}
+</style>
+
+<div class="toolbar">
+  <div class="who">
+    <h1>Konbini 結帳頁版面草稿</h1>
+    <p class="sub">/checkout（需登入）· 依 POST /api/orders 與 /api/addresses 的實際能力設計 · 表單規則沿用登入、註冊頁（按送出才檢查、錯誤用 modal）· 靜態 HTML，專案程式碼未更動</p>
+  </div>
+  <button class="tgl" id="annotBtn" aria-pressed="false"><span class="dot"></span>顯示區塊標註</button>
+</div>
+<div class="frame-cap"><span class="k">FRAME A</span><h2>結帳 /checkout</h2><p>已登入、帶入會員姓名與手機、購物車 4 項 8 件</p></div>
+<div class="frame">
+  <div class="notice">單筆滿 <b class="num">NT$500</b> 免運費<span class="sep">·</span><span class="tail">平日 15:00 前下單當日出貨</span></div>
+  <header class="hdr">
+    <div class="hdr-top">
+      <a class="logo" href="#">🏪 Konbini <span class="jp">NICHI–KAN SNACKS</span></a>
+      <div class="searchbar">
+        <input placeholder="搜尋商品，例如：辛拉麵、白色戀人" aria-label="搜尋商品">
+        <button class="go">搜尋</button>
+      </div>
+      <nav class="util"><a href="#"><span class="ico">📋</span>我的訂單</a><a href="#"><span class="ico">👤</span>登出</a><a href="#"><span class="ico">🛒</span>購物車<span class="badge">8</span></a></nav>
+    </div>
+    <nav class="hdr-nav"><ul><li><a href="#">全部商品</a></li><li><a href="#">零食</a></li><li><a href="#">泡麵</a></li><li><a href="#">飲品</a></li></ul></nav>
+  </header>
+  <nav class="crumb"><a href="#">首頁</a><span class="sep">›</span><a href="#">購物車</a><span class="sep">›</span><span class="cur">結帳</span></nav>
+  <div class="page">
+    <div class="head" style="gap:14px">
+      <h2>結帳</h2>
+      <div class="steps anchor"><span class="mark">01 步驟（el-steps）</span>
+        <div class="s done"><span class="n">✓</span><span>購物車</span></div><span class="ln"></span>
+        <div class="s cur"><span class="n">2</span><span>填寫收件資料</span></div><span class="ln"></span>
+        <div class="s"><span class="n">3</span><span>完成</span></div>
+      </div>
+    </div>
+
+    <div class="co">
+      <form class="co-form" onsubmit="return false">
+        <!-- 02 收件人 -->
+        <section class="fs anchor"><span class="mark">02 收件人（帶入會員資料）</span>
+          <h3>收件人</h3>
+          <div class="row2">
+            <div class="field"><label>姓名 <span class="req">必填</span></label><div class="inp"><span class="pi">👤</span><input value="王小明"></div></div>
+            <div class="field"><label>手機 <span class="req">必填</span></label><div class="inp"><span class="pi">📱</span><input value="0912345678"></div></div>
+          </div>
+        </section>
+
+        <!-- 03 配送方式 -->
+        <section class="fs anchor"><span class="mark">03 配送方式</span>
+          <h3>配送方式</h3>
+          <div class="radio-cards">
+            <div class="rc on"><i></i><div><b>宅配到府</b><span>運費 NT$60，滿 NT$500 免運</span></div></div>
+            <div class="rc off anchor"><span class="mark need">超商取貨（後端未支援）</span><i></i><div><b>超商取貨</b><span>準備中</span></div></div>
+          </div>
+        </section>
+
+        <!-- 04 地址 -->
+        <section class="fs anchor"><span class="mark">04 收件地址（/api/addresses 連動）</span>
+          <h3>收件地址</h3>
+          <div class="addr">
+            <div class="field"><label>縣市 <span class="req">必填</span></label><div class="inp sel">台北市</div></div>
+            <div class="field"><label>行政區 <span class="req">必填</span></label><div class="inp sel">中山區</div></div>
+            <div class="field full" style="grid-column:1/-1"><label>地址 <span class="req">必填</span></label><div class="inp"><span class="pi">📍</span><input value="南京東路二段 100 號 5 樓"></div></div>
+          </div>
+        </section>
+
+        <!-- 05 配送時段 -->
+        <section class="fs anchor"><span class="mark need">05 配送時段（後端未支援）</span>
+          <h3>希望配送時段 <small>不保證，盡量配合</small></h3>
+          <div class="slots"><span class="on">不指定</span><span>上午 9–12 時</span><span>下午 12–17 時</span><span>晚上 17–21 時</span></div>
+        </section>
+
+        <!-- 06 付款 -->
+        <section class="fs anchor"><span class="mark need">06 付款方式（後端沒有付款）</span>
+          <h3>付款方式</h3>
+          <div class="pay"><span>💴</span><span><b>貨到付款</b>　目前只有這一種，送達時付現</span></div>
+        </section>
+
+        <!-- 07 備註 -->
+        <section class="fs anchor"><span class="mark">07 備註（上限 500 字）</span>
+          <h3>備註 <small>選填</small></h3>
+          <div class="field">
+            <div class="inp area"><textarea placeholder="例如：請放管理室"></textarea></div>
+            <p class="counter">0 / 500</p>
+          </div>
+        </section>
+      </form>
+
+      <!-- 08 訂單摘要 -->
+      <aside class="co-sum anchor"><span class="mark">08 訂單摘要（sticky）</span>
+        <div class="hd"><h3>訂單內容 <small class="num" style="font-size:12px;color:var(--muted);font-weight:400">4 項 · 8 件</small></h3><a href="#">修改</a></div>
+        <ul class="ol">
+          <li><div class="thumb t2"></div><span>日本BOURBON北日本條狀軟糖 <span class="q">× 2</span></span><span class="v">NT$118</span></li>
+          <li><div class="thumb t3"></div><span>日本神田 綜合點心米果 <span class="q">× 1</span></span><span class="v">NT$69</span></li>
+          <li><div class="thumb t1"></div><span>韓國辛拉麵 <span class="q">× 4</span></span><span class="v">NT$180</span></li>
+          <li><div class="thumb t4"></div><span>韓國ORION好麗友 葡萄軟糖 <span class="q">× 1</span></span><span class="v">NT$45</span></li>
+        </ul>
+        <div class="tot">
+          <div class="r"><span>小計</span><span>NT$412</span></div>
+          <div class="r"><span>運費</span><span>NT$60</span></div>
+          <div class="r big"><span>合計</span><b>NT$472</b></div>
+          <p class="note">實際金額以送出後計算為準；商品價格若有變動，會以最新價格計算。</p>
+          <button class="btn-main" type="submit">送出訂單</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <footer class="ftr">
+    <div class="ftr-in">
+      <div><h4>購物指南</h4><ul><li>運費與配送</li><li>付款方式</li><li>退換貨說明</li><li>常見問題</li></ul></div>
+      <div><h4>關於 Konbini</h4><ul><li>我們怎麼選貨</li><li>進貨與效期政策</li><li>聯絡我們</li></ul></div>
+      <div><h4>條款</h4><ul><li>服務條款</li><li>隱私權政策</li><li>食品標示資訊</li></ul></div>
+      <div><h4>訂單</h4><ul><li>查詢訂單</li><li>購物車</li></ul></div>
+    </div>
+    <p class="ftr-btm">客服時間 週一至週五 10:00–18:00　·　© 2026 Konbini</p>
+  </footer>
+  <div class="bbar anchor"><span class="mark">09 底部固定條（手機）</span>
+    <div class="sum"><small>合計（8 件）</small><b>NT$472</b></div>
+    <button class="btn-main">送出訂單</button>
+  </div>
+</div>
+
+<div class="frame-cap"><span class="k">FRAME B</span><h2>送出時檢查沒過</h2><p>與登入、註冊頁同一套：modal 列出全部問題，欄位下方同時標示；關掉後游標移到第一個出錯的欄位</p></div>
+<div class="frame">
+  <div class="notice">單筆滿 <b class="num">NT$500</b> 免運費<span class="sep">·</span><span class="tail">平日 15:00 前下單當日出貨</span></div>
+  <header class="hdr">
+    <div class="hdr-top">
+      <a class="logo" href="#">🏪 Konbini <span class="jp">NICHI–KAN SNACKS</span></a>
+      <div class="searchbar">
+        <input placeholder="搜尋商品，例如：辛拉麵、白色戀人" aria-label="搜尋商品">
+        <button class="go">搜尋</button>
+      </div>
+      <nav class="util"><a href="#"><span class="ico">📋</span>我的訂單</a><a href="#"><span class="ico">👤</span>登出</a><a href="#"><span class="ico">🛒</span>購物車<span class="badge">8</span></a></nav>
+    </div>
+    <nav class="hdr-nav"><ul><li><a href="#">全部商品</a></li><li><a href="#">零食</a></li><li><a href="#">泡麵</a></li><li><a href="#">飲品</a></li></ul></nav>
+  </header>
+  <div class="page">
+    <div class="co">
+      <div class="co-form">
+        <section class="fs">
+          <h3>收件人</h3>
+          <div class="row2">
+            <div class="field"><label>姓名 <span class="req">必填</span></label><div class="inp"><span class="pi">👤</span><input value="王小明"></div></div>
+            <div class="field"><label>手機 <span class="req">必填</span></label><div class="inp bad"><span class="pi">📱</span><input placeholder="09xxxxxxxx"></div><p class="msg"><span>!</span>請填寫聯絡電話</p></div>
+          </div>
+        </section>
+        <section class="fs">
+          <h3>收件地址</h3>
+          <div class="addr">
+            <div class="field"><label>縣市 <span class="req">必填</span></label><div class="inp sel">台北市</div></div>
+            <div class="field"><label>行政區 <span class="req">必填</span></label><div class="inp sel ph bad">請選擇</div><p class="msg"><span>!</span>請選擇行政區</p></div>
+            <div class="field" style="grid-column:1/-1"><label>地址 <span class="req">必填</span></label><div class="inp bad"><span class="pi">📍</span><input placeholder="路名、門牌、樓層"></div><p class="msg"><span>!</span>請填寫地址</p></div>
+          </div>
+        </section>
+      </div>
+      <aside class="co-sum">
+        <div class="tot">
+          <div class="r big" style="border-top:0;margin-top:0;padding-top:0"><span>合計</span><b>NT$472</b></div>
+          <button class="btn-main" type="button">送出訂單</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="modal-scrim anchor"><span class="mark">10 錯誤 modal（useErrorDialog）</span>
+    <div class="modal" role="alertdialog">
+      <div class="mh"><span class="ic">!</span>還有 3 個地方要修改</div>
+      <ul><li>請填寫聯絡電話</li><li>請選擇行政區</li><li>請填寫地址</li></ul>
+      <div class="mf"><button class="btn solid">知道了</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" style="padding-inline:0;max-width:1280px">
+  <section class="sec anchor"><span class="mark">11 結帳頁的四種狀態</span>
+    <div class="sec-h"><h3>狀態示意</h3><span class="cap">縣市清單要載入、購物車可能是空的、送出可能失敗</span></div>
+    <div class="states">
+      <div class="state">
+        <span class="h">LOADING<em>縣市清單載入中</em></span>
+        <div class="mini-inp" style="gap:8px"><span class="spin dark"></span>載入縣市…</div>
+        <div class="mini-inp" style="background:var(--surface-2)">請先選擇縣市</div>
+        <p style="font-size:11px;color:var(--muted)">el-select 的 <code>loading</code>；行政區在選了縣市之前停用。</p>
+      </div>
+      <div class="state">
+        <span class="h">EMPTY<em>購物車是空的</em></span>
+        <div class="empty"><div class="ill">🛒</div><h4>購物車是空的</h4><p>沒有可以結帳的商品。</p><div class="acts"><span class="btn sm plain-brand">開始購物</span></div></div>
+      </div>
+      <div class="state">
+        <span class="h">SUBMITTING<em>不能重複送出</em></span>
+        <div class="mini-inp">王小明</div>
+        <div class="mini-inp">0912345678</div>
+        <div class="mini-btn wait"><span class="spin"></span>送出中</div>
+      </div>
+      <div class="state">
+        <span class="h">FAILED<em>伺服器或連線</em></span>
+        <div class="modal" style="box-shadow:none;border:1px solid var(--line);padding:12px 14px;gap:8px">
+          <div class="mh" style="font-size:13px"><span class="ic" style="width:18px;height:18px;font-size:11px">!</span>訂單沒有送出</div>
+          <ul style="font-size:11.5px"><li>下列商品不存在：韓國燒酒</li></ul>
+          <div class="mf"><span class="btn sm solid">回購物車修改</span></div>
+        </div>
+        <p style="font-size:11px;color:var(--muted)">連不到 API 時改顯示「連線失敗，購物車內容都還在，請稍後再試」。</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ══════ 說明 ══════ -->
+<div class="notes">
+
+  <section class="okbox">
+    <p class="k">Ready · 現有的 API 就做得到</p>
+    <ul class="plain">
+      <li><b>送出訂單</b> — <code>POST /api/orders</code> 收 <code>items / contactName / contactPhone / deliveryMethod / cityCode / districtCode / streetAddress / memo</code>，回 <code>orderId</code>。金額、運費由後端重新計算。</li>
+      <li><b>縣市與行政區連動</b> — <code>GET /api/addresses/cities</code> 與 <code>/cities/{cityCode}/districts</code>。</li>
+      <li><b>帶入會員資料</b> — <code>GET /api/auth/me</code> 回 <code>name / phone</code>；手機是選填欄位，沒填過就留空。</li>
+      <li><b>欄位錯誤</b> — 後端回 <code>errors</code> 字典（<code>contactName / contactPhone / streetAddress / memo / address / items</code>），對應到欄位下方；<code>items</code> 與 <code>address</code> 沒有單一欄位，只放在 modal。長度上限：姓名 100、電話 20、地址 200、備註 500。</li>
+      <li><b>送出後</b> — 清空購物車，導到下單完成頁（見 <code>order-complete.html</code>）。</li>
+    </ul>
+  </section>
+
+  <section class="warnbox">
+    <p class="k">Blocked · 後端沒有的功能</p>
+    <ul class="plain">
+      <li><b>超商取貨</b> — <code>deliveryMethod</code> 欄位存在，但後端沒有定義其他值，也沒有門市選擇；運費規則只有一種。</li>
+      <li><b>配送時段</b> — 訂單沒有時段欄位（<code>ui-guidelines</code>「配送時段選擇器」）。</li>
+      <li><b>付款</b> — 沒有任何付款流程；畫面寫「貨到付款」只是說明現況，若要做線上付款是一整條金流串接。</li>
+      <li><b>常用地址</b> — 沒有會員地址簿，每次都要重填；要做需要新的資料表與 API。</li>
+      <li><b>手機格式檢查</b> — 後端只檢查必填與長度；前端可以加 <code>09</code> 開頭 10 碼的格式檢查，但兩邊規則要一致。</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="k">Reference</p>
+    <h2>與參考網站的區塊對照</h2>
+    <p class="lead">只記錄版型結構與資訊密度的觀察，不沿用任何網站的配色、圖示、文案與素材；細節實作前以實際網站為準。</p>
+    <div class="tblwrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>參考網站的做法</th><th>Konbini</th><th>調整理由</th></tr></thead>
+        <tbody>
+          <tr><td>家樂福線上購物：結帳分成數個步驟，頂端顯示進度</td><td><b>三步驟（購物車 → 填寫資料 → 完成），資料在同一頁</b></td><td>要填的欄位不多，拆成多頁只會多按幾次「下一步」；步驟條只用來告訴使用者還剩幾步。</td></tr>
+          <tr><td>Instacart：結帳頁左側填資料、右側固定訂單摘要</td><td><b>左表單、右側 sticky 摘要 360px</b></td><td>送出按鈕放在摘要裡，金額與按鈕永遠在一起；與 /cart 的摘要同一個元件。</td></tr>
+          <tr><td>雜貨電商常見：配送時段選擇</td><td><b>時段畫出位置、標為後端未支援</b></td><td><code>ui-guidelines</code> 列為雜貨電商特有需求，先保留位置。</td></tr>
+          <tr><td>全聯 PXGo!：手機結帳底部固定送出按鈕</td><td><b>手機底部固定條：合計＋送出訂單</b></td><td>表單很長，送出按鈕不能只在最底下；摘要裡的按鈕在手機隱藏，避免出現兩個。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="k">Layout</p>
+    <h2>為什麼這樣排</h2>
+    <div class="tblwrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>做法</th><th>說明</th></tr></thead>
+        <tbody>
+          <tr><td><b>不用 AuthCard</b></td><td>表單頁規範的 480px 單欄卡片是為登入、註冊設計的；結帳要同時看到訂單內容，改成兩欄。輸入框 48px、送出按鈕 52px、錯誤處理照表單頁規範。</td></tr>
+          <tr><td><b>依主題分成幾張卡片</b></td><td>收件人、配送方式、地址、時段、付款、備註各一張，掃一眼就知道還缺哪一塊；錯誤 modal 的順序與卡片順序一致。</td></tr>
+          <tr><td><b>帶入會員資料，但可以改</b></td><td>寄給別人時要能改姓名與電話；不提供「同會員資料」勾選框，直接預填就好。</td></tr>
+          <tr><td><b>未登入</b></td><td><code>requiresAuth</code> 導到登入頁；登入後要回到 /checkout，需要前端補 <code>redirect</code>（見 <code>cart.html</code>）。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="k">Notes</p>
+    <h2>下一步</h2>
+    <ul class="plain" style="margin-top:12px">
+      <li><b>Email 驗證上線後</b>，未驗證的帳號不能登入，自然也到不了結帳頁；結帳頁本身不用另外處理。</li>
+      <li><b>送出成功回傳的只有 <code>orderId</code></b>，完成頁要顯示金額與地址，見 <code>order-complete.html</code> 的取捨。</li>
+      <li><b>手機格式</b>要不要檢查，與註冊頁的手機欄一起決定。</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  var btn = document.getElementById('annotBtn');
+  btn.addEventListener('click', function(){
+    var on = btn.getAttribute('aria-pressed') === 'true';
+    btn.setAttribute('aria-pressed', String(!on));
+    document.body.classList.toggle('annot', !on);
+  });
+  if (location.hash === '#annot') btn.click();
+})();
+</script>
