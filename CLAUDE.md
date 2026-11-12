@@ -473,7 +473,7 @@ Pull Request（核准數 0、討論串須全部 resolve）、merge 方式只允�
 
 放棄的東西：main 上看不到分支內逐個 commit 的歷史（仍保留在 Pull Request 頁面）；
 Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改用 `-D`。
-#6（中文標題慣例之前）與 #10（Squash 時誤改 Commit message）的標題不符慣例，
+#6（中文標題慣例之前）、#10（Squash 時誤改 Commit message）與 #38（`Refactor/20261112 result error types`，沒有 type 前綴、也不是中文）的標題不符慣例，
 依「不改動歷史」保留原樣。
 
 ### 開發流程與提交順序（2026-11-11 定案）
@@ -546,12 +546,15 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | refresh token（短效 access token ＋ 可撤銷的 refresh token） | 目前不導入（2026-11-06 評估）：不正式上線，8 小時重新登入可接受；導入要多資料表、旋轉與重用偵測、撤銷，以及前端的 401 重試與同時刷新處理。條件：想當練習題、要讓舊 token 能提早作廢（改密碼、登出），或定位改為正式上線。導入時不放 localStorage（效期長，XSS 的風險比現行 8 小時 token 大），要搭配旋轉或 `HttpOnly` cookie；前置工作是前端 401 統一處理 |
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
 | API 回應與 `docs/api-conventions.md` 的落差：~~下單 201 回整個 Result、400 帶 `null` 欄位~~（已實施（2026-11-12）：泛型 Result＋ProblemDetails，見 §2「用例結果」）、Location 指向尚無的 `GET /api/orders/{id}` | Location 留給訂單明細一起處理 |
-| 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView 與 Auth 的登入、註冊頁（2026-11-11）照規範（見 `docs/ui-guidelines.md`） |
+| 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView 與 Auth 的登入、註冊頁（2026-11-11）照規範（見 `docs/ui-guidelines.md`）。遷移時一併處理（2026-11-12 全站掃描）：商品、搜尋列表的錯誤與空資料狀態；加入購物車的回饋，明細頁數量輸入用 min／max 限制，不默默截斷；結帳頁縣市／行政區載入失敗的處理、快速切換縣市時舊回應蓋掉新選項、送出成功的回饋；header 搜尋列改用 Element Plus 並達 44px、搜尋頁不重複放搜尋框；header 的「我的訂單」與「登入／登出」統一依同一個狀態顯示；訂單時間轉 Asia/Taipei 顯示（比照 `formatMoney` 抽共用函式） |
 | Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。收信用 Mailpit（2026-11-12 已加入開發與部署環境，見 §4）；寄信用 MailKit，抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；設定鍵 `Email:From`、`Email:Smtp:Host`、`Email:Smtp:Port` 與 `App:ClientBaseUrl`（信中連結指向前端）隨這一支加入，容器用的值在 compose `environment:` 明寫；驗證 token 存雜湊值、不存原文。已定案：未完成驗證的帳號不能登入（2026-11-12）；先決定 token 效期、重寄次數、既有帳號是否視為已驗證 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
 | 前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步） | 越晚導入越貴（2026-11-12 記錄）：前端檔案少的現在，全專案格式化的 diff 最小；參照的另一專案先開 ESLint、Prettier 規則關著，累積約 1,500 處排版差異至今沒開。ESLint 與 Prettier 同一個分支開、格式化獨立一個 commit；unplugin-auto-import 要開 `eslintrc` 選項產生全域宣告（否則 `ElMessage` 會被報 `no-undef`）；`.gitattributes` 是 `text=auto`，Windows 工作目錄為 CRLF，要設 `endOfLine` 或對前端檔強制 LF。不與前端功能分支並行 |
 | E2E 測試（Playwright） | 練習題（2026-11-12 記錄）：接在 Testcontainers 整合測試與前端 Vitest 之後。CI 用 prod compose 起完整環境再跑（同冒煙測試），先涵蓋註冊 → 登入 → 加入購物車 → 下單這條主線。先決定測試資料怎麼準備、只在打包時跑還是每個 Pull Request 都跑 |
+| 購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄） | 與庫存欄位一起處理（同屬「購物車與後端不同步」，見 `docs/ui-guidelines.md`）：結帳頁載入時向後端取現價或試算金額，與購物車不同時提示。先決定要不要新增「依多個 Id 取商品」或試算端點 |
+| Email 格式前後端規則不同：前端 el-form 的 `type: 'email'` 比後端的 regex 嚴格，經 API 註冊的 `a@b.c` 這類帳號在登入頁送不出去（2026-11-12 記錄） | 做 Email 驗證時一起決定註冊的格式規則以哪邊為準；登入頁可改成只檢查必填（同「登入不檢查密碼規則」的理由） |
+| 縣市／行政區只有示範資料：`DataSeeder` 只有台北市、新北市、高雄市各 2 區（2026-11-12 記錄） | 結帳頁遷移到 UI 規範時，或要讓別人試用時；先決定資料來源，匯入要走 Migration 或種子資料更新 |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、
