@@ -13,6 +13,7 @@
     <option name="MIXED_MODE_DEBUG" value="0" />
     <method v="2">
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="postgres" run_configuration_type="docker-deploy" />
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="mailpit" run_configuration_type="docker-deploy" />
       <option name="Build" />
     </method>
   </configuration>

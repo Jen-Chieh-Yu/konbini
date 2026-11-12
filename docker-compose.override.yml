@@ -14,3 +14,8 @@ services:
   postgres:
     ports:
       - "127.0.0.1:5432:5432"
+
+  mailpit:
+    ports:
+      - "127.0.0.1:1025:1025"   # SMTP：本機執行的 API 寄信用
+      - "127.0.0.1:8025:8025"   # 收信畫面 http://localhost:8025
