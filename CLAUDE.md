@@ -103,8 +103,8 @@ Endpoint 的參數直接寫 `ICommandHandler<TCommand, TResult>`／`IQueryHandle
 - **現在不用的理由**：現有的橫切關注點都已有歸屬（例外→`GlobalExceptionHandler`、
   交易→handler 呼叫 `IUnitOfWork`、驗證→handler 回傳 Result）。多一層轉送的代價是 F12 追不到 handler，
   反射實作在漏註冊時要到執行時期才報錯。
-- **導入前要先處理的事**：command／query 要實作 `ICommand<TResult>` 這類介面帶出結果型別，`Send()` 才推得出回傳值；
-  想做統一的驗證 behavior，得先把各用例各自的 Result 型別（`AuthResult`、`CreateOrderResult`…）收斂成泛型基底。
+- **導入前要先處理的事**：command／query 要實作 `ICommand<TResult>` 這類介面帶出結果型別，`Send()` 才推得出回傳值（尚未做）；
+  想做統一的驗證 behavior，得先把各用例各自的 Result 型別收斂成泛型基底——已完成（2026-11-12，見下一節）。
 - **先評估 endpoint filter**：Minimal API 內建的 `IEndpointFilter`（掛在 route group 用 `AddEndpointFilter`）
   也是 `next()` 式的管線，位在 endpoint 之前，不必改 handler 宣告。限制是它看到的是 endpoint 參數、不是 command 物件，
   而且只在 HTTP 路徑上生效。需求只跟 HTTP 請求有關時用它就夠，要包住 handler 本身才導入 ISender。
@@ -113,6 +113,29 @@ Endpoint 的參數直接寫 `ICommandHandler<TCommand, TResult>`／`IQueryHandle
 
 放棄的東西：沒有用例層級的統一管線（HTTP 層的 middleware 照常運作，`GlobalExceptionHandler` 即掛在這裡），
 日後要加包住 handler 的全域行為時，得一次改寫所有 handler 宣告與 Endpoints 檔。
+
+### 用例結果：泛型 Result＋錯誤類型，失敗回 ProblemDetails（2026-11-12 定案）
+
+原本每個用例各一個 Result（`AuthResult`、`LoginResult`、`CreateOrderResult`），沒有錯誤類型，可預期的失敗一律 400，
+失敗時 body 帶出 `null` 欄位。改為 `Common/Abstractions/Result.cs` 的 `Result`／`Result<T>` ＋ `Error`
+（Validation 400、Unauthorized 401、Forbidden 403、NotFound 404、Conflict 409），Endpoint 失敗時用 `ToProblem()`。
+對照的寫法來自使用者另一個專案（`Result`＋`Error`＋`ApiResponse` 信封），只取前兩者。
+
+- **時機在 Email 驗證之前**：驗證與重寄會有找不到、已驗證過、未驗證不能登入這類錯誤，先有錯誤類型就不必寫兩次。
+- **失敗用 ProblemDetails，不用 `ApiResponse` 信封**：成功直接回資料是既有規範；ProblemDetails 與 `GlobalExceptionHandler`
+  同一種格式，前端 `readApiErrors` 原本就讀 `errors`、沒有時讀 `title`，不用改。
+- **errors 維持「欄位 → 單一字串」**：前後端都假設一欄一則訊息；不用 ASP.NET `ValidationProblemDetails` 的字串陣列。
+- **沒有錯誤代碼（`Code`）**：前端用狀態碼加欄位 key 就能分辨。要分辨同一個狀態碼的不同原因時
+  （例：Email 驗證的「未驗證」），先看 403 夠不夠，不夠再用 ProblemDetails 的 `type` 放代碼。
+- **沒有 Failure（500）類型**：非預期錯誤照樣走例外，交給 `GlobalExceptionHandler`。
+- **Email 重複回 400 不回 409**：409 要等格式檢查都通過才查重複，使用者得改兩輪，也違反「送出時一次列出」（見「表單錯誤」）。
+  409 留給狀態衝突（重複下單、庫存不足）。
+- **登入失敗回 401，已登入的操作不回 401**：前端攔截器收到 401 會登出，所以改密碼的「目前密碼錯誤」回 400。
+- **只有會失敗的用例回 Result**：列表與代碼表直接回資料，包一層只是儀式。
+- **只做轉換失敗的 `ToProblem()`**：成功有 200、201、204 三種形狀，各 Endpoint 明寫比包裝成 `ToSuccessResult` 好讀。
+
+放棄的東西：沒有機器可讀的錯誤代碼；errors 與 ASP.NET 標準的 `ValidationProblemDetails` 不相容；
+API 回應格式改變（成功不再帶 `success`、註冊與改密碼改回 204、下單 201 只回 `{ id }`），前後端同一個 Pull Request 上線。
 
 ### 為什麼 feature 內部用技術類型資料夾（Models/Commands/Queries/Endpoints）（2026-08-31 定案）
 
@@ -467,7 +490,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
 | DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄） |
-| Endpoint 改經 ISender ＋ pipeline behavior（理由與前置工作見 §2「為什麼 Endpoint 直接注入 handler」） | 出現第一個要套用到所有用例的橫切需求（例：稽核欄位導入後記錄操作者），且 endpoint filter 不夠用。會改到全部 Endpoints 檔，不與分頁、長度驗證等同批檔案的分支並行（2026-11-04 記錄） |
+| Endpoint 改經 ISender ＋ pipeline behavior（理由與前置工作見 §2「為什麼 Endpoint 直接注入 handler」） | 出現第一個要套用到所有用例的橫切需求（例：稽核欄位導入後記錄操作者），且 endpoint filter 不夠用。會改到全部 Endpoints 檔，不與分頁、長度驗證等同批檔案的分支並行（2026-11-04 記錄）。前置工作完成一半（2026-11-12）：Result 已收斂成泛型；command 帶出結果型別的 `ICommand<TResult>` 尚未做 |
 | ~~輸入長度驗證：超過資料庫欄位長度的輸入目前回 500~~ | 已實施（2026-11-06）：註冊與下單的 Handler 檢查長度、回欄位錯誤；上限定義成 Entity 常數，`HasMaxLength` 與 Handler 共用同一來源 |
 | ~~下單數量上限：沒有上限時單價 × 數量可能溢位，算出錯誤的訂單金額~~ | 已實施（2026-11-06）：每項商品最多 99 件（`OrderItem.MaxQuantity`），同商品分多筆時看合計；前端購物車同步限制 |
 | ~~OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string）~~ | 已實施（2026-11-05）：`NumberHandling = Strict`，執行時與文件都只收 JSON 數字；請求格式錯誤一律由 `GlobalExceptionHandler` 回 400（原本開發環境會變成 500） |
@@ -476,7 +499,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除）~~ | 已實施（2026-11-06）：token 只留 `sub`；JWT 只簽章不加密，內容任何人都讀得到 |
 | refresh token（短效 access token ＋ 可撤銷的 refresh token） | 目前不導入（2026-11-06 評估）：不正式上線，8 小時重新登入可接受；導入要多資料表、旋轉與重用偵測、撤銷，以及前端的 401 重試與同時刷新處理。條件：想當練習題、要讓舊 token 能提早作廢（改密碼、登出），或定位改為正式上線。導入時不放 localStorage（效期長，XSS 的風險比現行 8 小時 token 大），要搭配旋轉或 `HttpOnly` cookie；前置工作是前端 401 統一處理 |
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
-| API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
+| API 回應與 `docs/api-conventions.md` 的落差：~~下單 201 回整個 Result、400 帶 `null` 欄位~~（已實施（2026-11-12）：泛型 Result＋ProblemDetails，見 §2「用例結果」）、Location 指向尚無的 `GET /api/orders/{id}` | Location 留給訂單明細一起處理 |
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView 與 Auth 的登入、註冊頁（2026-11-11）照規範（見 `docs/ui-guidelines.md`） |
 | Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。開發環境用 Mailpit 收信，寄信抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；驗證 token 存雜湊值、不存原文。先決定未驗證帳號能否登入與下單、token 效期、重寄次數 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |

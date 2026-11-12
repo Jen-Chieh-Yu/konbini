@@ -31,15 +31,15 @@ Endpoint → Command/Query → Handler → Service → Repository
 - Command 改變狀態，Query 只讀，不可混用。
   Query 的 Handler 不得寫入資料庫。
 - 依功能垂直切分，feature 內用技術類型資料夾；
-  Command/Query＋Handler＋Result 強制放在同一個檔案，
-  一個操作不橫跨多個資料夾。被多個用例共用的 Result 例外，放 Models/
-  （例：AuthResult 由註冊與改密碼共用）：
+  Command/Query＋Handler＋專屬的 Response 強制放在同一個檔案，
+  一個操作不橫跨多個資料夾。被多個用例共用的 DTO 例外，放 Models/
+  （例：UserDto 由登入與 /me 共用）：
 
   Features/Products/
   Endpoints/ProductEndpoints.cs（一支檔案看到模組全部路由）
-  Queries/GetProductsQuery.cs（Query + Handler + Result 同檔）
-  Commands/CreateXxxCommand.cs（Command + Handler + Result 同檔）
-  Models/（Entity、共用 DTO 與共用 Result）
+  Queries/GetProductsQuery.cs（Query + Handler + Response 同檔）
+  Commands/CreateXxxCommand.cs（Command + Handler + Response 同檔）
+  Models/（Entity、共用 DTO）
   Services/、Repositories/（有第一個檔案才建立）
 
   不要在專案根層用 Controllers/、Services/ 這種跨 feature 的水平分法。
@@ -70,7 +70,7 @@ Endpoint → Command/Query → Handler → Service → Repository
 | ------------------------------ | ------------------------- |
 | 查詢成功                       | 200                       |
 | 建立成功                       | 201（附 Location header） |
-| 成功但無回傳內容               | 204；回傳 Result 的命令（註冊、改密碼）回 200 |
+| 成功但無回傳內容               | 204（註冊、改密碼）       |
 | 參數或驗證錯誤                 | 400                       |
 | 未登入或 token 無效            | 401                       |
 | 已登入但無權限                 | 403                       |
@@ -80,35 +80,58 @@ Endpoint → Command/Query → Handler → Service → Repository
 
 不要一律回 200 再用 body 裡的旗標表示失敗。
 
-> 現況：Result 沒有錯誤類型，可預期的失敗目前一律回 400，409 要等 Result 帶錯誤類型後才實施；
-> `POST /api/orders` 的 Location 指向 `/api/orders/{id}`，但明細路由尚未實作（見 CLAUDE.md §6）。
+可預期的失敗由錯誤類型決定狀態碼，見下一節。
+
+> 現況：`POST /api/orders` 的 Location 指向 `/api/orders/{id}`，但明細路由尚未實作（見 CLAUDE.md §6）。
 
 ## Handler 的結果表達
 
 - Handler 不丟例外來表示可預期的業務失敗（庫存不足、狀態不允許）。
-  用 Result 型別回傳成功或失敗，由 Endpoint 對應成狀態碼。
+  用 `Result`／`Result<T>`（`Common/Abstractions/Result.cs`）回傳成功或失敗，由 Endpoint 對應成狀態碼。
+- 會失敗的用例才回 Result；不會失敗的查詢（列表、代碼表）直接回資料，不包一層。
+- 失敗是一個 `Error`：錯誤類型＋欄位錯誤字典。Handler 內直接寫 `return Error.Validation(errors);`，
+  成功時 `return dto;`（無回傳值的命令 `return Result.Success();`），由隱式轉換變成 Result。
+  查無資料要明寫 `Error.NotFound(...)`，沒有「null 自動變失敗」的轉換。
+
+  | ErrorType    | 狀態碼 | 用在 |
+  | ------------ | ------ | ---- |
+  | Validation   | 400    | 輸入不合法。也包含 body 裡參照到不存在的資料（下單的商品 Id），以及註冊的 Email 重複（要和其他欄位錯誤一起列出） |
+  | Unauthorized | 401    | 身分驗證失敗（登入的帳號或密碼錯誤）。已登入的操作不要用：前端收到 401 會當成 token 失效而登出，所以改密碼的「目前密碼錯誤」回 400 |
+  | Forbidden    | 403    | 已確認身分，但不允許這個操作（目前沒有用例） |
+  | NotFound     | 404    | 網址指到的資源不存在，或不屬於目前使用者 |
+  | Conflict     | 409    | 與目前的資料狀態衝突，例如重複下單、庫存不足（目前沒有用例） |
+
+- Endpoint 失敗時一律 `result.Error.ToProblem()`（`Common/Web/ErrorResults.cs`），
+  成功分支各自明寫（`Results.Ok`、`Results.Created`、`Results.NoContent`），OpenAPI 用 `.ProducesProblem(狀態碼)` 標註。
 - 例外保留給真正非預期的狀況，交給全域例外處理器轉成 500
   （例外：`ICurrentUser` 取不到登入身分時丟的 UnauthorizedAccessException 轉成 401；
   請求格式錯誤的 BadHttpRequestException 轉成 400）。
 
 ## 回應格式
 
-成功時直接回傳資料本身，不要多包一層 wrapper。
-可預期的業務失敗（驗證錯誤、狀態不允許）由 Handler 以 Result 物件回傳，
-Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
+成功時直接回傳資料本身，不要多包一層 wrapper（不用 `{ isSuccess, data }` 這類信封）。
+建立成功回 201＋Location，body 只放新資源的 id（例：`{ "id": 123 }`）。
+
+失敗一律是 ProblemDetails（RFC 9457，`Content-Type: application/problem+json`），
+可預期的失敗（Result）與例外（GlobalExceptionHandler）同一種格式：
 
 ```json
 {
-  "success": false,
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "輸入資料有誤。",
+  "status": 400,
   "errors": {
     "items": "購物車是空的",
     "contactName": "請填寫聯絡人姓名"
-  }
+  },
+  "traceId": "00-…"
 }
 ```
 
-> 現況：`POST /api/orders` 的 201 回整個 `CreateOrderResult`（`{ success, errors, orderId }`）；
-> 失敗時 Result 的其他欄位會以 `null` 出現（login 的 `data`、下單的 `orderId`）。待清理，見 CLAUDE.md §6。
+- `title` 是錯誤類型的固定摘要；給使用者看的訊息放在 `errors`。
+  前端一律讀 `errors`，沒有 `errors` 時（請求格式錯誤、500）才讀 `title`
+  （`features/Auth/composables/useErrorDialog.ts` 的 `readApiErrors`）。
+- `errors` 的值是單一字串，一欄一則訊息；不用 ASP.NET `ValidationProblemDetails` 的字串陣列。
 
 - errors 的 key 對應輸入欄位名（camelCase）；由多個輸入組成的欄位用組合名稱
   （`address` 對應 cityCode／districtCode，`birthday` 對應 year／month／day，`name` 對應 lastName／firstName），
@@ -116,8 +139,8 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 - 錯誤訊息是給使用者看的，用繁體中文。
 - 不要把例外堆疊或 SQL 訊息放進回應。
 - 全域例外處理集中在一處，不要在每個 Endpoint 各寫 try-catch；
-  未預期例外統一回 500 + { "status": 500, "title": "伺服器發生錯誤，請稍後再試。" }；
-  請求格式錯誤回 400 + { "status": 400, "title": "請求格式錯誤。" }（不帶 errors，因為無法對應到欄位）。
+  未預期例外回 500、title「伺服器發生錯誤，請稍後再試。」；
+  請求格式錯誤回 400、title「請求格式錯誤。」。兩者都是 ProblemDetails，不帶 errors（無法對應到欄位）。
 
 ## 分頁
 
