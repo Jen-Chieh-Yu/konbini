@@ -10,6 +10,12 @@ public class Order : AuditableEntity
     public const int StreetAddressMaxLength = 200;
     public const int MemoMaxLength = 500;
 
+    /// <summary>
+    /// 一張訂單最多幾筆 items（同商品分多筆也各算一筆）。購物車實際不會超過幾十項，
+    /// 上限讓錯誤訊息與查詢的 Id 數量有界。
+    /// </summary>
+    public const int MaxItems = 50;
+
     public int Id { get; set; }
     public int UserId { get; set; }
     public int Subtotal { get; set; }

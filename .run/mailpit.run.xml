@@ -1,0 +1,21 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="mailpit" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+    <deployment type="docker-compose.yml">
+      <settings>
+        <option name="composeProjectName" value="konbini" />
+        <option name="secondarySourceFiles">
+          <list>
+            <option value="$PROJECT_DIR$/docker-compose.override.yml" />
+          </list>
+        </option>
+        <option name="services">
+          <list>
+            <option value="mailpit" />
+          </list>
+        </option>
+        <option name="sourceFilePath" value="docker-compose.yml" />
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>

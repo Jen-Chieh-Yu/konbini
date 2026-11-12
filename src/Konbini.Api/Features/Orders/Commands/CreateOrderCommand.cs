@@ -1,6 +1,7 @@
 using Konbini.Api.Features.Addresses.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Persistence;
+using Konbini.Api.Features.Orders.Errors;
 using Konbini.Api.Features.Orders.Models;
 using Konbini.Api.Features.Orders.Repositories;
 using Konbini.Api.Features.Products.Repositories;
@@ -8,6 +9,9 @@ using Konbini.Api.Features.Products.Repositories;
 namespace Konbini.Api.Features.Orders.Commands;
 
 public record CreateOrderCommand(int UserId, CreateOrderRequest Request);
+
+/// <summary>建立成功只回訂單 Id；明細之後由 Location 指向的路由取得。</summary>
+public record CreateOrderResponse(int Id);
 
 /// <summary>
 /// 建立訂單。購物車狀態在前端（Pinia），這裡收到的是商品 Id 與數量；
@@ -18,16 +22,29 @@ public class CreateOrderHandler(
     IProductRepository products,
     IAddressRepository addresses,
     IUnitOfWork unitOfWork)
-    : ICommandHandler<CreateOrderCommand, CreateOrderResult>
+    : ICommandHandler<CreateOrderCommand, Result<CreateOrderResponse>>
 {
-    public async Task<CreateOrderResult> Handle(CreateOrderCommand command, CancellationToken ct)
+    public async Task<Result<CreateOrderResponse>> Handle(CreateOrderCommand command, CancellationToken ct)
     {
         var request = command.Request;
         var errors = new Dictionary<string, string>();
+        // 先去頭尾空白再驗證，長度與儲存都用處理後的值；只有空白的備註視為沒填
+        var contactName = request.ContactName?.Trim() ?? "";
+        var contactPhone = request.ContactPhone?.Trim() ?? "";
+        var streetAddress = request.StreetAddress?.Trim() ?? "";
+        var memo = string.IsNullOrWhiteSpace(request.Memo) ? null : request.Memo.Trim();
 
         if (request.Items is null || request.Items.Count == 0)
         {
             errors["items"] = "購物車是空的";
+        }
+        else if (request.Items.Count > Order.MaxItems)
+        {
+            errors["items"] = $"購物車最多 {Order.MaxItems} 項商品";
+        }
+        else if (request.Items.Any(i => i is null))
+        {
+            errors["items"] = "商品資料不正確";
         }
         else if (request.Items.Any(i => i.Quantity <= 0))
         {
@@ -40,34 +57,34 @@ public class CreateOrderHandler(
             errors["items"] = $"每項商品數量不可超過 {OrderItem.MaxQuantity} 件";
         }
 
-        if (string.IsNullOrWhiteSpace(request.ContactName))
+        if (contactName.Length == 0)
         {
             errors["contactName"] = "請填寫聯絡人姓名";
         }
-        else if (request.ContactName.Length > Order.ContactNameMaxLength)
+        else if (contactName.Length > Order.ContactNameMaxLength)
         {
             errors["contactName"] = $"聯絡人姓名不可超過 {Order.ContactNameMaxLength} 個字元";
         }
 
-        if (string.IsNullOrWhiteSpace(request.ContactPhone))
+        if (contactPhone.Length == 0)
         {
             errors["contactPhone"] = "請填寫聯絡電話";
         }
-        else if (request.ContactPhone.Length > Order.ContactPhoneMaxLength)
+        else if (contactPhone.Length > Order.ContactPhoneMaxLength)
         {
             errors["contactPhone"] = $"聯絡電話不可超過 {Order.ContactPhoneMaxLength} 個字元";
         }
 
-        if (string.IsNullOrWhiteSpace(request.StreetAddress))
+        if (streetAddress.Length == 0)
         {
             errors["streetAddress"] = "請填寫地址";
         }
-        else if (request.StreetAddress.Length > Order.StreetAddressMaxLength)
+        else if (streetAddress.Length > Order.StreetAddressMaxLength)
         {
             errors["streetAddress"] = $"地址不可超過 {Order.StreetAddressMaxLength} 個字元";
         }
 
-        if (request.Memo?.Length > Order.MemoMaxLength)
+        if (memo?.Length > Order.MemoMaxLength)
         {
             errors["memo"] = $"備註不可超過 {Order.MemoMaxLength} 個字元";
         }
@@ -81,7 +98,7 @@ public class CreateOrderHandler(
 
         if (errors.Count > 0)
         {
-            return CreateOrderResult.Fail(errors);
+            return Error.Validation(errors);
         }
 
         var productIds = request.Items!.Select(i => i.ProductId).Distinct().ToList();
@@ -90,10 +107,7 @@ public class CreateOrderHandler(
         var missing = productIds.Where(id => !snapshots.ContainsKey(id)).ToList();
         if (missing.Count > 0)
         {
-            return CreateOrderResult.Fail(new()
-            {
-                ["items"] = $"下列商品不存在：{string.Join(", ", missing)}",
-            });
+            return OrderErrors.ProductsNotFound(missing);
         }
 
         var items = request.Items!
@@ -123,20 +137,20 @@ public class CreateOrderHandler(
             Subtotal = subtotal,
             DeliveryFee = deliveryFee,
             Total = subtotal + deliveryFee,
-            ContactName = request.ContactName,
-            ContactPhone = request.ContactPhone,
+            ContactName = contactName,
+            ContactPhone = contactPhone,
             DeliveryMethod = request.DeliveryMethod,
             CityCode = request.CityCode,
             DistrictCode = request.DistrictCode,
-            StreetAddress = request.StreetAddress,
-            DeliveryAddress = cityName + districtName + request.StreetAddress,
-            Memo = request.Memo,
+            StreetAddress = streetAddress,
+            DeliveryAddress = cityName + districtName + streetAddress,
+            Memo = memo,
             Items = items,
         };
 
         orders.Add(order);
         await unitOfWork.SaveChangesAsync(ct);
 
-        return CreateOrderResult.Ok(order.Id);
+        return new CreateOrderResponse(order.Id);
     }
 }

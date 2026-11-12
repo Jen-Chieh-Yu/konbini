@@ -23,6 +23,8 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 ## ① 業務需求
 
 1. 先查 `CLAUDE.md` §6「尚未實施」有沒有這一項：觸發條件、前置工作、已經決定的事，照著做，不要重新推導。
+   再讀 `docs/modules/<模組>.md` 的現況規則與 `docs/modules/decisions/<模組>.md` 的決策，新規則不要和它們衝突；
+   關卡 A 定案的規則與決定，在 ② 的文件對照列為要更新的文件。
 2. 寫出：
    - **情境**：誰、要做什麼、為什麼（兩三句）。
    - **驗收條件**：可驗證的「輸入 → 預期結果」條列。這份清單之後直接變成測試案例和 ④ 的驗證清單。
@@ -45,7 +47,7 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 | CI／容器 | `.github/workflows/ci.yml`、`Dockerfile`、compose | 改到的話，④ 要加測試打包 |
 | 文件 | 見下方對照 | |
 
-文件對照（依 §0 的分工：怎麼做寫 README，為什麼寫 CLAUDE.md）：
+文件對照（依 §0 的分工：怎麼做寫 README，架構與技術的為什麼寫 CLAUDE.md，業務規則寫 `docs/modules/`）：
 
 | 變更 | 要更新 |
 |---|---|
@@ -53,7 +55,9 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 | 驗證規則、錯誤格式、分頁 | `docs/api-conventions.md` |
 | 資料表、欄位 | `docs/database-design.md` |
 | 畫面規範 | `docs/ui-guidelines.md` |
-| 設計決策與理由；§6 表格的項目完成（畫刪除線並寫明「已實施（日期）」） | `CLAUDE.md` |
+| 業務規則、用例流程（現況） | `docs/modules/<模組>.md` |
+| 業務規則的決定與理由（① 定案的上限、錯誤訊息、流程） | `docs/modules/decisions/<模組>.md`，格式見 `docs/modules/README.md` |
+| 架構與技術的設計決策與理由；§6 表格的項目完成（畫刪除線並寫明「已實施（日期）」） | `CLAUDE.md` |
 | 本機指令、開發步驟 | `README.md` |
 
 分支：從最新的 main 開，`feature/` `fix/` `refactor/` `docs/` `chore/` `hotfix/` ＋ `YYYYMMDD-描述`。
@@ -79,13 +83,14 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 1. **單元測試**：`dotnet test tests/Konbini.Tests`，確認總數符合預期、沒有失敗。
 2. **API**：先用 `GET http://localhost:5214/health` 確認 API 有沒有在跑。
    - 使用者已經用 Rider 或容器啟動：直接使用，不另外啟動（兩種模式共用 5214）。
-   - 沒有在跑：先 `docker compose up -d postgres`，再用 `.claude/launch.json` 的 Konbini.Api 啟動。
+   - 沒有在跑：先 `docker compose up -d postgres mailpit`，再用 `.claude/launch.json` 的 Konbini.Api 啟動。
    依「輸入 → 預期結果」表逐項送出請求，涵蓋 ① 的驗收條件，包含上下限剛好和超過一點的情況。
    PowerShell 送中文或全形字元時加 `-ContentType 'application/json; charset=utf-8'`。
    需要建立資料時用 `t<亂數>@example.com` 這類測試帳號。
 3. **畫面**：先寫好 ④-2 要交給使用者的「畫面操作流程」，再用 `.claude/launch.json` 的 Konbini.Client 啟動，
    在內建瀏覽器照同一份步驟實際操作一遍，逐步對照預期結果。步驟寫不出來或走不通，就表示流程本身有問題，
    先修正再交出去。新畫面要看四種狀態（載入中、空、錯誤、有資料），畫面有變更時附截圖。
+   功能會寄信時，到 `http://localhost:8025`（Mailpit）確認收到信，並點信中的連結走完流程。
 4. 改到 compose 或 `.env.example`：`docker compose config -q` 與 `docker compose -f docker-compose.prod.yml config -q`
    （一定要加 `-q`，不加會印出 `.env` 的實際值）。
 5. 結束時關掉自己啟動的服務；不停止使用者的服務，不刪除容器與 volume（不執行 `docker compose down -v`）。
@@ -97,7 +102,7 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 寫出下面三件事：
 - **AI 已驗證的項目與結果**，一項一句。
 - **使用者要執行的指令、測試項目與預期結果**：單元測試的總數、API 的「輸入 → 預期結果」表。
-  指令要能直接複製執行；API 沒在跑時，先寫啟動方式（Rider 的 Konbini.Api，或 `docker compose up -d postgres` 加
+  指令要能直接複製執行；API 沒在跑時，先寫啟動方式（Rider 的 Konbini.Api，或 `docker compose up -d postgres mailpit` 加
   `dotnet run --project src/Konbini.Api`）。
 - **畫面操作流程**：和 ④-1 實際操作的是同一份步驟，用表格寫，每一步都有「操作」和「預期結果」：
 

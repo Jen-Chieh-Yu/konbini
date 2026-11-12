@@ -44,7 +44,8 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 ### API 契約（api-conventions「路由」「HTTP 狀態碼」「回應格式」「驗證」「認證授權」）
 - 路由為 `/api/<複數小寫資源>`，REST 風格，不用 RPC 動詞路由；改動既有路由是 breaking change，要在 Pull Request 說明。
 - 狀態碼依規範表；不要一律 200 再用 body 旗標表示失敗。
-- 可預期的業務失敗用 Result 回傳，不丟例外；錯誤格式 `{ success: false, errors: { 欄位: 訊息 } }`，訊息為繁體中文，不外洩例外堆疊或 SQL。
+- 可預期的業務失敗用 `Result`／`Result<T>` ＋ `Error` 回傳，不丟例外；錯誤類型對應的狀態碼照 api-conventions「Handler 的結果表達」（已登入的操作不回 401）。
+  失敗回應經 `ToProblem()` 成為 ProblemDetails（`errors: { 欄位: 訊息 }`），不另外包 `{ success }`；業務錯誤定義在 `{Feature}Errors`，Handler 不另寫業務錯誤的字串；訊息為繁體中文，不外洩例外堆疊或 SQL。
 - 金額、數量、庫存由後端重算，不信任前端數字（CLAUDE.md §5 購物車節）。
 - 使用者身分只從 token claims 取得，不接受前端傳 userId；擁有權檢查在 Handler，查不到或不屬於本人回 404。
 - 新的列表查詢要分頁，格式照 api-conventions「分頁」，用 `PageRequest`／`ToPagedResultAsync`，排序要含唯一鍵。
@@ -56,7 +57,7 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 
 ### 機密與設定（CLAUDE.md §0、§3、§5）
 - 沒有任何密碼、金鑰、連線字串進入版控；`appsettings.json` 只留空值佔位。
-- 新增的設定鍵：容器要在 compose `environment:` 明寫（`__` 格式）、本機走 user-secrets、`.env.example` 有對應鍵；必填變數用 `${VAR:?}`。
+- 新增的設定鍵：照 `docs/configuration.md`「新增設定鍵時」——容器要在 compose `environment:` 明寫（`__` 格式），本機要讀的機密在 `LocalDotEnv` 有對應，`.env.example` 有對應鍵與註解，一覽表有新增一列；必填變數用 `${VAR:?}`。
 - 應用程式不用 root 帳號連資料庫。
 
 ### 前端（CLAUDE.md §2「前端 feature 佈局」、docs/ui-guidelines.md）

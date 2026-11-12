@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -10,50 +11,53 @@ namespace Konbini.Api.Features.Auth.Commands;
 public record RegisterCommand(RegisterRequest Request);
 
 public partial class RegisterHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
-    : ICommandHandler<RegisterCommand, AuthResult>
+    : ICommandHandler<RegisterCommand, Result>
 {
-    private const string EmailTakenMessage = "此Email已註冊過";
-
     [GeneratedRegex(@"^09\d{8}$")]
     private static partial Regex PhoneRegex();
 
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailRegex();
 
-    public async Task<AuthResult> Handle(RegisterCommand command, CancellationToken ct)
+    public async Task<Result> Handle(RegisterCommand command, CancellationToken ct)
     {
         var request = command.Request;
         var errors = new Dictionary<string, string>();
+        // 先去頭尾空白再驗證，長度與儲存都用處理後的值；Email 與登入一樣先正規化
+        var lastName = request.LastName?.Trim() ?? "";
+        var firstName = request.FirstName?.Trim() ?? "";
+        var email = request.Email is null ? "" : User.NormalizeEmail(request.Email);
+        var phone = request.PhoneNumber?.Trim() ?? "";
 
-        if (string.IsNullOrWhiteSpace(request.LastName))
+        if (lastName.Length == 0)
         {
             errors["lastName"] = "請輸入姓氏";
         }
-        if (string.IsNullOrWhiteSpace(request.FirstName))
+        if (firstName.Length == 0)
         {
             errors["firstName"] = "請輸入名字";
         }
         // 姓與名合併存進 users.name，上限看的是兩者合計
-        if ((request.LastName?.Length ?? 0) + (request.FirstName?.Length ?? 0) > User.NameMaxLength)
+        if (lastName.Length + firstName.Length > User.NameMaxLength)
         {
             errors["name"] = $"姓名合計不可超過 {User.NameMaxLength} 個字元";
         }
 
-        if (string.IsNullOrWhiteSpace(request.Email))
+        if (email.Length == 0)
         {
             errors["email"] = "請填寫Email";
         }
-        else if (request.Email.Length > User.EmailMaxLength)
+        else if (email.Length > User.EmailMaxLength)
         {
             errors["email"] = $"Email不可超過 {User.EmailMaxLength} 個字元";
         }
-        else if (!EmailRegex().IsMatch(request.Email))
+        else if (!EmailRegex().IsMatch(email))
         {
             errors["email"] = "Email格式不正確";
         }
-        else if (await users.EmailExistsAsync(User.NormalizeEmail(request.Email), ct))
+        else if (await users.EmailExistsAsync(email, ct))
         {
-            errors["email"] = EmailTakenMessage;
+            errors["email"] = AuthErrors.EmailTakenMessage;
         }
 
         if (PasswordPolicy.Validate(request.Password) is { } passwordError)
@@ -65,11 +69,11 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
             errors["confirmPassword"] = "密碼與確認密碼不一致，請重新輸入";
         }
 
-        if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+        if (phone.Length == 0)
         {
             errors["phoneNumber"] = "請填寫手機號碼";
         }
-        else if (!PhoneRegex().IsMatch(request.PhoneNumber))
+        else if (!PhoneRegex().IsMatch(phone))
         {
             errors["phoneNumber"] = "手機號碼格式不正確";
         }
@@ -93,16 +97,16 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
 
         if (errors.Count > 0)
         {
-            return AuthResult.Fail(errors);
+            return Error.Validation(errors);
         }
 
         users.Add(new User
         {
-            Name = request.LastName + request.FirstName,
-            Email = User.NormalizeEmail(request.Email),
+            Name = lastName + firstName,
+            Email = email,
             PasswordHash = hasher.Hash(request.Password),
             Birthday = birthday,
-            Phone = request.PhoneNumber,
+            Phone = phone,
         });
 
         try
@@ -112,9 +116,9 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         catch (UniqueConstraintViolationException)
         {
             // 先查時還沒有人用，寫入前被同時送出的請求搶先；users 只有 email 一個唯一索引
-            return AuthResult.Fail(new() { ["email"] = EmailTakenMessage });
+            return AuthErrors.EmailTaken;
         }
 
-        return AuthResult.Ok();
+        return Result.Success();
     }
 }

@@ -1,6 +1,8 @@
 using Konbini.Api.Features.Auth.Commands;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
+using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
 using Xunit;
@@ -38,7 +40,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -54,9 +56,57 @@ public class RegisterHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("name", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("name", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task NameAtLimitWithSurroundingSpaces_IsAccepted()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with
+        {
+            LastName = "  " + new string('姓', 50) + " ",
+            FirstName = " " + new string('名', User.NameMaxLength - 50) + "  ",
+        };
+
+        var result = await Handle(request, uow);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task BlankLastName_ReturnsLastNameError()
+    {
+        var result = await Handle(ValidRequest() with { LastName = "   " }, new FakeUnitOfWork());
+
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("lastName", result.Error!.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task FieldsAreTrimmed_AndEmailNormalizedBeforeValidation()
+    {
+        var uow = new FakeUnitOfWork();
+        var users = new FakeUserRepository();
+        var request = ValidRequest() with
+        {
+            LastName = "  王 ",
+            FirstName = " 小明  ",
+            Email = "  User@Example.com ",   // 原本用原字串驗格式，前後有空白就回「Email格式不正確」
+            PhoneNumber = " 0912345678 ",
+        };
+
+        var result = await Handle(request, uow, users);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("user@example.com", users.CheckedEmail);
+        var user = Assert.IsType<User>(users.Added);
+        Assert.Equal("王小明", user.Name);
+        Assert.Equal("user@example.com", user.Email);
+        Assert.Equal("0912345678", user.Phone);
     }
 
     [Fact]
@@ -66,7 +116,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest() with { Email = EmailOfLength(User.EmailMaxLength) }, uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -77,8 +127,8 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest() with { Email = EmailOfLength(User.EmailMaxLength + 1) }, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("email", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("email", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -89,8 +139,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest(), uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("email", result.Errors.Keys);
+        Assert.Same(AuthErrors.EmailTaken, result.Error);
     }
 
     [Fact]
@@ -101,13 +150,13 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest() with { Password = password, ConfirmPassword = password }, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("password", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("password", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
-    private static Task<AuthResult> Handle(RegisterRequest request, FakeUnitOfWork uow) =>
-        new RegisterHandler(new FakeUserRepository(), new FakePasswordHasher(), uow)
+    private static Task<Result> Handle(RegisterRequest request, FakeUnitOfWork uow, FakeUserRepository? users = null) =>
+        new RegisterHandler(users ?? new FakeUserRepository(), new FakePasswordHasher(), uow)
             .Handle(new RegisterCommand(request), CancellationToken.None);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
@@ -131,8 +180,16 @@ public class RegisterHandlerTests
 
     private sealed class FakeUserRepository : IUserRepository
     {
-        public Task<bool> EmailExistsAsync(string email, CancellationToken ct) => Task.FromResult(false);
-        public void Add(User user) { }
+        public string? CheckedEmail { get; private set; }
+        public User? Added { get; private set; }
+
+        public Task<bool> EmailExistsAsync(string email, CancellationToken ct)
+        {
+            CheckedEmail = email;
+            return Task.FromResult(false);
+        }
+
+        public void Add(User user) => Added = user;
 
         public Task<User?> GetByEmailAsync(string email, CancellationToken ct) => throw new NotSupportedException();
         public Task<User?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
