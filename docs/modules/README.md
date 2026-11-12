@@ -45,7 +45,8 @@ AppInfo（`GET /api/version`）只回傳版號與 commit，沒有業務規則，
   （[CLAUDE.md §5](../../CLAUDE.md#5-認證與狀態)「購物車放前端，不放伺服器」）。
 - **列表分頁**：`page` 從 1 開始，`pageSize` 預設 20、上限 100，超出範圍夾到邊界
   （[api-conventions「分頁」](../api-conventions.md#分頁)）；前端的頁碼放在網址的 `?page=`，超過總頁數時自動換到最後一頁。
-- **錯誤回應**：可預期的失敗回 400，`errors` 的 key 對應欄位名稱，訊息是繁體中文
+- **錯誤回應**：可預期的失敗回 ProblemDetails，狀態碼依錯誤類型（400、401、404 等），
+  `errors` 的 key 對應欄位名稱，訊息是繁體中文
   （[api-conventions「回應格式」](../api-conventions.md#回應格式)）。
 - **軟刪除**：商品、訂單、使用者被標成刪除（`Status = Deleted`）後，所有查詢都看不到；目前沒有任何刪除功能。
 
