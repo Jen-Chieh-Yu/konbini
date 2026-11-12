@@ -503,7 +503,7 @@ public class ProductEndpoints : IEndpoint
 | | `POST /api/auth/login` | 登入，回傳 JWT |
 | | `PUT /api/auth/password` 🔒 | 修改密碼 |
 | | `GET /api/auth/me` 🔒 | 目前使用者 |
-| Search | `GET /api/search?keyword=&page=&pageSize=` | 商品搜尋，分頁 |
+| Search | `GET /api/search?keyword=&page=&pageSize=` | 商品搜尋（空白分隔，最多 10 個關鍵字），分頁 |
 | Addresses | `GET /api/addresses/cities` | 縣市 |
 | | `GET /api/addresses/cities/{cityCode}/districts` | 行政區 |
 | Health | `GET /health` | 健康檢查（含資料庫連線；容器 healthcheck 亦打此端點） |
