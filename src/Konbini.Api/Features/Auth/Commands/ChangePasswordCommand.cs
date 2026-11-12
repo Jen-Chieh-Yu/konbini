@@ -9,28 +9,30 @@ namespace Konbini.Api.Features.Auth.Commands;
 public record ChangePasswordCommand(int UserId, ChangePasswordRequest Request);
 
 public class ChangePasswordHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
-    : ICommandHandler<ChangePasswordCommand, AuthResult>
+    : ICommandHandler<ChangePasswordCommand, Result>
 {
-    public async Task<AuthResult> Handle(ChangePasswordCommand command, CancellationToken ct)
+    public async Task<Result> Handle(ChangePasswordCommand command, CancellationToken ct)
     {
         var request = command.Request;
         var user = await users.GetByIdAsync(command.UserId, ct);
 
         if (user is null)
         {
-            return AuthResult.Fail(new() { ["general"] = "找不到使用者" });
+            // token 有效但帳號已不存在
+            return Error.NotFound("找不到使用者");
         }
         if (!hasher.Verify(request.CurrentPassword, user.PasswordHash))
         {
-            return AuthResult.Fail(new() { ["currentPassword"] = "目前密碼不正確" });
+            // 回 400 而不是 401：前端收到 401 會當成 token 失效而登出
+            return Error.Validation("currentPassword", "目前密碼不正確");
         }
         if (PasswordPolicy.Validate(request.NewPassword) is { } passwordError)
         {
-            return AuthResult.Fail(new() { ["newPassword"] = passwordError });
+            return Error.Validation("newPassword", passwordError);
         }
 
         user.PasswordHash = hasher.Hash(request.NewPassword);
         await unitOfWork.SaveChangesAsync(ct);
-        return AuthResult.Ok();
+        return Result.Success();
     }
 }

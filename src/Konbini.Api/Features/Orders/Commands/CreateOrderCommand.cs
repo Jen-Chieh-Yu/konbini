@@ -9,6 +9,9 @@ namespace Konbini.Api.Features.Orders.Commands;
 
 public record CreateOrderCommand(int UserId, CreateOrderRequest Request);
 
+/// <summary>建立成功只回訂單 Id；明細之後由 Location 指向的路由取得。</summary>
+public record CreateOrderResponse(int Id);
+
 /// <summary>
 /// 建立訂單。購物車狀態在前端（Pinia），這裡收到的是商品 Id 與數量；
 /// 單價、小計、運費一律以資料庫現價重新計算——金額裁決權在後端。
@@ -18,9 +21,9 @@ public class CreateOrderHandler(
     IProductRepository products,
     IAddressRepository addresses,
     IUnitOfWork unitOfWork)
-    : ICommandHandler<CreateOrderCommand, CreateOrderResult>
+    : ICommandHandler<CreateOrderCommand, Result<CreateOrderResponse>>
 {
-    public async Task<CreateOrderResult> Handle(CreateOrderCommand command, CancellationToken ct)
+    public async Task<Result<CreateOrderResponse>> Handle(CreateOrderCommand command, CancellationToken ct)
     {
         var request = command.Request;
         var errors = new Dictionary<string, string>();
@@ -81,7 +84,7 @@ public class CreateOrderHandler(
 
         if (errors.Count > 0)
         {
-            return CreateOrderResult.Fail(errors);
+            return Error.Validation(errors);
         }
 
         var productIds = request.Items!.Select(i => i.ProductId).Distinct().ToList();
@@ -90,10 +93,8 @@ public class CreateOrderHandler(
         var missing = productIds.Where(id => !snapshots.ContainsKey(id)).ToList();
         if (missing.Count > 0)
         {
-            return CreateOrderResult.Fail(new()
-            {
-                ["items"] = $"下列商品不存在：{string.Join(", ", missing)}",
-            });
+            // body 裡參照到不存在的商品屬於輸入錯誤，回 400；404 只用在網址指到的資源
+            return Error.Validation("items", $"下列商品不存在：{string.Join(", ", missing)}");
         }
 
         var items = request.Items!
@@ -137,6 +138,6 @@ public class CreateOrderHandler(
         orders.Add(order);
         await unitOfWork.SaveChangesAsync(ct);
 
-        return CreateOrderResult.Ok(order.Id);
+        return new CreateOrderResponse(order.Id);
     }
 }

@@ -10,8 +10,9 @@ namespace Konbini.Api.Features.Auth.Commands;
 public record RegisterCommand(RegisterRequest Request);
 
 public partial class RegisterHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
-    : ICommandHandler<RegisterCommand, AuthResult>
+    : ICommandHandler<RegisterCommand, Result>
 {
+    // Email 重複回 400 不回 409：與其他欄位錯誤一起列出，使用者改一輪就好（CLAUDE.md §2「表單錯誤」）
     private const string EmailTakenMessage = "此Email已註冊過";
 
     [GeneratedRegex(@"^09\d{8}$")]
@@ -20,7 +21,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailRegex();
 
-    public async Task<AuthResult> Handle(RegisterCommand command, CancellationToken ct)
+    public async Task<Result> Handle(RegisterCommand command, CancellationToken ct)
     {
         var request = command.Request;
         var errors = new Dictionary<string, string>();
@@ -93,7 +94,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
 
         if (errors.Count > 0)
         {
-            return AuthResult.Fail(errors);
+            return Error.Validation(errors);
         }
 
         users.Add(new User
@@ -112,9 +113,9 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         catch (UniqueConstraintViolationException)
         {
             // 先查時還沒有人用，寫入前被同時送出的請求搶先；users 只有 email 一個唯一索引
-            return AuthResult.Fail(new() { ["email"] = EmailTakenMessage });
+            return Error.Validation("email", EmailTakenMessage);
         }
 
-        return AuthResult.Ok();
+        return Result.Success();
     }
 }
