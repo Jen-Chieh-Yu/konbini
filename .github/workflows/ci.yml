@@ -191,7 +191,7 @@ jobs:
             --build-arg APP_VERSION="$APP_VERSION" --build-arg GIT_SHA="${GITHUB_SHA::7}" \
             -t "konbini-client:$APP_VERSION" src/Konbini.Client
       # 用剛建好的映像跑部署佈局（prod compose，--no-build），確認成品真的能動：
-      # 三個容器都起得來且健康、首頁 200、/api 反代通、版號正確、種子資料已建立
+      # 四個容器都起得來（api、postgres、mailpit 健康，client 執行中）、首頁 200、/api 反代通、版號正確、種子資料已建立
       - name: ③ 冒煙測試（部署佈局）
         run: |
           printf '%s\n' \

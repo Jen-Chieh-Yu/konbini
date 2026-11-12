@@ -11,7 +11,7 @@ CI 產出的成品是**映像封存檔**（`docker save` 的 `.tar.gz`），部�
 - 這一版的部署檔案：`docker-compose.prod.yml`、`docker/postgres/init/`、`.env.example`
   - 第一次：`git clone` 後 `git checkout vX.Y.Z`
   - 之後：`git fetch --tags && git checkout vX.Y.Z`
-- 對外埠 `8080`（client）沒有被占用
+- 埠 `8080`（client，對外）與 `8026`（Mailpit 收信畫面，只綁本機）沒有被占用
 
 ## 1. 下載成品
 
@@ -51,17 +51,20 @@ docker compose -f docker-compose.prod.yml up -d --no-build --wait
 
 - `--no-build`：使用剛載入的映像。**不要加 `--build`**——那會用部署機器上的原始碼重建，
   並覆蓋同標籤的發行版映像：`/api/version` 仍顯示 X.Y.Z，只有 commit 變成 `local`，很難察覺被換掉
-- `--wait`：等 api 與 postgres 健康、client 啟動才結束（client 沒有 healthcheck）；第一次啟動會初始化資料庫，約 30–60 秒
+- `--wait`：等 api、postgres、mailpit 健康、client 啟動才結束（client 沒有 healthcheck）；第一次啟動會初始化資料庫，約 30–60 秒
 
 ## 5. 部署後檢查
 
 ```bash
-docker compose -f docker-compose.prod.yml ps        # 三個容器都是 Up，api 與 postgres 為 (healthy)
+docker compose -f docker-compose.prod.yml ps        # 四個容器都是 Up，api、postgres、mailpit 為 (healthy)
 curl http://localhost:8080/api/version               # {"version":"X.Y.Z","commit":"..."}
 curl http://localhost:8080/version.json              # 前端版號，應與後端相同
 ```
 
 再用瀏覽器開 `http://localhost:8080`：首頁有商品、可以搜尋、可以註冊登入。
+
+系統寄出的信不會寄到真實信箱，而是留在 Mailpit：在部署機上開 `http://localhost:8026` 查看。
+收信畫面只綁部署機本機，其他機器連不到；信件不保存，重建容器就清空。
 
 ## 6. 升級到新版本
 

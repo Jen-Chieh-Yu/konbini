@@ -1,4 +1,5 @@
-# 部署環境：client（nginx，唯一對外入口）+ api（不映射主機埠）+ postgres（不對外）。
+# 部署環境：client（nginx，唯一對外入口）+ api（不映射主機埠）+ postgres（不對外）
+# + mailpit（收信，不寄真實信件；收信畫面只綁部署機本機）。
 # 本專案不正式上線：此檔用於部署「演練」與完整佈局驗證，
 # 故不設備份排程、監控與自動部署（決策見 CLAUDE.md §6）。
 # 本機演練：docker compose -f docker-compose.prod.yml up -d --build（映像標籤 0.0.0-local）
@@ -84,6 +85,25 @@ services:
       # postgres 18 起資料目錄為 /var/lib/postgresql/<主版本>/docker，volume 掛在上一層
       - pg-data:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+
+  mailpit:
+    # 部署演練也不寄真實信件：專案不正式上線，沒有真的收信對象（CLAUDE.md §4）
+    image: axllent/mailpit:v1
+    container_name: konbini-prod-mailpit
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    # SMTP 只在 compose 內部網路
+    expose:
+      - "1025"
+    ports:
+      # 收信畫面只綁部署機本機，其他機器連不到；用 8026 避開開發環境的 8025，兩套才能同時執行
+      - "127.0.0.1:8026:8025"
 
 volumes:
   pg-data:

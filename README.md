@@ -35,7 +35,7 @@
 | 認證 | JWT | 取代原 Session 機制 |
 | 前端 | Vue 3, Vite, Pinia, Vue Router, Axios | SPA，購物車狀態存於 Pinia |
 | UI 元件庫 | Element Plus | 按需自動引入（unplugin），template 直接用 `<el-xxx>` 不需 import |
-| 部署 | Docker Compose | nginx（client）+ api + postgres |
+| 部署 | Docker Compose | nginx（client）+ api + postgres + mailpit（收信） |
 
 ---
 
@@ -45,16 +45,16 @@
 Konbini/
 ├── Konbini.slnx                  # 方案檔（XML 格式）
 ├── global.json                   # 限定 .NET 10 SDK，本機與 CI 共用
-├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api + postgres 並附加偵錯器
-├── docker-compose.yml            # 偵錯/開發 base：api + postgres
+├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api、postgres、mailpit 並附加偵錯器
+├── docker-compose.yml            # 偵錯/開發 base：api + postgres + mailpit
 ├── docker-compose.override.yml   # 偵錯用環境變數與埠（自動與 base 合併）
-├── docker-compose.prod.yml       # 部署環境：client + api + postgres 全套
+├── docker-compose.prod.yml       # 部署環境：client + api + postgres + mailpit 全套
 ├── .dockerignore
 ├── .env                          # 機密（不進版控）
 ├── .env.example                  # 鍵值範本（進版控）
 ├── CHANGELOG.md                  # 變更紀錄（發行時整理）
 ├── .idea/                        # Rider 共用設定（附加前端資料夾；個人檔不進版控）
-├── .run/                         # Rider 執行設定：本機 API、容器模式、postgres（見「啟動服務」）
+├── .run/                         # Rider 執行設定：本機 API、容器模式、postgres、mailpit（見「啟動服務」）
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：feature-flow、create-pr、review-pr、dev-env
@@ -164,6 +164,8 @@ src/features/Products/
 
 前端一律打相對路徑 `/api/...`，由 nginx 轉發 —— 瀏覽器端**沒有跨域**，不需要 CORS 白名單。
 
+api 寄出的信送到同在內部網路的 `mailpit:1025`，不會寄到真實信箱；收信畫面只綁部署機本機的 `127.0.0.1:8026`。
+
 ### docker-compose 服務清單
 
 **偵錯／開發環境（`docker-compose.yml` + `docker-compose.override.yml`）**
@@ -173,29 +175,31 @@ src/features/Products/
 | --- | --- | --- |
 | `api` | 後端 API（容器內偵錯） | 對外 `127.0.0.1:5214:8080`，vite proxy 不需改任何設定 |
 | `postgres` | 開發用資料庫 | 對外 `127.0.0.1:5432`，named volume |
+| `mailpit` | 收信：API 寄出的信都在這裡，不會寄到真實信箱 | SMTP `127.0.0.1:1025`；收信畫面 `http://localhost:8025`；信件不保存 |
 
-★ 只要資料庫、想走本機最快迭代時：`docker compose up -d postgres`（指定服務名，不會起 api）。
+★ API 想在本機跑、走最快迭代時：`docker compose up -d postgres mailpit`（指定服務名，不會起 api）。
 
-**部署環境（`docker-compose.prod.yml`）** —— 完整三服務：
+**部署環境（`docker-compose.prod.yml`）** —— 完整四個服務：
 
 | 服務 | 用途 | 連接/備註 |
 | --- | --- | --- |
 | `client` | 對外入口：SPA 靜態檔 + `/api` 反代 | 對外 `8080:80` |
 | `api` | 後端 API | `expose: 8080`，**不映射到主機** |
 | `postgres` | 資料庫 | 不對外開埠，named volume + init 腳本 |
+| `mailpit` | 收信：部署演練不寄真實信件 | SMTP 只在內部網路；收信畫面 `127.0.0.1:8026`，只有部署機本機看得到 |
 
 部署環境的 compose 專案名是 `konbini-prod`，容器名一律 `konbini-prod-*`、
 volume 是 `konbini-prod_pg-data`——與開發環境完全分開，兩套可以同時存在。
 
 ⚠️ `docker compose up` 不帶 `-f` 會抓 `docker-compose.yml` + override，
-起的是 **api + postgres 的偵錯組合**（Development 環境、不含 client）——
+起的是 **api + postgres + mailpit 的偵錯組合**（Development 環境、不含 client）——
 不是部署佈局；部署一律明確指定 `-f docker-compose.prod.yml`。
 
 ⚠️ **compose 的 `.env` 只做 `${}` 變數替換，不會自動注入容器。**
 要覆蓋 `appsettings.json` 必須在 compose 的 `environment:` 區段明寫
 （鍵名用 .NET 設定鍵格式：`ConnectionStrings__DefaultConnection`）。
 
-⚠️ macOS（Apple Silicon）：.NET、nginx、PostgreSQL 18 官方映像皆原生支援 arm64，
+⚠️ macOS（Apple Silicon）：.NET、nginx、PostgreSQL 18 官方映像與 Mailpit 皆原生支援 arm64，
 不需要 `platform` 覆寫。
 
 ---
@@ -277,8 +281,8 @@ dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
 **方式 B：本機最快迭代** —— API 不進容器，熱重載最快：
 
 ```bash
-# 1. 只起資料庫（指定服務名）
-docker compose up -d postgres
+# 1. 只起資料庫與收信（指定服務名，不會起 api）
+docker compose up -d postgres mailpit
 
 # 2. 後端（http://localhost:5214，Scalar API 文件在 /scalar）
 dotnet watch --project src/Konbini.Api
@@ -288,23 +292,25 @@ cd src/Konbini.Client && npm run dev
 ```
 
 兩種方式的 api 對外都是 `5214`，前端與 Scalar 的用法完全相同。
+API 寄出的信也一樣，都在 Mailpit 的收信畫面 `http://localhost:8025`，不會寄到真實信箱。
 
 > 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
-> 資料庫仍要先自己 `docker compose up -d postgres`。
+> 資料庫與收信仍要先自己 `docker compose up -d postgres mailpit`。
 
 > 用 Rider 時，常用的啟動步驟已做成共用的執行設定（`.run/`），選好按 Debug 即可：
 >
 > | 執行設定 | 啟動內容 |
 > |---|---|
-> | **Konbini.Api** | 先起 postgres（容器），再建置並啟動本機 API，等同方式 B 的第 1、2 步 |
-> | **api + postgres（容器）** | api 與 postgres 都在容器內，偵錯器附加進 api 容器，等同方式 A |
+> | **Konbini.Api** | 先起 postgres 與 mailpit（容器），再建置並啟動本機 API，等同方式 B 的第 1、2 步 |
+> | **api + postgres（容器）** | api、postgres、mailpit 都在容器內，偵錯器附加進 api 容器，等同方式 A |
 > | postgres | 只起 postgres |
+> | mailpit | 只起 mailpit |
 >
 > 前端兩種方式都一樣，另開終端機執行 `npm run dev`（方式 B 的第 3 步）。
 > Docker Desktop 需已在執行，建議在 Settings → General 勾選 **Start Docker Desktop when you sign in**。
-> Konbini.Api 的 Before launch 是用名稱參照 postgres，改名時要一起改。
+> Konbini.Api 的 Before launch 是用名稱參照 postgres 與 mailpit，改名時要一起改。
 >
-> ⚠️ 切回本機模式前，確認 api 容器已停止：在 Debug 視窗按停止即可（postgres 會一起停，
+> ⚠️ 切回本機模式前，確認 api 容器已停止：在 Debug 視窗按停止即可（postgres 與 mailpit 會一起停，
 > 切回本機模式時 Konbini.Api 的 Before launch 會再啟動它）。api 容器若還在執行，會繼續占住 5214，
 > 本機模式的 API 拿不到這個埠，請求會打到容器內的舊版程式碼；不確定時執行 `docker compose stop api`。
 
@@ -319,6 +325,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 open http://localhost:8080
 ```
 
+收信畫面在 `http://localhost:8026`（只綁本機；開發環境的 8025 可以同時開著）。
 本機演練用原始碼建置，映像標籤為 `0.0.0-local`。部署 CI 產出的發行版映像見 `docs/deployment.md`。
 
 ---
