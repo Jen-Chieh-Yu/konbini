@@ -58,17 +58,13 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
             return new([], paging.Page, paging.PageSize, 0);
         }
 
-        // 多關鍵字 OR：以 Union 累加，可完整轉譯為 SQL（不需在記憶體過濾）
+        // 多關鍵字 OR：所有樣式放進同一個陣列參數，轉成 EXISTS (… unnest(@patterns) … ILIKE …)。
+        // 運算式樹深度與關鍵字數量無關；原本每個關鍵字 Union 一次，深度隨數量增加，1000 個就 stack overflow
         // ILike 不分大小寫（PostgreSQL 的 LIKE／Contains 會區分）；% 與 _ 先跳脫，避免使用者輸入被當成萬用字元
-        IQueryable<Product>? matched = null;
-        foreach (var keyword in keywords)
-        {
-            var pattern = $"%{EscapeLike(keyword)}%";
-            var part = db.Products.Where(p => EF.Functions.ILike(p.Name, pattern, LikeEscape));
-            matched = matched is null ? part : matched.Union(part);
-        }
+        var patterns = keywords.Select(k => $"%{EscapeLike(k)}%").ToArray();
 
-        return await matched!.AsNoTracking()
+        return await db.Products.AsNoTracking()
+            .Where(p => patterns.Any(pattern => EF.Functions.ILike(p.Name, pattern, LikeEscape)))
             .OrderBy(p => p.Id)
             .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
             .ToPagedResultAsync(paging, ct);

@@ -207,6 +207,9 @@ Endpoint → Command/Query → Handler → Service → Repository
 - 每項商品數量上限 99 件（`OrderItem.MaxQuantity`），同商品分多筆送來時看合計；
   前端購物車的 `MAX_ITEM_QUANTITY` 要與它對齊。
   一張訂單最多 50 筆 items（`Order.MaxItems`），同商品分多筆送來也各算一筆。
+- 搜尋關鍵字以任何空白字元分隔（含全形空白），不分大小寫去重，最多 10 個、每個 50 字元
+  （`SearchProductsHandler.MaxKeywords`／`MaxKeywordLength`）。超過的截斷、不回 400：
+  和 pageSize 一樣是寬鬆的查詢輸入。前端 SearchView 的提示文字要與上限對齊。
 
 ## 認證授權
 
