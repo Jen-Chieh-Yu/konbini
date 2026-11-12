@@ -1,4 +1,5 @@
 using Konbini.Api.Features.Auth.Commands;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -90,8 +91,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest(), uow);
 
-        Assert.Equal(ErrorType.Validation, result.Error?.Type);
-        Assert.Contains("email", result.Error!.Errors.Keys);
+        Assert.Same(AuthErrors.EmailTaken, result.Error);
     }
 
     [Fact]

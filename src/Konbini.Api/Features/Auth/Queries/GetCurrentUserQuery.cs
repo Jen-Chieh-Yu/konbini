@@ -1,3 +1,4 @@
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -14,7 +15,7 @@ public class GetCurrentUserHandler(IUserRepository users)
         // token 有效但帳號已不存在：前端收到 404 會登出
         if (await users.GetProfileAsync(query.UserId, ct) is not { } user)
         {
-            return Error.NotFound("找不到使用者");
+            return AuthErrors.UserNotFound;
         }
         return user;
     }

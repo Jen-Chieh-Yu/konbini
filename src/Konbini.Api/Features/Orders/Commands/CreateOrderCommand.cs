@@ -1,6 +1,7 @@
 using Konbini.Api.Features.Addresses.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Persistence;
+using Konbini.Api.Features.Orders.Errors;
 using Konbini.Api.Features.Orders.Models;
 using Konbini.Api.Features.Orders.Repositories;
 using Konbini.Api.Features.Products.Repositories;
@@ -93,8 +94,7 @@ public class CreateOrderHandler(
         var missing = productIds.Where(id => !snapshots.ContainsKey(id)).ToList();
         if (missing.Count > 0)
         {
-            // body 裡參照到不存在的商品屬於輸入錯誤，回 400；404 只用在網址指到的資源
-            return Error.Validation("items", $"下列商品不存在：{string.Join(", ", missing)}");
+            return OrderErrors.ProductsNotFound(missing);
         }
 
         var items = request.Items!

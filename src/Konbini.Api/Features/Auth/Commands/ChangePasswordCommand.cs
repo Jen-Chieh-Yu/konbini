@@ -1,3 +1,4 @@
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -18,13 +19,11 @@ public class ChangePasswordHandler(IUserRepository users, IPasswordHasher hasher
 
         if (user is null)
         {
-            // token 有效但帳號已不存在
-            return Error.NotFound("找不到使用者");
+            return AuthErrors.UserNotFound;
         }
         if (!hasher.Verify(request.CurrentPassword, user.PasswordHash))
         {
-            // 回 400 而不是 401：前端收到 401 會當成 token 失效而登出
-            return Error.Validation("currentPassword", "目前密碼不正確");
+            return AuthErrors.CurrentPasswordIncorrect;
         }
         if (PasswordPolicy.Validate(request.NewPassword) is { } passwordError)
         {

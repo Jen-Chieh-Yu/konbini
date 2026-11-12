@@ -1,3 +1,4 @@
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -16,15 +17,14 @@ public class LoginHandler(IUserRepository users, IPasswordHasher hasher, IJwtTok
 
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
         {
-            return Error.Validation(Error.GeneralKey, "請輸入帳號與密碼");
+            return AuthErrors.CredentialsRequired;
         }
 
         var user = await users.GetByEmailAsync(User.NormalizeEmail(request.Email), ct);
 
-        // 帳號不存在與密碼錯誤回同一訊息，避免帳號列舉
         if (user is null || !hasher.Verify(request.Password, user.PasswordHash))
         {
-            return Error.Unauthorized("帳號或密碼錯誤");
+            return AuthErrors.InvalidCredentials;
         }
 
         var token = tokenService.CreateToken(user);

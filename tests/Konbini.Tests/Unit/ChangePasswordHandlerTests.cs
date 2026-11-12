@@ -1,4 +1,5 @@
 using Konbini.Api.Features.Auth.Commands;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -44,8 +45,8 @@ public class ChangePasswordHandlerTests
         var result = await Handle(PasswordOfLength(PasswordPolicy.MinLength), uow, currentPasswordMatches: false);
 
         // 不能是 Unauthorized：前端收到 401 會把使用者登出
-        Assert.Equal(ErrorType.Validation, result.Error?.Type);
-        Assert.Contains("currentPassword", result.Error!.Errors.Keys);
+        Assert.Same(AuthErrors.CurrentPasswordIncorrect, result.Error);
+        Assert.Equal(ErrorType.Validation, result.Error!.Type);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -56,7 +57,7 @@ public class ChangePasswordHandlerTests
 
         var result = await Handle(PasswordOfLength(PasswordPolicy.MinLength), uow, userExists: false);
 
-        Assert.Equal(ErrorType.NotFound, result.Error?.Type);
+        Assert.Same(AuthErrors.UserNotFound, result.Error);
         Assert.Equal(0, uow.SaveCount);
     }
 

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -12,9 +13,6 @@ public record RegisterCommand(RegisterRequest Request);
 public partial class RegisterHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
     : ICommandHandler<RegisterCommand, Result>
 {
-    // Email 重複回 400 不回 409：與其他欄位錯誤一起列出，使用者改一輪就好（CLAUDE.md §2「表單錯誤」）
-    private const string EmailTakenMessage = "此Email已註冊過";
-
     [GeneratedRegex(@"^09\d{8}$")]
     private static partial Regex PhoneRegex();
 
@@ -54,7 +52,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         }
         else if (await users.EmailExistsAsync(User.NormalizeEmail(request.Email), ct))
         {
-            errors["email"] = EmailTakenMessage;
+            errors["email"] = AuthErrors.EmailTakenMessage;
         }
 
         if (PasswordPolicy.Validate(request.Password) is { } passwordError)
@@ -113,7 +111,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         catch (UniqueConstraintViolationException)
         {
             // 先查時還沒有人用，寫入前被同時送出的請求搶先；users 只有 email 一個唯一索引
-            return Error.Validation("email", EmailTakenMessage);
+            return AuthErrors.EmailTaken;
         }
 
         return Result.Success();

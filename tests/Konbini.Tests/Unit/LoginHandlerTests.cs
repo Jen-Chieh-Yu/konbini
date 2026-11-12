@@ -1,4 +1,5 @@
 using Konbini.Api.Features.Auth.Commands;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -26,8 +27,7 @@ public class LoginHandlerTests
     {
         var result = await Handle(new LoginRequest(Email, "Wrong!234"), passwordMatches: false);
 
-        Assert.Equal(ErrorType.Unauthorized, result.Error?.Type);
-        Assert.Equal("帳號或密碼錯誤", result.Error!.Errors[Error.GeneralKey]);
+        Assert.Same(AuthErrors.InvalidCredentials, result.Error);
     }
 
     [Fact]
@@ -36,8 +36,7 @@ public class LoginHandlerTests
         var result = await Handle(new LoginRequest("nobody@example.com", "Password!23"), passwordMatches: true);
 
         // 帳號不存在與密碼錯誤回同一個結果，避免帳號列舉
-        Assert.Equal(ErrorType.Unauthorized, result.Error?.Type);
-        Assert.Equal("帳號或密碼錯誤", result.Error!.Errors[Error.GeneralKey]);
+        Assert.Same(AuthErrors.InvalidCredentials, result.Error);
     }
 
     [Fact]
@@ -45,8 +44,7 @@ public class LoginHandlerTests
     {
         var result = await Handle(new LoginRequest(Email, " "), passwordMatches: true);
 
-        Assert.Equal(ErrorType.Validation, result.Error?.Type);
-        Assert.Contains(Error.GeneralKey, result.Error!.Errors.Keys);
+        Assert.Same(AuthErrors.CredentialsRequired, result.Error);
     }
 
     private static Task<Result<LoginResponse>> Handle(LoginRequest request, bool passwordMatches) =>

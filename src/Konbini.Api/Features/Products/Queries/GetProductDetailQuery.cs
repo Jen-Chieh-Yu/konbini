@@ -1,4 +1,5 @@
 using Konbini.Api.Features.Common.Abstractions;
+using Konbini.Api.Features.Products.Errors;
 using Konbini.Api.Features.Products.Models;
 using Konbini.Api.Features.Products.Repositories;
 
@@ -14,7 +15,7 @@ public class GetProductDetailHandler(IProductRepository products)
         var product = await products.GetByIdAsync(query.Id, ct);
         if (product is null)
         {
-            return Error.NotFound("找不到商品");
+            return ProductErrors.NotFound;
         }
 
         var relevant = await products.GetRelatedAsync(product.Type, product.Id, ct);
