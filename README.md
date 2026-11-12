@@ -118,6 +118,7 @@ Features/Orders/
 ├── Queries/      # 唯讀用例：GetOrdersQuery.cs
 ├── Endpoints/     # 每個 feature 一支：OrderEndpoints.cs（MapGroup 集中路由）
 ├── Repositories/  # 資料存取：OrderRepository.cs（介面＋實作同檔）
+├── Errors/        # 業務錯誤：OrderErrors.cs（有第一個業務錯誤才建立）
 └── Services/      # ★ 僅在被 2+ 個 handler 共用時存在
 ```
 
@@ -418,7 +419,10 @@ Features/{Feature}/Repositories/{Entity}Repository.cs   # 介面＋實作同檔
 ### Step 3: Command / Query —— 用例本體
 
 **Command / Query、Handler、Response 一律同一個檔案**，改一個功能不用開四、五個檔案。
-被多個用例共用的 Result 例外，放 `Models/`（例：`AuthResult` 由註冊與改密碼共用）。
+被多個用例共用的 DTO 例外，放 `Models/`（例：`UserDto`）。
+會失敗的用例回 `Result`／`Result<T>`：業務錯誤先定義在 `Errors/{Feature}Errors.cs`，Handler 寫
+`return ProductErrors.NotFound;`；欄位檢查彙整進 errors 字典後 `return Error.Validation(errors);`。
+錯誤類型與狀態碼見 `docs/api-conventions.md`「Handler 的結果表達」；不會失敗的查詢直接回資料。
 
 ```csharp
 // Features/Products/Queries/GetProductsQuery.cs
@@ -451,18 +455,20 @@ public class ProductEndpoints : IEndpoint
             .Produces<PagedResult<ProductDto>>();
 
         group.MapGet("/{id:int}", async (int id,
-            IQueryHandler<GetProductDetailQuery, ProductDetailDto?> handler,
+            IQueryHandler<GetProductDetailQuery, Result<ProductDetailDto>> handler,
             CancellationToken ct)
-            => await handler.Handle(new(id), ct) is { } dto
-                ? Results.Ok(dto)
-                : Results.NotFound())
+            =>
+            {
+                var result = await handler.Handle(new(id), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+            })
             .Produces<ProductDetailDto>()
-            .Produces(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }
 ```
 
-每個 endpoint 都要用 `.Produces<T>()` 標註回應型別與狀態碼，Scalar 才看得到回應結構（見 `docs/api-conventions.md`）。
+每個 endpoint 都要用 `.Produces<T>()` 標註回應型別與狀態碼、失敗用 `.ProducesProblem(狀態碼)`，Scalar 才看得到回應結構（見 `docs/api-conventions.md`）。
 
 ---
 
