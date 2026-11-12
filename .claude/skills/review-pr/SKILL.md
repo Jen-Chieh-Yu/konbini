@@ -57,7 +57,7 @@ description: 審查指定分支或 Pull Request 相對於 main 的變更，依 K
 
 ### 機密與設定（CLAUDE.md §0、§3、§5）
 - 沒有任何密碼、金鑰、連線字串進入版控；`appsettings.json` 只留空值佔位。
-- 新增的設定鍵：容器要在 compose `environment:` 明寫（`__` 格式）、本機走 user-secrets、`.env.example` 有對應鍵；必填變數用 `${VAR:?}`。
+- 新增的設定鍵：照 `docs/configuration.md`「新增設定鍵時」——容器要在 compose `environment:` 明寫（`__` 格式），本機要讀的機密在 `LocalDotEnv` 有對應，`.env.example` 有對應鍵與註解，一覽表有新增一列；必填變數用 `${VAR:?}`。
 - 應用程式不用 root 帳號連資料庫。
 
 ### 前端（CLAUDE.md §2「前端 feature 佈局」、docs/ui-guidelines.md）

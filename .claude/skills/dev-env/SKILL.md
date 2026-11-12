@@ -1,6 +1,6 @@
 ---
 name: dev-env
-description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpit 容器健康狀態、埠號占用、.env 與 user-secrets 是否齊全（只看 key，不印值）、API 的 /health，並對照常見錯誤給出修正方式。使用時機：使用者說「API 起不來」「/api 回 502」「health 不是 Healthy」「改了程式碼但 API 行為沒變」「連不到資料庫」「收不到信」「收信畫面打不開」「換了電腦」「設定開發環境」，或畫面出現「ConnectionStrings 未設定」「Jwt:Secret 未設定或長度不足」「password authentication failed」「port is already allocated」。只檢查與說明，不替使用者填機密、不停止或刪除容器與 volume。
+description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpit 容器健康狀態、埠號占用、.env 是否齊全（只看 key，不印值）、API 的 /health，並對照常見錯誤給出修正方式。使用時機：使用者說「API 起不來」「/api 回 502」「health 不是 Healthy」「改了程式碼但 API 行為沒變」「連不到資料庫」「收不到信」「收信畫面打不開」「換了電腦」「設定開發環境」，或畫面出現「ConnectionStrings 未設定」「Jwt:Secret 未設定或長度不足」「password authentication failed」「port is already allocated」。只檢查與說明，不替使用者填機密、不停止或刪除容器與 volume。
 ---
 
 # 開發環境檢查（dev-env）
@@ -10,19 +10,21 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpi
 
 ## 規則
 
-- **不印出任何值**：`.env`、user-secrets、`docker compose config` 都含密碼。只看 key；`docker compose config` 一律加 `-q`。
+- **不印出任何值**：`.env`、`docker compose config` 都含密碼。只看 key；`docker compose config` 一律加 `-q`。
 - **機密由使用者自己填**：需要設定時給指令，`<...>` 佔位，請使用者在自己的終端機執行，不要請使用者把值貼到對話。
 - **不替使用者停止或刪除容器、volume**（`down -v` 會清掉資料庫）；告訴使用者要做什麼、會有什麼後果。
 - 這裡只跑唯讀的檢查指令，不啟動、不停止服務；要跑測試請用 feature-flow 的 ④。
 
-## 兩種啟動方式讀的設定不一樣
+## 兩種啟動方式讀同一份 `.env`
 
 | 啟動方式 | API 的連線字串與 JWT 金鑰從哪來 |
 |---|---|
-| 本機 `dotnet watch`／`dotnet run`（方式 B） | **user-secrets**（`ConnectionStrings:DefaultConnection`、`Jwt:Secret`） |
+| 本機 `dotnet watch`／`dotnet run`（方式 B） | **根目錄的 `.env`**，Development 時由 API 自己讀（`LocalDotEnv`），主機 `127.0.0.1` |
 | 容器（Rider「api + postgres（容器）」、VS F5、`docker compose up`、prod） | **`.env`**，經 compose 的 `environment:` 注入 |
 
-兩邊的密碼必須與 postgres 的 init 腳本建立 `konbini` 帳號時用的 `.env` 一致。很多問題都是其中一邊沒設、或兩邊不一致。
+`.env` 的密碼必須與 postgres 的 init 腳本建立 `konbini` 帳號時用的值一致（只在 volume 第一次初始化時生效）。
+同名的環境變數（`ConnectionStrings__DefaultConnection`、`Jwt__Secret`）會蓋過 `.env`；
+本機 API 的行為和 `.env` 對不上時，看步驟 4。各鍵的說明見 `docs/configuration.md`。
 
 ## 步驟（在 repo 根目錄）
 
@@ -39,15 +41,18 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpi
    - 也看 `docker ps --format "{{.Names}}\t{{.Ports}}"`：其他專案的容器可能占用相同的埠。
    - **`konbini-api-1` 占著 5214**：Rider 的 Compose Deployment 或 VS F5 留下的 api 容器（停止偵錯後不會自動移除）。
      這時本機的 `dotnet watch`／Rider 的 Konbini.Api 拿不到 5214，請求全部打進容器裡的**舊版程式碼**。
-3. **`.env`（容器用）**：只列 key
+3. **`.env`（容器與本機共用）**：只列 key
    `grep -o '^[A-Za-z_][A-Za-z0-9_]*=' .env`
    - 必要：`POSTGRES_PASSWORD`、`APP_DB_PASSWORD`、`JWT_SECRET`（`POSTGRES_USER`、`APP_DB_NAME`、`APP_DB_USER` 有預設值）
    - 還有 `MYSQL_*` 的鍵：這台機器是從 MySQL 版本升級上來的，照 README「初次設定」下方的升級說明處理。
    - JWT 長度（只輸出 yes／NO）：`awk -F= '/^JWT_SECRET=/{v=substr($0,index($0,"=")+1); gsub(/^"|"$/,"",v); print (length(v)>=32?"yes":"NO")}' .env`
    - 行尾：`grep -c $'\r' .env` 應為 0（CRLF 會讓每個值多一個 `\r`）。
-4. **user-secrets（本機 `dotnet watch` 用）**：只列 key
-   `dotnet user-secrets list --project src/Konbini.Api | sed -E 's/ = .*$/ = <hidden>/'`
-   - 必要：`ConnectionStrings:DefaultConnection`、`Jwt:Secret`（還有 `ConnectionStrings:MySqlConnection` 的話是舊鍵，可移除）
+4. **蓋過 `.env` 的環境變數**：只列名稱
+   - Windows：`Get-ChildItem Env: | Where-Object Name -match '^(ConnectionStrings__|Jwt__)' | Select-Object Name`
+   - macOS：`env | grep -oE '^(ConnectionStrings__|Jwt__)[A-Za-z_]*'`
+   - 有輸出，就表示這些值不是來自 `.env`。這只看得到 Claude 這個 shell 的環境變數；
+     使用者的終端機與 Rider 執行設定要請使用者自己看。
+   - 舊機器殘留的 user-secrets 已經不會被讀取，不必處理。
 5. **compose 設定能否解析**：`docker compose config -q`（有錯會列出缺少的變數名稱）
 6. **API**：`curl -s -w "\nHTTP %{http_code}\n" http://localhost:5214/health`
    - `Healthy`：API 與資料庫都正常，問題在前端或別處。
@@ -60,10 +65,11 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpi
 
 | 現象 | 原因 | 修正 |
 |---|---|---|
-| `ConnectionStrings:DefaultConnection 未設定` | 本機沒設 user-secrets，或還是 MySQL 時代的舊鍵 | README「初次設定」第 2 步（Windows 可從 `.env` 帶入） |
-| `Jwt:Secret 未設定或長度不足` | user-secrets 沒設，或少於 32 字元；`.env` 的值有引號被當成內容 | 重設為至少 32 字元的隨機字串 |
-| `/health` 回 `Unhealthy`、`password authentication failed for user "konbini"` | 連線字串的密碼與資料庫帳號不一致。`.env` 的資料庫帳密**只在 volume 第一次初始化時生效** | 把 user-secrets／`.env` 改回初始化時的密碼；或請使用者 `docker compose down -v` 重置（**會清掉開發資料**，由使用者決定） |
-| 改了 user-secrets 但沒效果 | `dotnet watch` 偵測不到 user-secrets 的變動 | 在 `dotnet watch` 的終端機按 Ctrl+R |
+| `ConnectionStrings:DefaultConnection 未設定` | 根目錄沒有 `.env`、`APP_DB_PASSWORD` 是空值，或 `ASPNETCORE_ENVIRONMENT` 不是 Development（只有 Development 會讀 `.env`） | README「初次設定」第 1 步 |
+| `Jwt:Secret 未設定或長度不足` | `.env` 的 `JWT_SECRET` 是空值或少於 32 字元 | 改成至少 32 字元的隨機字串（產生方式見 `.env.example`） |
+| `/health` 回 `Unhealthy`、`password authentication failed for user "konbini"` | 連線字串的密碼與資料庫帳號不一致。`.env` 的資料庫帳密**只在 volume 第一次初始化時生效** | 把 `.env` 改回初始化時的密碼；或請使用者 `docker compose down -v` 重置（**會清掉開發資料**，由使用者決定） |
+| 改了 `.env`，本機 API 沒變 | API 只在啟動時讀 `.env` | 在 `dotnet watch` 的終端機按 Ctrl+R，或重新啟動 |
+| 重新啟動後還是舊值 | 同名的環境變數蓋過了 `.env` | 依步驟 4 找出來源 |
 | `docker compose up` 說 `required variable … is missing a value` | `.env` 缺必填鍵 | 照 `.env.example` 補上 |
 | `database "konbini" does not exist`、`role "konbini" does not exist` | volume 不是全新的（init 腳本只在首次初始化執行），或 init 腳本執行失敗 | 看 `docker compose logs postgres`；開發環境可 `down -v` 重建 |
 | postgres 起不來，日誌提到 `database files are incompatible with server` | volume 是其他主版本建立的 | README「重置資料庫」的主版本升級說明 |

@@ -221,7 +221,7 @@ Endpoint → Command/Query → Handler → Service → Repository
 - Token 過期時間不要設過長（現行 8 小時）。
   refresh token（存資料庫、可撤銷）屬未實施項——
   本專案不正式上線，見 CLAUDE.md §6。
-- 開發用的簽章金鑰不進版控，走 user-secrets 或環境變數。
+- 開發用的簽章金鑰不進版控，放在根目錄的 `.env`（本機與容器共用）或環境變數。
 
 ## 記錄
 

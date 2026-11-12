@@ -227,16 +227,33 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 
 ## 3. 資料與機密
 
-### 連線字串的注入路徑（2026-08-31 定案）
+### 設定的來源（2026-08-31 定案，2026-11-12 本機改讀 `.env`）
 
 | 情境 | 來源 |
 |---|---|
 | 容器 | `.env` →（compose `environment:`）→ 環境變數 `ConnectionStrings__DefaultConnection` |
-| 本機 `dotnet run` | `dotnet user-secrets`（存於使用者目錄，天生不會誤 commit） |
+| 本機 `dotnet run`（Development） | 同一份 `.env`，由 `LocalDotEnv` 讀取並對應成 .NET 設定鍵；已設定的環境變數優先 |
+| 非機密的共用預設值 | `appsettings.json`（進版控，本身就是範本；鍵一覽見 `docs/configuration.md`） |
 
-`appsettings.json` 與程式碼中不出現任何機密。本機不放第二份 `.env` 是刻意的
-——repo 裡的 `.env` 檔越多，誤 commit 的面越大；專案要放 GitHub，這條紅線
+`appsettings.json` 與程式碼中不出現任何機密。repo 裡只有一份 `.env` 是刻意的
+——`.env` 檔越多，誤 commit 的面越大；專案要放 GitHub，這條紅線
 比一般專案更硬。
+
+**本機改讀 `.env`、不用 user-secrets（2026-11-12 變更決策）**：
+
+- **兩份要手動保持一致**：原本 `.env` 與 user-secrets 各存一份資料庫密碼和 JWT 金鑰，
+  兩邊不一致是本機最常見的錯誤。改成一份檔案，容器與本機讀同一組值。
+- **只在 Development、往上找得到 `Konbini.slnx` 時才讀**：部署的容器裡沒有這個檔，不受影響。
+- **插在環境變數之前**：Rider、CI 或終端機臨時設定的值仍然可以覆寫，行為和 compose 一致；
+  容器偵錯（Fast mode）掛載原始碼時就算讀得到 `.env`，compose 注入的值也會蓋過它。
+- **自己解析、不用 DotNetEnv**：套件預設把值寫進行程的環境變數（子行程會繼承，也會打亂覆寫順序），
+  而且只有 `Program.cs` 一個使用者。
+- **不改成 `appsettings.example.json`**：`appsettings.json` 沒有機密，只放所有環境共用的預設值；
+  移出版控後，CI 與映像建置拿不到 `Jwt:Issuer`、`Jwt:Audience`。
+
+放棄的東西：`.env` 的鍵名不是 .NET 格式，新增本機要讀的機密時，`LocalDotEnv` 也要加對應；
+連線主機寫死 `127.0.0.1:5432`，資料庫不在那裡時要用環境變數覆寫 `ConnectionStrings__DefaultConnection`；
+舊機器殘留的 user-secrets 不會自動清除（不再讀取，不影響）。
 
 ⚠️ **compose 的 `.env` 只做 `${}` 替換，不會自動注入容器**，要進容器的鍵
 必須在 `environment:` 明寫，且用 .NET 設定鍵格式（`__` 雙底線）。
@@ -385,7 +402,7 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 - **為什麼檢查待產生的 Migration（2026-11-12 定案）**：API 啟動時自動套 Migration（§3），改了 Entity 卻忘了
   `migrations add`，本機與單元測試都不會發現，要到打包的冒煙測試或欄位不存在的 500 才知道。
   `has-pending-model-changes` 只比對模型與快照、不連資料庫；`Program.cs` 在 `Build()` 前就檢查連線字串與
-  `Jwt:Secret`，所以 CI 與 hook 都給假值（不是機密），hook 也因此不依賴 user-secrets。
+  `Jwt:Secret`，所以 CI 與 hook 都自己給假值（不是機密），本機沒有 `.env` 也能檢查。
 - **為什麼測試結果用 GitHubActions logger、每個 job 設逾時（2026-11-12 定案）**：原本測試失敗要下載 trx 才知道是哪一個；
   logger 把失敗標到檔案行號、結果寫進 Summary（trx 仍在失敗時上傳）。未設 `timeout-minutes` 時卡住的 job 會跑滿 360 分鐘，
   同分支的下一次推送也得等它被取消。逾時只防卡住，數值抓實際時間的 3–5 倍。
@@ -553,6 +570,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | `docker-compose.prod.yml` | 部署環境（client + api + postgres + mailpit） |
 | `docker/postgres/init/` | postgres volume 首次初始化時執行的腳本（建立應用程式帳號與資料庫） |
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
+| `docs/configuration.md` | 設定鍵一覽：用途、來源、是否機密、必填與格式限制 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
 | `docs/ui-guidelines.md` | 前端畫面、RWD 與中文排版規範 |
 | `docs/modules/` | 各模組的業務規則、用例流程與業務決策紀錄（索引：`docs/modules/README.md`） |
