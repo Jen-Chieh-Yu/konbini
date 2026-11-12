@@ -356,6 +356,13 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 - **為什麼 `vue-tsc` 從第一天就阻擋**：目前型別錯誤為 0，此時設阻擋的
   成本是零；等錯誤累積後再想擋，就得先還債。
 - **為什麼 `*.md` 與 `docs/` 不觸發**：文件變更跑建置是純浪費（`docs/mockups` 的 HTML 草稿也屬文件）。
+- **為什麼檢查待產生的 Migration（2026-11-12 定案）**：API 啟動時自動套 Migration（§3），改了 Entity 卻忘了
+  `migrations add`，本機與單元測試都不會發現，要到打包的冒煙測試或欄位不存在的 500 才知道。
+  `has-pending-model-changes` 只比對模型與快照、不連資料庫；`Program.cs` 在 `Build()` 前就檢查連線字串與
+  `Jwt:Secret`，所以 CI 與 hook 都給假值（不是機密），hook 也因此不依賴 user-secrets。
+- **為什麼測試結果用 GitHubActions logger、每個 job 設逾時（2026-11-12 定案）**：原本測試失敗要下載 trx 才知道是哪一個；
+  logger 把失敗標到檔案行號、結果寫進 Summary（trx 仍在失敗時上傳）。未設 `timeout-minutes` 時卡住的 job 會跑滿 360 分鐘，
+  同分支的下一次推送也得等它被取消。逾時只防卡住，數值抓實際時間的 3–5 倍。
 - **為什麼 SDK 與 Node 版本由專案檔決定（2026-11-02 定案）**：.NET SDK 讀 `global.json`、
   Node 讀 `src/Konbini.Client/.nvmrc`，CI 不再寫死版本——本機與 CI 只有一個來源，升版只改一處。
   Node 統一為 24（Active LTS）：原本本機 24、CI 與 Dockerfile 22，三處不一致。
@@ -383,10 +390,11 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 分支命名：`feature/` `fix/` `refactor/` `docs/` `chore/` `hotfix/`
 ＋ `YYYYMMDD-描述`，與 Conventional Commits 的 type 對齊。
 
-本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（workflow 靜態檢查、後端測試＋前端
+本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（workflow 靜態檢查、後端測試、待產生 Migration 檢查＋前端
 型別檢查；Docker 建置留給雲端）。main 的必過檢查會擋住紅燈的 merge（見下方
 Branch protection），hook 的作用是把紅燈提早到推送前發現，省一輪 CI 等待。每台機器需 `git config core.hooksPath .githooks`
 啟用（未設定時靜默不觸發）；跳過用 `git push --no-verify`。
+hook 測的是工作目錄、不是要推送的 commit，有未提交的修改時只印警告（2026-11-12）：擋下的話，「先推上去給別人看」也要 `--no-verify`。
 hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh 無法執行。
 
 ### Branch protection（2026-09-02 啟用）
@@ -474,7 +482,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 項目 | 觸發條件 |
 |---|---|
 | ~~Branch protection（main 禁直推、Pull Request 必須綠燈）~~ | 已實施（2026-09-02）：ruleset「Protect main」，見上方 Branch protection 節 |
-| 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」。**handler 單元測試隨各模組 CRUD 一起寫，依模組類型決定測試種類**（2026-11-03 定案） |
+| 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」。**handler 單元測試隨各模組 CRUD 一起寫，依模組類型決定測試種類**（2026-11-03 定案）。覆蓋率（coverlet＋ReportGenerator 寫進 Summary，只顯示不設門檻）等整合測試與 Vitest 有內容後再加，只有單元測試時數字沒有參考價值 |
 | ~~EnsureCreated → EF Migrations~~ | 已實施（2026-11-09）：API 啟動時套用 Migrations，見 §3 |
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
 | ~~列表查詢分頁（docs/api-conventions.md「分頁」格式）~~ | 已實施（2026-11-09）：商品、搜尋、訂單列表；代碼表資料量固定不分頁，相關商品固定最多 8 筆。頁碼放網址（與分類、關鍵字一致），API 回傳格式改變，前後端同一個 Pull Request 上線 |
@@ -499,6 +507,8 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。收信用 Mailpit（2026-11-12 已加入開發與部署環境，見 §4）；寄信用 MailKit，抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；設定鍵 `Email:From`、`Email:Smtp:Host`、`Email:Smtp:Port` 與 `App:ClientBaseUrl`（信中連結指向前端）隨這一支加入，容器用的值在 compose `environment:` 明寫；驗證 token 存雜湊值、不存原文。已定案：未完成驗證的帳號不能登入（2026-11-12）；先決定 token 效期、重寄次數、既有帳號是否視為已驗證 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
+| 前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步） | 越晚導入越貴（2026-11-12 記錄）：前端檔案少的現在，全專案格式化的 diff 最小；參照的另一專案先開 ESLint、Prettier 規則關著，累積約 1,500 處排版差異至今沒開。ESLint 與 Prettier 同一個分支開、格式化獨立一個 commit；unplugin-auto-import 要開 `eslintrc` 選項產生全域宣告（否則 `ElMessage` 會被報 `no-undef`）；`.gitattributes` 是 `text=auto`，Windows 工作目錄為 CRLF，要設 `endOfLine` 或對前端檔強制 LF。不與前端功能分支並行 |
+| E2E 測試（Playwright） | 練習題（2026-11-12 記錄）：接在 Testcontainers 整合測試與前端 Vitest 之後。CI 用 prod compose 起完整環境再跑（同冒煙測試），先涵蓋註冊 → 登入 → 加入購物車 → 下單這條主線。先決定測試資料怎麼準備、只在打包時跑還是每個 Pull Request 都跑 |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、

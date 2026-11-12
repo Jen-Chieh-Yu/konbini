@@ -58,7 +58,7 @@ Konbini/
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：feature-flow、create-pr、review-pr、dev-env
-├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試與前端型別檢查
+├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試、Migration 檢查與前端型別檢查
 ├── .github/
 │   ├── scripts/release-info.sh   # 打包時決定版號（格式檢查、標籤須在 main 上）
 │   ├── workflows/ci.yml          # CI：後端、前端、Docker，v* 標籤打包映像
@@ -541,7 +541,7 @@ dotnet test tests/Konbini.Tests
 
 | Job | 內容 | 執行時機 |
 |---|---|---|
-| 後端：建置與單元測試 | `dotnet build` + `dotnet test`（Release、Linux、UTC——與部署環境一致） | 每次 |
+| 後端：建置與單元測試 | `dotnet build` → 待產生 Migration 檢查 → `dotnet test`（Release、Linux、UTC——與部署環境一致） | 每次 |
 | 前端：型別檢查與打包 | `npm ci` → `vue-tsc`（型別錯誤 0 容忍）→ `vite build` → `npm audit`（僅提醒） | 每次 |
 | 容器：驗證 Dockerfile | 兩個 Dockerfile 各建置一次，建完即丟 | 每次 |
 | 打包：決定版號 | 從標籤取版號並檢查格式、確認標籤在 main 上；測試打包為 `0.0.0-test.<編號>` | **`v*` 標籤或測試打包** |
@@ -550,8 +550,10 @@ dotnet test tests/Konbini.Tests
 
 各 job 的步驟以 ①②③ 編號命名，警告訊息引用步驟編號（如「明細見步驟⑤ log」）。
 
+- **測試失敗**會標在 Annotations（含測試檔案與行號），測試結果表寫進 Summary；完整的 trx 報告只在失敗時上傳。
+- **改了 Entity 或 `AppDbContext` 卻沒有 `dotnet ef migrations add`**，後端 job 會失敗（不連資料庫，只比對 Migration 快照）。
 - **僅提醒、不阻擋的警告**會印在執行頁上方的 Annotations 與 Summary：
-  後端編譯警告統計（依 CS 代碼分類）、NuGet 與 npm 套件弱點掃描。
+  後端建置警告統計（依代碼分類，含 CS、NU 套件弱點、CA）、NuGet（Api 與測試專案）與 npm 套件弱點掃描。
   前端型別檢查不在此列——它從第一天就是 0 個錯誤、直接阻擋。
 - 純文件變更（`*.md` 與 `docs/`）的「推送」不觸發建置；Pull Request 與標籤不受此限
   ——Pull Request 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。
