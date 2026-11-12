@@ -50,6 +50,21 @@ public class ChangePasswordHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
+    [Theory]
+    [InlineData(null)]   // 原本 PasswordHasher 會丟 ArgumentNullException，回 500
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CurrentPasswordMissing_ReturnsCurrentPasswordError_WithoutSaving(string? currentPassword)
+    {
+        var uow = new FakeUnitOfWork();
+
+        var result = await Handle(currentPassword!, PasswordOfLength(PasswordPolicy.MinLength), uow);
+
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Equal("請輸入目前密碼", result.Error!.Errors["currentPassword"]);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
     [Fact]
     public async Task UserNoLongerExists_ReturnsNotFound()
     {
@@ -61,10 +76,28 @@ public class ChangePasswordHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
+    [Fact]
+    public async Task NewPasswordSameAsCurrent_ReturnsNewPasswordError_WithoutSaving()
+    {
+        var uow = new FakeUnitOfWork();
+        var password = PasswordOfLength(PasswordPolicy.MinLength);
+
+        var result = await Handle(password, password, uow);
+
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Equal("新密碼不可與目前密碼相同", result.Error!.Errors["newPassword"]);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
     private static Task<Result> Handle(
         string newPassword, FakeUnitOfWork uow, bool userExists = true, bool currentPasswordMatches = true) =>
+        Handle("current-password", newPassword, uow, userExists, currentPasswordMatches);
+
+    private static Task<Result> Handle(
+        string currentPassword, string newPassword, FakeUnitOfWork uow,
+        bool userExists = true, bool currentPasswordMatches = true) =>
         new ChangePasswordHandler(new FakeUserRepository(userExists), new FakePasswordHasher(currentPasswordMatches), uow)
-            .Handle(new ChangePasswordCommand(1, new ChangePasswordRequest("current-password", newPassword)), CancellationToken.None);
+            .Handle(new ChangePasswordCommand(1, new ChangePasswordRequest(currentPassword, newPassword)), CancellationToken.None);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {

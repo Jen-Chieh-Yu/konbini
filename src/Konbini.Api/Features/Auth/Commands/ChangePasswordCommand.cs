@@ -21,6 +21,10 @@ public class ChangePasswordHandler(IUserRepository users, IPasswordHasher hasher
         {
             return AuthErrors.UserNotFound;
         }
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+        {
+            return Error.Validation("currentPassword", "請輸入目前密碼");
+        }
         if (!hasher.Verify(request.CurrentPassword, user.PasswordHash))
         {
             return AuthErrors.CurrentPasswordIncorrect;
@@ -28,6 +32,10 @@ public class ChangePasswordHandler(IUserRepository users, IPasswordHasher hasher
         if (PasswordPolicy.Validate(request.NewPassword) is { } passwordError)
         {
             return Error.Validation("newPassword", passwordError);
+        }
+        if (request.NewPassword == request.CurrentPassword)
+        {
+            return Error.Validation("newPassword", "新密碼不可與目前密碼相同");
         }
 
         user.PasswordHash = hasher.Hash(request.NewPassword);

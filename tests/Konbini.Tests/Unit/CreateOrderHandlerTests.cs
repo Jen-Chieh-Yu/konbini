@@ -25,9 +25,11 @@ public class CreateOrderHandlerTests
         StreetAddress: "中正路 1 號",
         Memo: null);
 
-    private static CreateOrderRequest WithLength(string field, int length)
+    private static CreateOrderRequest WithLength(string field, int length) =>
+        WithValue(field, new string('x', length));
+
+    private static CreateOrderRequest WithValue(string field, string value)
     {
-        var value = new string('x', length);
         return field switch
         {
             "contactName" => ValidRequest() with { ContactName = value },
@@ -68,6 +70,87 @@ public class CreateOrderHandlerTests
         Assert.Contains(field, result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
+
+    [Theory]
+    [InlineData("contactName", Order.ContactNameMaxLength)]
+    [InlineData("contactPhone", Order.ContactPhoneMaxLength)]
+    [InlineData("streetAddress", Order.StreetAddressMaxLength)]
+    [InlineData("memo", Order.MemoMaxLength)]
+    public async Task FieldAtLimitWithSurroundingSpaces_IsAccepted(string field, int limit)
+    {
+        var uow = new FakeUnitOfWork();
+
+        var result = await Handle(WithValue(field, "  " + new string('x', limit) + "  "), uow);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task TextFields_AreTrimmed_AndBlankMemoSavedAsNull()
+    {
+        var uow = new FakeUnitOfWork();
+        var orders = new FakeOrderRepository();
+        var request = ValidRequest() with
+        {
+            ContactName = "  王小明  ",
+            ContactPhone = " 0912345678 ",
+            StreetAddress = "  中正路 1 號 ",
+            Memo = "   ",
+        };
+
+        var result = await Handle(request, uow, orders);
+
+        Assert.True(result.IsSuccess);
+        var order = Assert.IsType<Order>(orders.Added);
+        Assert.Equal("王小明", order.ContactName);
+        Assert.Equal("0912345678", order.ContactPhone);
+        Assert.Equal("中正路 1 號", order.StreetAddress);
+        Assert.Equal("臺北市中正區中正路 1 號", order.DeliveryAddress);
+        Assert.Null(order.Memo);
+    }
+
+    [Fact]
+    public async Task NullItem_ReturnsItemsError_WithoutSaving()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with { Items = [null!] };   // 原本 NullReferenceException，回 500
+
+        var result = await Handle(request, uow);
+
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Equal("商品資料不正確", result.Error!.Errors["items"]);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task ItemsAtLimit_IsAccepted()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with { Items = ItemsOfCount(Order.MaxItems) };
+
+        var result = await Handle(request, uow);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task ItemsOverLimit_ReturnsItemsError_WithoutSaving()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with { Items = ItemsOfCount(Order.MaxItems + 1) };
+
+        var result = await Handle(request, uow);
+
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Equal($"購物車最多 {Order.MaxItems} 項商品", result.Error!.Errors["items"]);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    /// <summary>同一商品各 1 件，合計不會碰到 MaxQuantity，只測筆數上限。</summary>
+    private static List<CreateOrderItemDto> ItemsOfCount(int count) =>
+        Enumerable.Range(0, count).Select(_ => new CreateOrderItemDto(ProductId, 1)).ToList();
 
     [Theory]
     [InlineData(OrderItem.MaxQuantity + 1)]
@@ -126,8 +209,9 @@ public class CreateOrderHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
-    private static Task<Result<CreateOrderResponse>> Handle(CreateOrderRequest request, FakeUnitOfWork uow) =>
-        new CreateOrderHandler(new FakeOrderRepository(), new FakeProductRepository(), new FakeAddressRepository(), uow)
+    private static Task<Result<CreateOrderResponse>> Handle(
+        CreateOrderRequest request, FakeUnitOfWork uow, FakeOrderRepository? orders = null) =>
+        new CreateOrderHandler(orders ?? new FakeOrderRepository(), new FakeProductRepository(), new FakeAddressRepository(), uow)
             .Handle(new CreateOrderCommand(1, request), CancellationToken.None);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
@@ -143,7 +227,9 @@ public class CreateOrderHandlerTests
 
     private sealed class FakeOrderRepository : IOrderRepository
     {
-        public void Add(Order order) { }
+        public Order? Added { get; private set; }
+
+        public void Add(Order order) => Added = order;
 
         public Task<PagedResult<OrderDto>> GetByUserAsync(int userId, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
     }
