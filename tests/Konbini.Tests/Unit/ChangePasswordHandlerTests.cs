@@ -1,6 +1,8 @@
 using Konbini.Api.Features.Auth.Commands;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
+using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
 using Xunit;
@@ -19,7 +21,7 @@ public class ChangePasswordHandlerTests
 
         var result = await Handle(PasswordOfLength(PasswordPolicy.MaxLength), uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -30,8 +32,21 @@ public class ChangePasswordHandlerTests
 
         var result = await Handle(PasswordOfLength(PasswordPolicy.MaxLength + 1), uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("newPassword", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("newPassword", result.Error!.Errors.Keys);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task WrongCurrentPassword_ReturnsCurrentPasswordValidationError()
+    {
+        var uow = new FakeUnitOfWork();
+
+        var result = await Handle(PasswordOfLength(PasswordPolicy.MinLength), uow, currentPasswordMatches: false);
+
+        // 不能是 Unauthorized：前端收到 401 會把使用者登出
+        Assert.Same(AuthErrors.CurrentPasswordIncorrect, result.Error);
+        Assert.Equal(ErrorType.Validation, result.Error!.Type);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -45,8 +60,19 @@ public class ChangePasswordHandlerTests
 
         var result = await Handle(currentPassword!, PasswordOfLength(PasswordPolicy.MinLength), uow);
 
-        Assert.False(result.Success);
-        Assert.Equal("請輸入目前密碼", result.Errors["currentPassword"]);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Equal("請輸入目前密碼", result.Error!.Errors["currentPassword"]);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task UserNoLongerExists_ReturnsNotFound()
+    {
+        var uow = new FakeUnitOfWork();
+
+        var result = await Handle(PasswordOfLength(PasswordPolicy.MinLength), uow, userExists: false);
+
+        Assert.Same(AuthErrors.UserNotFound, result.Error);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -58,16 +84,19 @@ public class ChangePasswordHandlerTests
 
         var result = await Handle(password, password, uow);
 
-        Assert.False(result.Success);
-        Assert.Equal("新密碼不可與目前密碼相同", result.Errors["newPassword"]);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Equal("新密碼不可與目前密碼相同", result.Error!.Errors["newPassword"]);
         Assert.Equal(0, uow.SaveCount);
     }
 
-    private static Task<AuthResult> Handle(string newPassword, FakeUnitOfWork uow) =>
-        Handle("current-password", newPassword, uow);
+    private static Task<Result> Handle(
+        string newPassword, FakeUnitOfWork uow, bool userExists = true, bool currentPasswordMatches = true) =>
+        Handle("current-password", newPassword, uow, userExists, currentPasswordMatches);
 
-    private static Task<AuthResult> Handle(string currentPassword, string newPassword, FakeUnitOfWork uow) =>
-        new ChangePasswordHandler(new FakeUserRepository(), new FakePasswordHasher(), uow)
+    private static Task<Result> Handle(
+        string currentPassword, string newPassword, FakeUnitOfWork uow,
+        bool userExists = true, bool currentPasswordMatches = true) =>
+        new ChangePasswordHandler(new FakeUserRepository(userExists), new FakePasswordHasher(currentPasswordMatches), uow)
             .Handle(new ChangePasswordCommand(1, new ChangePasswordRequest(currentPassword, newPassword)), CancellationToken.None);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
@@ -81,17 +110,16 @@ public class ChangePasswordHandlerTests
         }
     }
 
-    /// <summary>目前密碼一律驗證通過，測試只看新密碼的規則。</summary>
-    private sealed class FakePasswordHasher : IPasswordHasher
+    private sealed class FakePasswordHasher(bool verifyResult) : IPasswordHasher
     {
         public string Hash(string password) => "hashed";
-        public bool Verify(string password, string hash) => true;
+        public bool Verify(string password, string hash) => verifyResult;
     }
 
-    private sealed class FakeUserRepository : IUserRepository
+    private sealed class FakeUserRepository(bool userExists) : IUserRepository
     {
         public Task<User?> GetByIdAsync(int id, CancellationToken ct) =>
-            Task.FromResult<User?>(new User { Id = id, PasswordHash = "hashed" });
+            Task.FromResult(userExists ? new User { Id = id, PasswordHash = "hashed" } : null);
 
         public Task<bool> EmailExistsAsync(string email, CancellationToken ct) => throw new NotSupportedException();
         public void Add(User user) => throw new NotSupportedException();

@@ -1,6 +1,8 @@
 using Konbini.Api.Features.Auth.Commands;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
+using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
 using Xunit;
@@ -38,7 +40,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -54,8 +56,8 @@ public class RegisterHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("name", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("name", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -71,7 +73,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -80,8 +82,8 @@ public class RegisterHandlerTests
     {
         var result = await Handle(ValidRequest() with { LastName = "   " }, new FakeUnitOfWork());
 
-        Assert.False(result.Success);
-        Assert.Contains("lastName", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("lastName", result.Error!.Errors.Keys);
     }
 
     [Fact]
@@ -99,7 +101,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(request, uow, users);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal("user@example.com", users.CheckedEmail);
         var user = Assert.IsType<User>(users.Added);
         Assert.Equal("王小明", user.Name);
@@ -114,7 +116,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest() with { Email = EmailOfLength(User.EmailMaxLength) }, uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -125,8 +127,8 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest() with { Email = EmailOfLength(User.EmailMaxLength + 1) }, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("email", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("email", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -137,8 +139,7 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest(), uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("email", result.Errors.Keys);
+        Assert.Same(AuthErrors.EmailTaken, result.Error);
     }
 
     [Fact]
@@ -149,12 +150,12 @@ public class RegisterHandlerTests
 
         var result = await Handle(ValidRequest() with { Password = password, ConfirmPassword = password }, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("password", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("password", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
-    private static Task<AuthResult> Handle(RegisterRequest request, FakeUnitOfWork uow, FakeUserRepository? users = null) =>
+    private static Task<Result> Handle(RegisterRequest request, FakeUnitOfWork uow, FakeUserRepository? users = null) =>
         new RegisterHandler(users ?? new FakeUserRepository(), new FakePasswordHasher(), uow)
             .Handle(new RegisterCommand(request), CancellationToken.None);
 

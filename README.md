@@ -50,7 +50,7 @@ Konbini/
 ├── docker-compose.override.yml   # 偵錯用環境變數與埠（自動與 base 合併）
 ├── docker-compose.prod.yml       # 部署環境：client + api + postgres + mailpit 全套
 ├── .dockerignore
-├── .env                          # 機密（不進版控）
+├── .env                          # 機密（不進版控；容器與本機 API 共用）
 ├── .env.example                  # 鍵值範本（進版控）
 ├── CHANGELOG.md                  # 變更紀錄（發行時整理）
 ├── .idea/                        # Rider 共用設定（附加前端資料夾；個人檔不進版控）
@@ -66,6 +66,7 @@ Konbini/
 ├── docker/postgres/init/         # postgres 首次初始化腳本：建立應用程式帳號與資料庫
 ├── docs/
 │   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
+│   ├── configuration.md          # 設定鍵一覽：用途、來源、是否機密、格式限制
 │   ├── database-design.md        # 資料表、欄位型別與 Migration 規範
 │   ├── deployment.md             # 部署手冊（半自動）
 │   ├── release.md                # 版號規則與發行流程
@@ -118,6 +119,7 @@ Features/Orders/
 ├── Queries/      # 唯讀用例：GetOrdersQuery.cs
 ├── Endpoints/     # 每個 feature 一支：OrderEndpoints.cs（MapGroup 集中路由）
 ├── Repositories/  # 資料存取：OrderRepository.cs（介面＋實作同檔）
+├── Errors/        # 業務錯誤：OrderErrors.cs（有第一個業務錯誤才建立）
 └── Services/      # ★ 僅在被 2+ 個 handler 共用時存在
 ```
 
@@ -215,56 +217,42 @@ volume 是 `konbini-prod_pg-data`——與開發環境完全分開，兩套可�
 ### 初次設定（clone 後執行一次）
 
 ```bash
-# 1. 建立 .env（照 .env.example 的鍵補值）
+# 1. 建立 .env（照 .env.example 的鍵補值；容器與本機 dotnet run 都讀這份，鍵的說明見 docs/configuration.md）
 cp .env.example .env
 
-# 2. 本機開發的機密放 user-secrets（不進 repo，不會誤 commit）
-#    值與 .env 相同：konbini 帳號由 postgres 的 init 腳本依 .env 建立，密碼必須一致。
-#    csproj 已設定 UserSecretsId，不需要 dotnet user-secrets init。
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
-  "Host=127.0.0.1;Port=5432;Database=konbini;Username=konbini;Password=<.env 的 APP_DB_PASSWORD>" \
-  --project src/Konbini.Api
-dotnet user-secrets set "Jwt:Secret" "<.env 的 JWT_SECRET>" --project src/Konbini.Api
-
-# 3. 前端套件
+# 2. 前端套件
 cd src/Konbini.Client && npm install
 
-# 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
+# 3. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
 cd ../..
 git config core.hooksPath .githooks
 
-# 5.（建議）安裝 actionlint：hook 會在推送前靜態檢查 GitHub workflow 檔，
+# 4.（建議）安裝 actionlint：hook 會在推送前靜態檢查 GitHub workflow 檔，
 #    未安裝時該項檢查自動略過（Windows 擇一；macOS 用 brew install actionlint）
 scoop install actionlint
 # 或 choco install actionlint
 
-# 6.（選用）安裝 GitHub CLI：讓 Claude Code 的 create-pr 技能可直接建立 Pull Request；
+# 5.（選用）安裝 GitHub CLI：讓 Claude Code 的 create-pr 技能可直接建立 Pull Request；
 #    不裝也行，改在網頁建立（macOS 用 brew install gh）
 winget install GitHub.cli
 gh auth login
 ```
 
-Windows（PowerShell）的第 2 步可以直接從 `.env` 帶入，不必重打密碼，過程中不會印出值：
+> 本機 `dotnet run`／`dotnet watch` 在 Development 環境會自己讀根目錄的 `.env`，不需要 user-secrets。
+> API 只在啟動時讀一次，改了 `.env` 要重新啟動（`dotnet watch` 按 Ctrl+R）。
+> 終端機或 Rider 設定的同名環境變數（例 `Jwt__Secret`）會蓋過 `.env`。
 
-```powershell
-$e = Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ConvertFrom-StringData
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=127.0.0.1;Port=5432;Database=$($e.APP_DB_NAME);Username=$($e.APP_DB_USER);Password=$($e.APP_DB_PASSWORD)" --project src/Konbini.Api
-dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
-```
+> **之前用過 user-secrets 的機器**（2026-11-12 之前）：API 已經不讀 user-secrets，留著也不會生效。
+> 要清掉的話執行 `dotnet user-secrets clear --id konbini-api`。
 
-> 值含反斜線 `\` 或用引號包起來時，`ConvertFrom-StringData` 會解讀錯誤，改用上面手動輸入的寫法。
-> 確認是否設好用 `dotnet user-secrets list --project src/Konbini.Api`——它會印出值，不要貼到對話或 issue。
-> 已在執行的 `dotnet watch` 偵測不到 user-secrets 的變動，改完要按 Ctrl+R 重新啟動。
-
-> ⚠️ 第 4 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
+> ⚠️ 第 3 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
 > 不會觸發，且沒有任何提示。緊急情況可用 `git push --no-verify` 跳過。
 
 > ⚠️ **應用程式不使用超級使用者連線。** 資料庫帳號一律用專屬帳號 `konbini`
 >（由 `docker/postgres/init` 的腳本依 `.env` 的 `APP_DB_USER` 建立）。理由見 `CLAUDE.md` §3。
 
 > **從 MySQL 版本升級上來的機器**（2026-11-02 改用 PostgreSQL）：`.env` 改照新的 `.env.example`
-> 補上 `POSTGRES_PASSWORD`、`APP_DB_PASSWORD`；user-secrets 照第 2 步重設（舊的鍵可用
-> `dotnet user-secrets remove "ConnectionStrings:MySqlConnection" --project src/Konbini.Api` 移除）；
+> 補上 `POSTGRES_PASSWORD`、`APP_DB_PASSWORD`；
 > 舊的 MySQL 容器與 volume 用 `docker rm -f konbini-mysql`、`docker volume rm konbini_mysql-data` 清掉
 >（開發資料不轉移，API 啟動時會重建 schema 與種子）。
 > `Jwt:Secret` 空值或不足 32 字元時 API 會啟動失敗——這是刻意的 fail fast。
@@ -355,7 +343,7 @@ dotnet tool restore   # 還原 repo 固定版本的 dotnet-ef，每台機器一�
 dotnet ef migrations add <描述意圖的名稱> --project src/Konbini.Api --startup-project src/Konbini.Api
 ```
 
-先讀產出的檔案，確認沒有意外的 DROP COLUMN，下次啟動 API 就會自動套用。需要先設好 user-secrets。
+先讀產出的檔案，確認沒有意外的 DROP COLUMN，下次啟動 API 就會自動套用。需要先建好 `.env`（`dotnet ef` 也會讀）。
 
 > ⚠️ 以 `EnsureCreated` 建立的舊資料庫無法套用 Migration（2026-11-09 之前），要重置一次。
 
@@ -418,7 +406,10 @@ Features/{Feature}/Repositories/{Entity}Repository.cs   # 介面＋實作同檔
 ### Step 3: Command / Query —— 用例本體
 
 **Command / Query、Handler、Response 一律同一個檔案**，改一個功能不用開四、五個檔案。
-被多個用例共用的 Result 例外，放 `Models/`（例：`AuthResult` 由註冊與改密碼共用）。
+被多個用例共用的 DTO 例外，放 `Models/`（例：`UserDto`）。
+會失敗的用例回 `Result`／`Result<T>`：業務錯誤先定義在 `Errors/{Feature}Errors.cs`，Handler 寫
+`return ProductErrors.NotFound;`；欄位檢查彙整進 errors 字典後 `return Error.Validation(errors);`。
+錯誤類型與狀態碼見 `docs/api-conventions.md`「Handler 的結果表達」；不會失敗的查詢直接回資料。
 
 ```csharp
 // Features/Products/Queries/GetProductsQuery.cs
@@ -451,18 +442,20 @@ public class ProductEndpoints : IEndpoint
             .Produces<PagedResult<ProductDto>>();
 
         group.MapGet("/{id:int}", async (int id,
-            IQueryHandler<GetProductDetailQuery, ProductDetailDto?> handler,
+            IQueryHandler<GetProductDetailQuery, Result<ProductDetailDto>> handler,
             CancellationToken ct)
-            => await handler.Handle(new(id), ct) is { } dto
-                ? Results.Ok(dto)
-                : Results.NotFound())
+            =>
+            {
+                var result = await handler.Handle(new(id), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+            })
             .Produces<ProductDetailDto>()
-            .Produces(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }
 ```
 
-每個 endpoint 都要用 `.Produces<T>()` 標註回應型別與狀態碼，Scalar 才看得到回應結構（見 `docs/api-conventions.md`）。
+每個 endpoint 都要用 `.Produces<T>()` 標註回應型別與狀態碼、失敗用 `.ProducesProblem(狀態碼)`，Scalar 才看得到回應結構（見 `docs/api-conventions.md`）。
 
 ---
 

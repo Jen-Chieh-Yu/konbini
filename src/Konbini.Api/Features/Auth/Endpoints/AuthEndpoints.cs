@@ -1,5 +1,6 @@
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
+using Konbini.Api.Features.Common.Web;
 using Konbini.Api.Features.Auth.Commands;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Queries;
@@ -14,54 +15,58 @@ public class AuthEndpoints : IEndpoint
 
         group.MapPost("/register", async (
                 RegisterRequest request,
-                ICommandHandler<RegisterCommand, AuthResult> handler,
+                ICommandHandler<RegisterCommand, Result> handler,
                 CancellationToken ct)
             =>
             {
                 var result = await handler.Handle(new(request), ct);
-                return result.Success ? Results.Ok(result) : Results.BadRequest(result);
+                return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
             })
-            .Produces<AuthResult>()
-            .Produces<AuthResult>(StatusCodes.Status400BadRequest);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         // 未實作登入速率限制：本專案為學習用途、不正式上線（CLAUDE.md §6）。
         // 若日後對外開放，這是上線前必補項（暴力破解防護）。
         group.MapPost("/login", async (
                 LoginRequest request,
-                ICommandHandler<LoginCommand, LoginResult> handler,
+                ICommandHandler<LoginCommand, Result<LoginResponse>> handler,
                 CancellationToken ct)
             =>
             {
                 var result = await handler.Handle(new(request), ct);
-                return result.Success ? Results.Ok(result.Data) : Results.BadRequest(result);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
             })
             .Produces<LoginResponse>()
-            .Produces<LoginResult>(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapPut("/password", async (
                 ChangePasswordRequest request,
                 ICurrentUser currentUser,
-                ICommandHandler<ChangePasswordCommand, AuthResult> handler,
+                ICommandHandler<ChangePasswordCommand, Result> handler,
                 CancellationToken ct)
             =>
             {
                 var result = await handler.Handle(new(currentUser.Id, request), ct);
-                return result.Success ? Results.Ok(result) : Results.BadRequest(result);
+                return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
             })
-            .Produces<AuthResult>()
-            .Produces<AuthResult>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireAuthorization();
 
         group.MapGet("/me", async (
                 ICurrentUser currentUser,
-                IQueryHandler<GetCurrentUserQuery, UserDto?> handler,
+                IQueryHandler<GetCurrentUserQuery, Result<UserDto>> handler,
                 CancellationToken ct)
-            => await handler.Handle(new(currentUser.Id), ct) is { } user
-                ? Results.Ok(user)
-                : Results.NotFound())
+            =>
+            {
+                var result = await handler.Handle(new(currentUser.Id), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+            })
             .Produces<UserDto>()
-            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .Produces(StatusCodes.Status401Unauthorized)
             .RequireAuthorization();
     }

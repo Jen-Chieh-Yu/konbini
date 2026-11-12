@@ -5,7 +5,7 @@ import { h, type VNode } from 'vue'
  * 分工的理由見 CLAUDE.md §2「表單錯誤」。
  */
 
-/** 錯誤回應的 errors：key 對應欄位名稱，general 是不屬於特定欄位的錯誤 */
+/** 錯誤回應（ProblemDetails）的 errors：key 對應欄位名稱，general 是不屬於特定欄位的錯誤 */
 export type ApiErrors = Record<string, string>
 
 export interface ApiErrorResult {

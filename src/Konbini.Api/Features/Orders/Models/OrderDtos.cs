@@ -26,9 +26,3 @@ public record OrderDto(
     string? Memo,
     DateTime CreatedAt,
     List<OrderItemDto> Items);
-
-public record CreateOrderResult(bool Success, Dictionary<string, string> Errors, int? OrderId)
-{
-    public static CreateOrderResult Ok(int orderId) => new(true, [], orderId);
-    public static CreateOrderResult Fail(Dictionary<string, string> errors) => new(false, errors, null);
-}
