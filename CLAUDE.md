@@ -184,11 +184,11 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 
 ### Rider 執行設定進版控（2026-11-03 定案）
 
-`.run/` 放三個共用執行設定：**Konbini.Api**（本機 API）、**api + postgres（容器）**、**postgres**。
+`.run/` 放四個共用執行設定：**Konbini.Api**（本機 API）、**api + postgres（容器）**、**postgres**、**mailpit**（2026-11-12 新增）。
 
 - **放 `.run/`，不留在 workspace.xml**：workspace.xml 是個人檔、不進版控，容器設定記的是絕對路徑；
   `.run/*.run.xml` 用 `$PROJECT_DIR$`，clone 下來就有。勾 Store as project file 的設定由 Rider 寫到這裡。
-- **本機 API 的 Before launch 先起 postgres**：省掉「忘了起資料庫」這一步。以設定名稱參照，改名要一起改。
+- **本機 API 的 Before launch 先起 postgres 與 mailpit**：省掉「忘了起資料庫」這一步（mailpit 同理，2026-11-12）。以設定名稱參照，改名要一起改。
 - **前端不做成執行設定**：維持終端機 `npm run dev`。compound 一鍵全起要多維護一組參照，
   換回的只是少開一個終端機。
 - **Docker Desktop 的啟動不放共用設定**：External Tools 存在使用者層級，共用設定引用它，換電腦就斷；
@@ -265,18 +265,18 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 初版設計是「兩份獨立檔案、預設檔只放無害的 mysql」。後來為了 **VS F5 容器偵錯**
 改為現制——這是一次明確的取捨變更，代價要記著：
 
-- `docker-compose.yml`（base：api + postgres）+ `docker-compose.override.yml`
+- `docker-compose.yml`（base：api + postgres + mailpit）+ `docker-compose.override.yml`
   （偵錯環境變數與埠）：VS 以 `docker-compose.dcproj` 為啟始專案按 F5 時啟動，
   偵錯器附加進 api 容器；Rider 的「api + postgres（容器）」用同一組檔案達到相同效果（2026-11-03）。
   api 對外固定 `5214:8080`，**與本機執行同一個埠**，
   所以 vite proxy 與 Scalar 網址在容器內外兩種模式下通用。
-- `docker-compose.prod.yml`：部署專用，自包含三服務（client + api + postgres），
+- `docker-compose.prod.yml`：部署專用，自包含四個服務（client + api + postgres + mailpit），
   不與 base 合併、必須明確 `-f` 指定。
-- 只要資料庫（本機熱重載模式）：`docker compose up -d postgres` 指定服務名。
+- 只要資料庫與收信（本機熱重載模式）：`docker compose up -d postgres mailpit` 指定服務名。
 
 **接受的代價**：① ~~dcproj 只有 Visual Studio 認得，CLI 裸建 sln 會失敗~~
 ——2026-11-02 實測已不成立（SDK 10 在 Windows 與 Linux 都能裸建，見 §2 `.slnx` 節），此代價不存在；
-② 預設檔不再無害：誤打 `docker compose up` 會建置並啟動 api + postgres 的
+② 預設檔不再無害：誤打 `docker compose up` 會建置並啟動 api + postgres + mailpit 的
 Development 組合（仍不含 client、不是部署佈局）。
 ③ dcproj 與 Windows/VS 綁定；macOS 上用 Rider/VS Code 時忽略它即可，
 compose 檔本身與部署流程完全跨平台。
@@ -293,9 +293,26 @@ nginx（client 容器）是唯一入口：SPA 靜態檔 + `/api` 反代。
 附帶效果：前端打相對路徑 `/api`，瀏覽器端無跨域，**不需要維護 CORS 白名單**
 （開發環境由 vite proxy 承擔同樣角色）。
 
+### 收信用 Mailpit，部署佈局也放（2026-11-12 定案）
+
+開發與部署環境都用 Mailpit（`axllent/mailpit:v1`，主版本釘死、原生 arm64）收下 API 寄出的所有信，在網頁上看信、點連結。
+
+- **不寄到真實信箱**：開發與測試會寄信給 `t<亂數>@example.com` 這類測試地址；接真的 SMTP 服務要多管一組帳密（機密），
+  地址打錯就會寄到別人手上。Mailpit 不轉寄，也不需要帳密。
+- **部署佈局也放**：專案不正式上線（§1），部署只是演練，沒有真的收信對象。未完成 Email 驗證的帳號不能登入，
+  部署佈局看不到信就沒有人能完成註冊，所以收信畫面要開給部署機本機。
+- **收信畫面只綁本機**：開發 `127.0.0.1:8025`、部署 `127.0.0.1:8026`。部署改用 8026，是為了和開發環境同時執行
+  （兩者本來就是分開的 compose 專案）。SMTP（1025）在部署佈局只走 compose 內部網路；開發環境綁 `127.0.0.1:1025`，給本機執行的 API 用。
+- **不掛 volume**：信只用來點連結，重建容器時清空可以接受。
+- **寄信設定鍵與 api 的 `depends_on` 跟 Email 驗證一起加入**：沒有程式讀的設定鍵打錯也不會報錯，
+  要和讀它的程式一起加入、一起驗證（鍵名見 §6 的 Email 驗證那一列）。
+
+放棄的東西：部署佈局寄不出真實信件，定位改為正式上線時要換成真的 SMTP 服務（與 §6「明確不做」同樣是上線前檢查項目）；
+多一個容器要跟著升版；信件不保存。
+
 ### macOS（Apple Silicon）（2026-08-31 定案）
 
-.NET、nginx、PostgreSQL 18 官方映像皆原生 arm64；若遇到沒有 arm64 的映像，
+.NET、nginx、PostgreSQL 18 官方映像與 Mailpit 皆原生 arm64；若遇到沒有 arm64 的映像，
 **不要用 `platform: linux/amd64` 硬撐**（走 Rosetta，效能差且偶有 I/O 問題），
 換 tag 或換映像解決。
 
@@ -438,7 +455,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 - **測試打包**（`workflow_dispatch` 的 `test_package`）：在任何分支跑完整打包與冒煙測試，版號 `0.0.0-test.<編號>`。
   為了「合併前先試跑」而在分支上打 `v*` 標籤是更糟的選項——已推送的標籤原則上不刪，會跟正式版號混在一起。
 - **冒煙測試驗證的是成品，不是原始碼**：用剛建好的映像跑 `docker-compose.prod.yml`（`--no-build`），
-  確認 api 與 postgres 健康、client 執行中（nginx 未設 healthcheck）、首頁與 `/api` 反代可用、版號正確、種子資料存在。兩種架構各跑一次（各自是不同的映像）。
+  確認 api、postgres、mailpit 健康、client 執行中（nginx 未設 healthcheck）、首頁與 `/api` 反代可用、版號正確、種子資料存在。兩種架構各跑一次（各自是不同的映像）。
 - **成品放 Release 草稿**：Actions artifact 30 天就刪，Release 附件不會過期；「草稿」就是半自動的人工確認點，
   人看過內容才 Publish。重跑同一個標籤時 Release 已存在則略過，不覆蓋。
 - **版號寫進成品**：後端組件的 InformationalVersion（`GET /api/version`）與前端的 `version.json`，
@@ -478,7 +495,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
 | API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView 與 Auth 的登入、註冊頁（2026-11-11）照規範（見 `docs/ui-guidelines.md`） |
-| Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。開發環境用 Mailpit 收信，寄信抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；驗證 token 存雜湊值、不存原文。先決定未驗證帳號能否登入與下單、token 效期、重寄次數 |
+| Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。收信用 Mailpit（2026-11-12 已加入開發與部署環境，見 §4）；寄信用 MailKit，抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；設定鍵 `Email:From`、`Email:Smtp:Host`、`Email:Smtp:Port` 與 `App:ClientBaseUrl`（信中連結指向前端）隨這一支加入，容器用的值在 compose `environment:` 明寫；驗證 token 存雜湊值、不存原文。已定案：未完成驗證的帳號不能登入（2026-11-12）；先決定 token 效期、重寄次數、既有帳號是否視為已驗證 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
 
@@ -495,8 +512,8 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 |---|---|
 | `README.md` | 專案結構、開發流程（The Feature Flow）、Docker、測試 |
 | `.env.example` | compose 所需的環境變數清單 |
-| `docker-compose.yml` | 開發環境 base（api + postgres，與 override 合併；只要資料庫用 `up -d postgres`） |
-| `docker-compose.prod.yml` | 部署環境（client + api + postgres） |
+| `docker-compose.yml` | 開發環境 base（api + postgres + mailpit，與 override 合併；本機執行 API 時用 `up -d postgres mailpit`） |
+| `docker-compose.prod.yml` | 部署環境（client + api + postgres + mailpit） |
 | `docker/postgres/init/` | postgres volume 首次初始化時執行的腳本（建立應用程式帳號與資料庫） |
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
