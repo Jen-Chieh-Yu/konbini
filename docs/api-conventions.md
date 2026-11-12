@@ -163,12 +163,15 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
   > 現況：改密碼是逐項檢查、逐一回傳，尚未彙整。
 - 會存進資料庫的輸入都要檢查長度上限。上限定義成 Entity 常數（例：`User.NameMaxLength`），
   由 `HasMaxLength` 與 Handler 共用，兩邊才不會改了一邊忘了另一邊。
+- 文字輸入先去頭尾空白，再檢查必填、長度與格式，存的也是處理後的值；只有空白的選填欄位存 null。
+  Email 先 `User.NormalizeEmail`（去空白、轉小寫）再驗格式，與登入的處理一致。
 - 密碼 8–20 個字元，需包含大寫、小寫英文字母、數字與半形符號，不可有空白（`PasswordPolicy`），
   註冊與改密碼共用。存的是雜湊值，上限與資料庫欄位無關；登入不檢查，以免先前註冊、
   不符合現行規則的帳號登不進去。前端密碼欄位不加 `maxlength`：貼上時會被默默截斷，
   使用者不知道實際存了什麼。
   前端 `features/Auth/constants/passwordRules.ts` 有同一份規則，用來顯示強度、在送出時列出不符合的條件；
   改規則時兩邊要一起改。
+  改密碼時，新密碼不可與目前密碼相同。
 - 業務規則驗證（庫存、金額、狀態轉換）在 Handler 或 Service，
   不要放在 Endpoint。
 - 唯一性檢查分兩段：先查，回友善訊息；提交時再接 `UniqueConstraintViolationException`，
@@ -176,6 +179,7 @@ Endpoint 對應狀態碼後，將 Result 直接作為錯誤回應 body：
 - 金額與數量一律在後端重算，不信任前端傳來的總計。
 - 每項商品數量上限 99 件（`OrderItem.MaxQuantity`），同商品分多筆送來時看合計；
   前端購物車的 `MAX_ITEM_QUANTITY` 要與它對齊。
+  一張訂單最多 50 筆 items（`Order.MaxItems`），同商品分多筆送來也各算一筆。
 
 ## 認證授權
 
