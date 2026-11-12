@@ -473,7 +473,7 @@ Pull Request（核准數 0、討論串須全部 resolve）、merge 方式只允�
 
 放棄的東西：main 上看不到分支內逐個 commit 的歷史（仍保留在 Pull Request 頁面）；
 Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改用 `-D`。
-#6（中文標題慣例之前）與 #10（Squash 時誤改 Commit message）的標題不符慣例，
+#6（中文標題慣例之前）、#10（Squash 時誤改 Commit message）與 #38（`Refactor/20261112 result error types`，沒有 type 前綴、也不是中文）的標題不符慣例，
 依「不改動歷史」保留原樣。
 
 ### 開發流程與提交順序（2026-11-11 定案）
