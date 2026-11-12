@@ -60,6 +60,54 @@ public class RegisterHandlerTests
     }
 
     [Fact]
+    public async Task NameAtLimitWithSurroundingSpaces_IsAccepted()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with
+        {
+            LastName = "  " + new string('姓', 50) + " ",
+            FirstName = " " + new string('名', User.NameMaxLength - 50) + "  ",
+        };
+
+        var result = await Handle(request, uow);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task BlankLastName_ReturnsLastNameError()
+    {
+        var result = await Handle(ValidRequest() with { LastName = "   " }, new FakeUnitOfWork());
+
+        Assert.False(result.Success);
+        Assert.Contains("lastName", result.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task FieldsAreTrimmed_AndEmailNormalizedBeforeValidation()
+    {
+        var uow = new FakeUnitOfWork();
+        var users = new FakeUserRepository();
+        var request = ValidRequest() with
+        {
+            LastName = "  王 ",
+            FirstName = " 小明  ",
+            Email = "  User@Example.com ",   // 原本用原字串驗格式，前後有空白就回「Email格式不正確」
+            PhoneNumber = " 0912345678 ",
+        };
+
+        var result = await Handle(request, uow, users);
+
+        Assert.True(result.Success);
+        Assert.Equal("user@example.com", users.CheckedEmail);
+        var user = Assert.IsType<User>(users.Added);
+        Assert.Equal("王小明", user.Name);
+        Assert.Equal("user@example.com", user.Email);
+        Assert.Equal("0912345678", user.Phone);
+    }
+
+    [Fact]
     public async Task EmailAtLimit_IsAccepted()
     {
         var uow = new FakeUnitOfWork();
@@ -106,8 +154,8 @@ public class RegisterHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
-    private static Task<AuthResult> Handle(RegisterRequest request, FakeUnitOfWork uow) =>
-        new RegisterHandler(new FakeUserRepository(), new FakePasswordHasher(), uow)
+    private static Task<AuthResult> Handle(RegisterRequest request, FakeUnitOfWork uow, FakeUserRepository? users = null) =>
+        new RegisterHandler(users ?? new FakeUserRepository(), new FakePasswordHasher(), uow)
             .Handle(new RegisterCommand(request), CancellationToken.None);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
@@ -131,8 +179,16 @@ public class RegisterHandlerTests
 
     private sealed class FakeUserRepository : IUserRepository
     {
-        public Task<bool> EmailExistsAsync(string email, CancellationToken ct) => Task.FromResult(false);
-        public void Add(User user) { }
+        public string? CheckedEmail { get; private set; }
+        public User? Added { get; private set; }
+
+        public Task<bool> EmailExistsAsync(string email, CancellationToken ct)
+        {
+            CheckedEmail = email;
+            return Task.FromResult(false);
+        }
+
+        public void Add(User user) => Added = user;
 
         public Task<User?> GetByEmailAsync(string email, CancellationToken ct) => throw new NotSupportedException();
         public Task<User?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();

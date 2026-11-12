@@ -35,9 +35,40 @@ public class ChangePasswordHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
+    [Theory]
+    [InlineData(null)]   // 原本 PasswordHasher 會丟 ArgumentNullException，回 500
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CurrentPasswordMissing_ReturnsCurrentPasswordError_WithoutSaving(string? currentPassword)
+    {
+        var uow = new FakeUnitOfWork();
+
+        var result = await Handle(currentPassword!, PasswordOfLength(PasswordPolicy.MinLength), uow);
+
+        Assert.False(result.Success);
+        Assert.Equal("請輸入目前密碼", result.Errors["currentPassword"]);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task NewPasswordSameAsCurrent_ReturnsNewPasswordError_WithoutSaving()
+    {
+        var uow = new FakeUnitOfWork();
+        var password = PasswordOfLength(PasswordPolicy.MinLength);
+
+        var result = await Handle(password, password, uow);
+
+        Assert.False(result.Success);
+        Assert.Equal("新密碼不可與目前密碼相同", result.Errors["newPassword"]);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
     private static Task<AuthResult> Handle(string newPassword, FakeUnitOfWork uow) =>
+        Handle("current-password", newPassword, uow);
+
+    private static Task<AuthResult> Handle(string currentPassword, string newPassword, FakeUnitOfWork uow) =>
         new ChangePasswordHandler(new FakeUserRepository(), new FakePasswordHasher(), uow)
-            .Handle(new ChangePasswordCommand(1, new ChangePasswordRequest("current-password", newPassword)), CancellationToken.None);
+            .Handle(new ChangePasswordCommand(1, new ChangePasswordRequest(currentPassword, newPassword)), CancellationToken.None);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
