@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
+using Konbini.Api.Features.Common.Configuration;
 using Konbini.Api.Features.Common.Persistence;
 using Konbini.Api.Features.Common.Persistence.Seed;
 using Konbini.Api.Features.Common.Web;
@@ -11,13 +12,15 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+// 本機 dotnet run 讀根目錄的 .env（只在 Development，見 LocalDotEnv）
+builder.AddLocalDotEnv();
 
-// --- 資料庫（連線字串來源：容器 = .env 經環境變數；本機 = user-secrets）---
+// --- 資料庫（連線字串來源：容器 = .env 經 compose 的 environment；本機 = .env 經 LocalDotEnv）---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException(
-        "ConnectionStrings:DefaultConnection 未設定。本機開發請用 dotnet user-secrets，容器請確認 .env 與 compose 的 environment。");
+        "ConnectionStrings:DefaultConnection 未設定。本機開發請在根目錄的 .env 設定 APP_DB_PASSWORD（照 .env.example），容器請確認 .env 與 compose 的 environment。");
 }
 // 資料表、欄位、索引一律 snake_case（PostgreSQL 慣例：未加引號的識別字會轉小寫，PascalCase 手寫 SQL 時都要加雙引號）
 builder.Services.AddScoped<AuditInterceptor>();
@@ -31,7 +34,7 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
 var jwtSecret = builder.Configuration["Jwt:Secret"];
 if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
 {
-    throw new InvalidOperationException("Jwt:Secret 未設定或長度不足（至少 32 字元的隨機字串）。");
+    throw new InvalidOperationException("Jwt:Secret 未設定或長度不足（至少 32 字元的隨機字串，設定在 .env 的 JWT_SECRET）。");
 }
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

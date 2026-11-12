@@ -1,4 +1,5 @@
 using Konbini.Api.Features.Common.Abstractions;
+using Konbini.Api.Features.Common.Web;
 using Konbini.Api.Features.Products.Models;
 using Konbini.Api.Features.Products.Queries;
 
@@ -21,12 +22,14 @@ public class ProductEndpoints : IEndpoint
 
         group.MapGet("/{id:int}", async (
                 int id,
-                IQueryHandler<GetProductDetailQuery, ProductDetailDto?> handler,
+                IQueryHandler<GetProductDetailQuery, Result<ProductDetailDto>> handler,
                 CancellationToken ct)
-            => await handler.Handle(new(id), ct) is { } detail
-                ? Results.Ok(detail)
-                : Results.NotFound())
+            =>
+            {
+                var result = await handler.Handle(new(id), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+            })
             .Produces<ProductDetailDto>()
-            .Produces(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }

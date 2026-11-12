@@ -24,7 +24,8 @@
 - 主分支為 **`main`**（GitHub 預設）
 - GitHub 的操作名稱寫全名，與網頁介面一致：**Pull Request**（不寫 PR）、
   Branch protection、Merge。CI／CD 屬產業通稱，不在此限
-- 文件分工：「怎麼做」寫 `README.md`，「為什麼」寫這裡，各維護一份、不重複
+- 文件分工：「怎麼做」寫 `README.md`，架構與技術的「為什麼」寫這裡，業務規則（各模組的現況規則與業務決策）
+  寫 `docs/modules/`，各維護一份、不重複
 
 ---
 
@@ -103,8 +104,8 @@ Endpoint 的參數直接寫 `ICommandHandler<TCommand, TResult>`／`IQueryHandle
 - **現在不用的理由**：現有的橫切關注點都已有歸屬（例外→`GlobalExceptionHandler`、
   交易→handler 呼叫 `IUnitOfWork`、驗證→handler 回傳 Result）。多一層轉送的代價是 F12 追不到 handler，
   反射實作在漏註冊時要到執行時期才報錯。
-- **導入前要先處理的事**：command／query 要實作 `ICommand<TResult>` 這類介面帶出結果型別，`Send()` 才推得出回傳值；
-  想做統一的驗證 behavior，得先把各用例各自的 Result 型別（`AuthResult`、`CreateOrderResult`…）收斂成泛型基底。
+- **導入前要先處理的事**：command／query 要實作 `ICommand<TResult>` 這類介面帶出結果型別，`Send()` 才推得出回傳值（尚未做）；
+  想做統一的驗證 behavior，得先把各用例各自的 Result 型別收斂成泛型基底——已完成（2026-11-12，見下一節）。
 - **先評估 endpoint filter**：Minimal API 內建的 `IEndpointFilter`（掛在 route group 用 `AddEndpointFilter`）
   也是 `next()` 式的管線，位在 endpoint 之前，不必改 handler 宣告。限制是它看到的是 endpoint 參數、不是 command 物件，
   而且只在 HTTP 路徑上生效。需求只跟 HTTP 請求有關時用它就夠，要包住 handler 本身才導入 ISender。
@@ -113,6 +114,32 @@ Endpoint 的參數直接寫 `ICommandHandler<TCommand, TResult>`／`IQueryHandle
 
 放棄的東西：沒有用例層級的統一管線（HTTP 層的 middleware 照常運作，`GlobalExceptionHandler` 即掛在這裡），
 日後要加包住 handler 的全域行為時，得一次改寫所有 handler 宣告與 Endpoints 檔。
+
+### 用例結果：泛型 Result＋錯誤類型，失敗回 ProblemDetails（2026-11-12 定案）
+
+原本每個用例各一個 Result（`AuthResult`、`LoginResult`、`CreateOrderResult`），沒有錯誤類型，可預期的失敗一律 400，
+失敗時 body 帶出 `null` 欄位。改為 `Common/Abstractions/Result.cs` 的 `Result`／`Result<T>` ＋ `Error`
+（Validation 400、Unauthorized 401、Forbidden 403、NotFound 404、Conflict 409），Endpoint 失敗時用 `ToProblem()`。
+對照的寫法來自使用者另一個專案（`Result`＋`Error`＋各模組的錯誤目錄＋`ApiResponse` 信封），不取 `ApiResponse`。
+
+- **時機在 Email 驗證之前**：驗證與重寄會有找不到、已驗證過、未驗證不能登入這類錯誤，先有錯誤類型就不必寫兩次。
+- **失敗用 ProblemDetails，不用 `ApiResponse` 信封**：成功直接回資料是既有規範；ProblemDetails 與 `GlobalExceptionHandler`
+  同一種格式，前端 `readApiErrors` 原本就讀 `errors`、沒有時讀 `title`，不用改。
+- **errors 維持「欄位 → 單一字串」**：前後端都假設一欄一則訊息；不用 ASP.NET `ValidationProblemDetails` 的字串陣列。
+- **沒有錯誤代碼（`Code`）**：前端用狀態碼加欄位 key 就能分辨。要分辨同一個狀態碼的不同原因時
+  （例：Email 驗證的「未驗證」），先看 403 夠不夠，不夠再用 ProblemDetails 的 `type` 放代碼。
+- **沒有 Failure（500）類型**：非預期錯誤照樣走例外，交給 `GlobalExceptionHandler`。
+- **Email 重複回 400 不回 409**：409 要等格式檢查都通過才查重複，使用者得改兩輪，也違反「送出時一次列出」（見「表單錯誤」）。
+  409 留給狀態衝突（重複下單、庫存不足）。
+- **登入失敗回 401，已登入的操作不回 401**：前端攔截器收到 401 會登出，所以改密碼的「目前密碼錯誤」回 400。
+- **只有會失敗的用例回 Result**：列表與代碼表直接回資料，包一層只是儀式。
+- **業務錯誤集中在 `{Feature}Errors`，欄位檢查的訊息留在 Handler**：業務錯誤會被多處回傳（「找不到使用者」有兩個用例），
+  集中後測試可以比對錯誤本身、不比對字串；欄位檢查的訊息一條規則只用一次，寫在規則旁邊才看得出檢查什麼，
+  比照對照專案把欄位訊息留在 Validator 的做法。
+- **只做轉換失敗的 `ToProblem()`**：成功有 200、201、204 三種形狀，各 Endpoint 明寫比包裝成 `ToSuccessResult` 好讀。
+
+放棄的東西：沒有機器可讀的錯誤代碼；errors 與 ASP.NET 標準的 `ValidationProblemDetails` 不相容；
+API 回應格式改變（成功不再帶 `success`、註冊與改密碼改回 204、下單 201 只回 `{ id }`），前後端同一個 Pull Request 上線。
 
 ### 為什麼 feature 內部用技術類型資料夾（Models/Commands/Queries/Endpoints）（2026-08-31 定案）
 
@@ -184,11 +211,11 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 
 ### Rider 執行設定進版控（2026-11-03 定案）
 
-`.run/` 放三個共用執行設定：**Konbini.Api**（本機 API）、**api + postgres（容器）**、**postgres**。
+`.run/` 放四個共用執行設定：**Konbini.Api**（本機 API）、**api + postgres（容器）**、**postgres**、**mailpit**（2026-11-12 新增）。
 
 - **放 `.run/`，不留在 workspace.xml**：workspace.xml 是個人檔、不進版控，容器設定記的是絕對路徑；
   `.run/*.run.xml` 用 `$PROJECT_DIR$`，clone 下來就有。勾 Store as project file 的設定由 Rider 寫到這裡。
-- **本機 API 的 Before launch 先起 postgres**：省掉「忘了起資料庫」這一步。以設定名稱參照，改名要一起改。
+- **本機 API 的 Before launch 先起 postgres 與 mailpit**：省掉「忘了起資料庫」這一步（mailpit 同理，2026-11-12）。以設定名稱參照，改名要一起改。
 - **前端不做成執行設定**：維持終端機 `npm run dev`。compound 一鍵全起要多維護一組參照，
   換回的只是少開一個終端機。
 - **Docker Desktop 的啟動不放共用設定**：External Tools 存在使用者層級，共用設定引用它，換電腦就斷；
@@ -200,16 +227,33 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 
 ## 3. 資料與機密
 
-### 連線字串的注入路徑（2026-08-31 定案）
+### 設定的來源（2026-08-31 定案，2026-11-12 本機改讀 `.env`）
 
 | 情境 | 來源 |
 |---|---|
 | 容器 | `.env` →（compose `environment:`）→ 環境變數 `ConnectionStrings__DefaultConnection` |
-| 本機 `dotnet run` | `dotnet user-secrets`（存於使用者目錄，天生不會誤 commit） |
+| 本機 `dotnet run`（Development） | 同一份 `.env`，由 `LocalDotEnv` 讀取並對應成 .NET 設定鍵；已設定的環境變數優先 |
+| 非機密的共用預設值 | `appsettings.json`（進版控，本身就是範本；鍵一覽見 `docs/configuration.md`） |
 
-`appsettings.json` 與程式碼中不出現任何機密。本機不放第二份 `.env` 是刻意的
-——repo 裡的 `.env` 檔越多，誤 commit 的面越大；專案要放 GitHub，這條紅線
+`appsettings.json` 與程式碼中不出現任何機密。repo 裡只有一份 `.env` 是刻意的
+——`.env` 檔越多，誤 commit 的面越大；專案要放 GitHub，這條紅線
 比一般專案更硬。
+
+**本機改讀 `.env`、不用 user-secrets（2026-11-12 變更決策）**：
+
+- **兩份要手動保持一致**：原本 `.env` 與 user-secrets 各存一份資料庫密碼和 JWT 金鑰，
+  兩邊不一致是本機最常見的錯誤。改成一份檔案，容器與本機讀同一組值。
+- **只在 Development、往上找得到 `Konbini.slnx` 時才讀**：部署的容器裡沒有這個檔，不受影響。
+- **插在環境變數之前**：Rider、CI 或終端機臨時設定的值仍然可以覆寫，行為和 compose 一致；
+  容器偵錯（Fast mode）掛載原始碼時就算讀得到 `.env`，compose 注入的值也會蓋過它。
+- **自己解析、不用 DotNetEnv**：套件預設把值寫進行程的環境變數（子行程會繼承，也會打亂覆寫順序），
+  而且只有 `Program.cs` 一個使用者。
+- **不改成 `appsettings.example.json`**：`appsettings.json` 沒有機密，只放所有環境共用的預設值；
+  移出版控後，CI 與映像建置拿不到 `Jwt:Issuer`、`Jwt:Audience`。
+
+放棄的東西：`.env` 的鍵名不是 .NET 格式，新增本機要讀的機密時，`LocalDotEnv` 也要加對應；
+連線主機寫死 `127.0.0.1:5432`，資料庫不在那裡時要用環境變數覆寫 `ConnectionStrings__DefaultConnection`；
+舊機器殘留的 user-secrets 不會自動清除（不再讀取，不影響）。
 
 ⚠️ **compose 的 `.env` 只做 `${}` 替換，不會自動注入容器**，要進容器的鍵
 必須在 `environment:` 明寫，且用 .NET 設定鍵格式（`__` 雙底線）。
@@ -265,18 +309,18 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 初版設計是「兩份獨立檔案、預設檔只放無害的 mysql」。後來為了 **VS F5 容器偵錯**
 改為現制——這是一次明確的取捨變更，代價要記著：
 
-- `docker-compose.yml`（base：api + postgres）+ `docker-compose.override.yml`
+- `docker-compose.yml`（base：api + postgres + mailpit）+ `docker-compose.override.yml`
   （偵錯環境變數與埠）：VS 以 `docker-compose.dcproj` 為啟始專案按 F5 時啟動，
   偵錯器附加進 api 容器；Rider 的「api + postgres（容器）」用同一組檔案達到相同效果（2026-11-03）。
   api 對外固定 `5214:8080`，**與本機執行同一個埠**，
   所以 vite proxy 與 Scalar 網址在容器內外兩種模式下通用。
-- `docker-compose.prod.yml`：部署專用，自包含三服務（client + api + postgres），
+- `docker-compose.prod.yml`：部署專用，自包含四個服務（client + api + postgres + mailpit），
   不與 base 合併、必須明確 `-f` 指定。
-- 只要資料庫（本機熱重載模式）：`docker compose up -d postgres` 指定服務名。
+- 只要資料庫與收信（本機熱重載模式）：`docker compose up -d postgres mailpit` 指定服務名。
 
 **接受的代價**：① ~~dcproj 只有 Visual Studio 認得，CLI 裸建 sln 會失敗~~
 ——2026-11-02 實測已不成立（SDK 10 在 Windows 與 Linux 都能裸建，見 §2 `.slnx` 節），此代價不存在；
-② 預設檔不再無害：誤打 `docker compose up` 會建置並啟動 api + postgres 的
+② 預設檔不再無害：誤打 `docker compose up` 會建置並啟動 api + postgres + mailpit 的
 Development 組合（仍不含 client、不是部署佈局）。
 ③ dcproj 與 Windows/VS 綁定；macOS 上用 Rider/VS Code 時忽略它即可，
 compose 檔本身與部署流程完全跨平台。
@@ -293,9 +337,26 @@ nginx（client 容器）是唯一入口：SPA 靜態檔 + `/api` 反代。
 附帶效果：前端打相對路徑 `/api`，瀏覽器端無跨域，**不需要維護 CORS 白名單**
 （開發環境由 vite proxy 承擔同樣角色）。
 
+### 收信用 Mailpit，部署佈局也放（2026-11-12 定案）
+
+開發與部署環境都用 Mailpit（`axllent/mailpit:v1`，主版本釘死、原生 arm64）收下 API 寄出的所有信，在網頁上看信、點連結。
+
+- **不寄到真實信箱**：開發與測試會寄信給 `t<亂數>@example.com` 這類測試地址；接真的 SMTP 服務要多管一組帳密（機密），
+  地址打錯就會寄到別人手上。Mailpit 不轉寄，也不需要帳密。
+- **部署佈局也放**：專案不正式上線（§1），部署只是演練，沒有真的收信對象。未完成 Email 驗證的帳號不能登入，
+  部署佈局看不到信就沒有人能完成註冊，所以收信畫面要開給部署機本機。
+- **收信畫面只綁本機**：開發 `127.0.0.1:8025`、部署 `127.0.0.1:8026`。部署改用 8026，是為了和開發環境同時執行
+  （兩者本來就是分開的 compose 專案）。SMTP（1025）在部署佈局只走 compose 內部網路；開發環境綁 `127.0.0.1:1025`，給本機執行的 API 用。
+- **不掛 volume**：信只用來點連結，重建容器時清空可以接受。
+- **寄信設定鍵與 api 的 `depends_on` 跟 Email 驗證一起加入**：沒有程式讀的設定鍵打錯也不會報錯，
+  要和讀它的程式一起加入、一起驗證（鍵名見 §6 的 Email 驗證那一列）。
+
+放棄的東西：部署佈局寄不出真實信件，定位改為正式上線時要換成真的 SMTP 服務（與 §6「明確不做」同樣是上線前檢查項目）；
+多一個容器要跟著升版；信件不保存。
+
 ### macOS（Apple Silicon）（2026-08-31 定案）
 
-.NET、nginx、PostgreSQL 18 官方映像皆原生 arm64；若遇到沒有 arm64 的映像，
+.NET、nginx、PostgreSQL 18 官方映像與 Mailpit 皆原生 arm64；若遇到沒有 arm64 的映像，
 **不要用 `platform: linux/amd64` 硬撐**（走 Rosetta，效能差且偶有 I/O 問題），
 換 tag 或換映像解決。
 
@@ -338,6 +399,13 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 - **為什麼 `vue-tsc` 從第一天就阻擋**：目前型別錯誤為 0，此時設阻擋的
   成本是零；等錯誤累積後再想擋，就得先還債。
 - **為什麼 `*.md` 與 `docs/` 不觸發**：文件變更跑建置是純浪費（`docs/mockups` 的 HTML 草稿也屬文件）。
+- **為什麼檢查待產生的 Migration（2026-11-12 定案）**：API 啟動時自動套 Migration（§3），改了 Entity 卻忘了
+  `migrations add`，本機與單元測試都不會發現，要到打包的冒煙測試或欄位不存在的 500 才知道。
+  `has-pending-model-changes` 只比對模型與快照、不連資料庫；`Program.cs` 在 `Build()` 前就檢查連線字串與
+  `Jwt:Secret`，所以 CI 與 hook 都自己給假值（不是機密），本機沒有 `.env` 也能檢查。
+- **為什麼測試結果用 GitHubActions logger、每個 job 設逾時（2026-11-12 定案）**：原本測試失敗要下載 trx 才知道是哪一個；
+  logger 把失敗標到檔案行號、結果寫進 Summary（trx 仍在失敗時上傳）。未設 `timeout-minutes` 時卡住的 job 會跑滿 360 分鐘，
+  同分支的下一次推送也得等它被取消。逾時只防卡住，數值抓實際時間的 3–5 倍。
 - **為什麼 SDK 與 Node 版本由專案檔決定（2026-11-02 定案）**：.NET SDK 讀 `global.json`、
   Node 讀 `src/Konbini.Client/.nvmrc`，CI 不再寫死版本——本機與 CI 只有一個來源，升版只改一處。
   Node 統一為 24（Active LTS）：原本本機 24、CI 與 Dockerfile 22，三處不一致。
@@ -365,10 +433,11 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 分支命名：`feature/` `fix/` `refactor/` `docs/` `chore/` `hotfix/`
 ＋ `YYYYMMDD-描述`，與 Conventional Commits 的 type 對齊。
 
-本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（workflow 靜態檢查、後端測試＋前端
+本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（workflow 靜態檢查、後端測試、待產生 Migration 檢查＋前端
 型別檢查；Docker 建置留給雲端）。main 的必過檢查會擋住紅燈的 merge（見下方
 Branch protection），hook 的作用是把紅燈提早到推送前發現，省一輪 CI 等待。每台機器需 `git config core.hooksPath .githooks`
 啟用（未設定時靜默不觸發）；跳過用 `git push --no-verify`。
+hook 測的是工作目錄、不是要推送的 commit，有未提交的修改時只印警告（2026-11-12）：擋下的話，「先推上去給別人看」也要 `--no-verify`。
 hook 檔以 `.gitattributes` 強制 LF——CRLF 會讓 Git for Windows 的 sh 無法執行。
 
 ### Branch protection（2026-09-02 啟用）
@@ -438,7 +507,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 - **測試打包**（`workflow_dispatch` 的 `test_package`）：在任何分支跑完整打包與冒煙測試，版號 `0.0.0-test.<編號>`。
   為了「合併前先試跑」而在分支上打 `v*` 標籤是更糟的選項——已推送的標籤原則上不刪，會跟正式版號混在一起。
 - **冒煙測試驗證的是成品，不是原始碼**：用剛建好的映像跑 `docker-compose.prod.yml`（`--no-build`），
-  確認 api 與 postgres 健康、client 執行中（nginx 未設 healthcheck）、首頁與 `/api` 反代可用、版號正確、種子資料存在。兩種架構各跑一次（各自是不同的映像）。
+  確認 api、postgres、mailpit 健康、client 執行中（nginx 未設 healthcheck）、首頁與 `/api` 反代可用、版號正確、種子資料存在。兩種架構各跑一次（各自是不同的映像）。
 - **成品放 Release 草稿**：Actions artifact 30 天就刪，Release 附件不會過期；「草稿」就是半自動的人工確認點，
   人看過內容才 Publish。重跑同一個標籤時 Release 已存在則略過，不覆蓋。
 - **版號寫進成品**：後端組件的 InformationalVersion（`GET /api/version`）與前端的 `version.json`，
@@ -456,7 +525,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 項目 | 觸發條件 |
 |---|---|
 | ~~Branch protection（main 禁直推、Pull Request 必須綠燈）~~ | 已實施（2026-09-02）：ruleset「Protect main」，見上方 Branch protection 節 |
-| 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」。**handler 單元測試隨各模組 CRUD 一起寫，依模組類型決定測試種類**（2026-11-03 定案） |
+| 測試覆蓋擴充（handler 單元測試、Testcontainers 整合測試、前端 Vitest） | 主要擴充方向——目前 CI 綠燈只證明「編得過」，證明不了「行為對」。**handler 單元測試隨各模組 CRUD 一起寫，依模組類型決定測試種類**（2026-11-03 定案）。覆蓋率（coverlet＋ReportGenerator 寫進 Summary，只顯示不設門檻）等整合測試與 Vitest 有內容後再加，只有單元測試時數字沒有參考價值 |
 | ~~EnsureCreated → EF Migrations~~ | 已實施（2026-11-09）：API 啟動時套用 Migrations，見 §3 |
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
 | ~~列表查詢分頁（docs/api-conventions.md「分頁」格式）~~ | 已實施（2026-11-09）：商品、搜尋、訂單列表；代碼表資料量固定不分頁，相關商品固定最多 8 筆。頁碼放網址（與分類、關鍵字一致），API 回傳格式改變，前後端同一個 Pull Request 上線 |
@@ -467,7 +536,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
 | DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄） |
-| Endpoint 改經 ISender ＋ pipeline behavior（理由與前置工作見 §2「為什麼 Endpoint 直接注入 handler」） | 出現第一個要套用到所有用例的橫切需求（例：稽核欄位導入後記錄操作者），且 endpoint filter 不夠用。會改到全部 Endpoints 檔，不與分頁、長度驗證等同批檔案的分支並行（2026-11-04 記錄） |
+| Endpoint 改經 ISender ＋ pipeline behavior（理由與前置工作見 §2「為什麼 Endpoint 直接注入 handler」） | 出現第一個要套用到所有用例的橫切需求（例：稽核欄位導入後記錄操作者），且 endpoint filter 不夠用。會改到全部 Endpoints 檔，不與分頁、長度驗證等同批檔案的分支並行（2026-11-04 記錄）。前置工作完成一半（2026-11-12）：Result 已收斂成泛型；command 帶出結果型別的 `ICommand<TResult>` 尚未做 |
 | ~~輸入長度驗證：超過資料庫欄位長度的輸入目前回 500~~ | 已實施（2026-11-06）：註冊與下單的 Handler 檢查長度、回欄位錯誤；上限定義成 Entity 常數，`HasMaxLength` 與 Handler 共用同一來源 |
 | ~~下單數量上限：沒有上限時單價 × 數量可能溢位，算出錯誤的訂單金額~~ | 已實施（2026-11-06）：每項商品最多 99 件（`OrderItem.MaxQuantity`），同商品分多筆時看合計；前端購物車同步限制 |
 | ~~OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string）~~ | 已實施（2026-11-05）：`NumberHandling = Strict`，執行時與文件都只收 JSON 數字；請求格式錯誤一律由 `GlobalExceptionHandler` 回 400（原本開發環境會變成 500） |
@@ -476,11 +545,13 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除）~~ | 已實施（2026-11-06）：token 只留 `sub`；JWT 只簽章不加密，內容任何人都讀得到 |
 | refresh token（短效 access token ＋ 可撤銷的 refresh token） | 目前不導入（2026-11-06 評估）：不正式上線，8 小時重新登入可接受；導入要多資料表、旋轉與重用偵測、撤銷，以及前端的 401 重試與同時刷新處理。條件：想當練習題、要讓舊 token 能提早作廢（改密碼、登出），或定位改為正式上線。導入時不放 localStorage（效期長，XSS 的風險比現行 8 小時 token 大），要搭配旋轉或 `HttpOnly` cookie；前置工作是前端 401 統一處理 |
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
-| API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}` | 做訂單明細時一起處理 |
+| API 回應與 `docs/api-conventions.md` 的落差：~~下單 201 回整個 Result、400 帶 `null` 欄位~~（已實施（2026-11-12）：泛型 Result＋ProblemDetails，見 §2「用例結果」）、Location 指向尚無的 `GET /api/orders/{id}` | Location 留給訂單明細一起處理 |
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView 與 Auth 的登入、註冊頁（2026-11-11）照規範（見 `docs/ui-guidelines.md`）。遷移時一併處理（2026-11-12 全站掃描）：商品、搜尋列表的錯誤與空資料狀態；加入購物車的回饋，明細頁數量輸入用 min／max 限制，不默默截斷；結帳頁縣市／行政區載入失敗的處理、快速切換縣市時舊回應蓋掉新選項、送出成功的回饋；header 搜尋列改用 Element Plus 並達 44px、搜尋頁不重複放搜尋框；header 的「我的訂單」與「登入／登出」統一依同一個狀態顯示；訂單時間轉 Asia/Taipei 顯示（比照 `formatMoney` 抽共用函式） |
-| Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。開發環境用 Mailpit 收信，寄信抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；驗證 token 存雜湊值、不存原文。先決定未驗證帳號能否登入與下單、token 效期、重寄次數 |
+| Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。收信用 Mailpit（2026-11-12 已加入開發與部署環境，見 §4）；寄信用 MailKit，抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；設定鍵 `Email:From`、`Email:Smtp:Host`、`Email:Smtp:Port` 與 `App:ClientBaseUrl`（信中連結指向前端）隨這一支加入，容器用的值在 compose `environment:` 明寫；驗證 token 存雜湊值、不存原文。已定案：未完成驗證的帳號不能登入（2026-11-12）；先決定 token 效期、重寄次數、既有帳號是否視為已驗證 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
+| 前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步） | 越晚導入越貴（2026-11-12 記錄）：前端檔案少的現在，全專案格式化的 diff 最小；參照的另一專案先開 ESLint、Prettier 規則關著，累積約 1,500 處排版差異至今沒開。ESLint 與 Prettier 同一個分支開、格式化獨立一個 commit；unplugin-auto-import 要開 `eslintrc` 選項產生全域宣告（否則 `ElMessage` 會被報 `no-undef`）；`.gitattributes` 是 `text=auto`，Windows 工作目錄為 CRLF，要設 `endOfLine` 或對前端檔強制 LF。不與前端功能分支並行 |
+| E2E 測試（Playwright） | 練習題（2026-11-12 記錄）：接在 Testcontainers 整合測試與前端 Vitest 之後。CI 用 prod compose 起完整環境再跑（同冒煙測試），先涵蓋註冊 → 登入 → 加入購物車 → 下單這條主線。先決定測試資料怎麼準備、只在打包時跑還是每個 Pull Request 都跑 |
 | 購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄） | 與庫存欄位一起處理（同屬「購物車與後端不同步」，見 `docs/ui-guidelines.md`）：結帳頁載入時向後端取現價或試算金額，與購物車不同時提示。先決定要不要新增「依多個 Id 取商品」或試算端點 |
 | Email 格式前後端規則不同：前端 el-form 的 `type: 'email'` 比後端的 regex 嚴格，經 API 註冊的 `a@b.c` 這類帳號在登入頁送不出去（2026-11-12 記錄） | 做 Email 驗證時一起決定註冊的格式規則以哪邊為準；登入頁可改成只檢查必填（同「登入不檢查密碼規則」的理由） |
 | 縣市／行政區只有示範資料：`DataSeeder` 只有台北市、新北市、高雄市各 2 區（2026-11-12 記錄） | 結帳頁遷移到 UI 規範時，或要讓別人試用時；先決定資料來源，匯入要走 Migration 或種子資料更新 |
@@ -498,12 +569,14 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 |---|---|
 | `README.md` | 專案結構、開發流程（The Feature Flow）、Docker、測試 |
 | `.env.example` | compose 所需的環境變數清單 |
-| `docker-compose.yml` | 開發環境 base（api + postgres，與 override 合併；只要資料庫用 `up -d postgres`） |
-| `docker-compose.prod.yml` | 部署環境（client + api + postgres） |
+| `docker-compose.yml` | 開發環境 base（api + postgres + mailpit，與 override 合併；本機執行 API 時用 `up -d postgres mailpit`） |
+| `docker-compose.prod.yml` | 部署環境（client + api + postgres + mailpit） |
 | `docker/postgres/init/` | postgres volume 首次初始化時執行的腳本（建立應用程式帳號與資料庫） |
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
+| `docs/configuration.md` | 設定鍵一覽：用途、來源、是否機密、必填與格式限制 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
 | `docs/ui-guidelines.md` | 前端畫面、RWD 與中文排版規範 |
+| `docs/modules/` | 各模組的業務規則、用例流程與業務決策紀錄（索引：`docs/modules/README.md`） |
 | `docs/release.md` | 版號規則、發行步驟、測試打包 |
 | `docs/deployment.md` | 部署手冊：載入映像、啟動、檢查、升級與回到上一版 |
 | `CHANGELOG.md` | 變更紀錄（發行時整理） |

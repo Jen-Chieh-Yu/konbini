@@ -49,7 +49,7 @@ public class CreateOrderHandlerTests
 
         var result = await Handle(WithLength(field, limit), uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -64,8 +64,8 @@ public class CreateOrderHandlerTests
 
         var result = await Handle(WithLength(field, limit + 1), uow);
 
-        Assert.False(result.Success);
-        Assert.Contains(field, result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains(field, result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -79,8 +79,8 @@ public class CreateOrderHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("items", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("items", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
@@ -92,7 +92,7 @@ public class CreateOrderHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, uow.SaveCount);
     }
 
@@ -107,12 +107,26 @@ public class CreateOrderHandlerTests
 
         var result = await Handle(request, uow);
 
-        Assert.False(result.Success);
-        Assert.Contains("items", result.Errors.Keys);
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("items", result.Error!.Errors.Keys);
         Assert.Equal(0, uow.SaveCount);
     }
 
-    private static Task<CreateOrderResult> Handle(CreateOrderRequest request, FakeUnitOfWork uow) =>
+    [Fact]
+    public async Task UnknownProduct_ReturnsItemsValidationError_WithoutSaving()
+    {
+        var uow = new FakeUnitOfWork();
+        var request = ValidRequest() with { Items = [new CreateOrderItemDto(ProductId + 1, 1)] };
+
+        var result = await Handle(request, uow);
+
+        // body 裡的參照錯誤回 400，不是 404
+        Assert.Equal(ErrorType.Validation, result.Error?.Type);
+        Assert.Contains("items", result.Error!.Errors.Keys);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    private static Task<Result<CreateOrderResponse>> Handle(CreateOrderRequest request, FakeUnitOfWork uow) =>
         new CreateOrderHandler(new FakeOrderRepository(), new FakeProductRepository(), new FakeAddressRepository(), uow)
             .Handle(new CreateOrderCommand(1, request), CancellationToken.None);
 

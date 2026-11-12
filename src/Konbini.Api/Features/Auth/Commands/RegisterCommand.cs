@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
 using Konbini.Api.Features.Common.Abstractions;
@@ -10,17 +11,15 @@ namespace Konbini.Api.Features.Auth.Commands;
 public record RegisterCommand(RegisterRequest Request);
 
 public partial class RegisterHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
-    : ICommandHandler<RegisterCommand, AuthResult>
+    : ICommandHandler<RegisterCommand, Result>
 {
-    private const string EmailTakenMessage = "此Email已註冊過";
-
     [GeneratedRegex(@"^09\d{8}$")]
     private static partial Regex PhoneRegex();
 
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailRegex();
 
-    public async Task<AuthResult> Handle(RegisterCommand command, CancellationToken ct)
+    public async Task<Result> Handle(RegisterCommand command, CancellationToken ct)
     {
         var request = command.Request;
         var errors = new Dictionary<string, string>();
@@ -53,7 +52,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         }
         else if (await users.EmailExistsAsync(User.NormalizeEmail(request.Email), ct))
         {
-            errors["email"] = EmailTakenMessage;
+            errors["email"] = AuthErrors.EmailTakenMessage;
         }
 
         if (PasswordPolicy.Validate(request.Password) is { } passwordError)
@@ -93,7 +92,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
 
         if (errors.Count > 0)
         {
-            return AuthResult.Fail(errors);
+            return Error.Validation(errors);
         }
 
         users.Add(new User
@@ -112,9 +111,9 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         catch (UniqueConstraintViolationException)
         {
             // 先查時還沒有人用，寫入前被同時送出的請求搶先；users 只有 email 一個唯一索引
-            return AuthResult.Fail(new() { ["email"] = EmailTakenMessage });
+            return AuthErrors.EmailTaken;
         }
 
-        return AuthResult.Ok();
+        return Result.Success();
     }
 }
