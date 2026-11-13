@@ -21,7 +21,7 @@ fi
 echo "[pre-push] 後端建置與測試..."
 dotnet test tests/Konbini.Tests -c Release --nologo -v q
 
-# 與 CI 步驟③-1 相同：假的連線字串與金鑰只讓 EF 建得出 DbContext，不連資料庫，也不依賴 user-secrets
+# 與 CI 步驟③-1 相同：假的連線字串與金鑰只讓 EF 建得出 DbContext，不連資料庫；hook 自己給值，本機沒有 .env 也能檢查
 echo "[pre-push] 檢查是否有待產生的 Migration..."
 # dotnet ef 的 -c 是 --context，組態一定要寫完整的 --configuration
 dotnet tool restore > /dev/null

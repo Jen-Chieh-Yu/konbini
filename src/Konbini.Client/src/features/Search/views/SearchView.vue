@@ -47,7 +47,8 @@ onMounted(() => search(keyword.value))
 <template>
   <h2>搜尋商品</h2>
   <form class="bar" @submit.prevent="submit">
-    <input v-model="keyword" placeholder="輸入關鍵字，空白分隔可搜尋多個" />
+    <!-- 上限對齊後端 SearchProductsHandler.MaxKeywords -->
+    <input v-model="keyword" placeholder="輸入關鍵字，以空白分隔，最多 10 個" />
     <button type="submit">搜尋</button>
   </form>
   <p v-if="result?.totalCount === 0">找不到符合的商品。</p>

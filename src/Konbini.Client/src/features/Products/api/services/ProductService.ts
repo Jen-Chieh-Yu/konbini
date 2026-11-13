@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios'
 // axios config 實例
 import instance from '@shared/api/axios'
 
@@ -13,9 +14,14 @@ export const ProductService = {
     return res.data
   },
 
-  // 商品明細 + 同類推薦
-  getProductDetail: async (id: number): Promise<ProductDetailDTO> => {
-    const res = await instance.get<ProductDetailDTO>(ProductApi.detail(id))
-    return res.data
+  // 商品明細 + 同類推薦；商品不存在（404）時回 null，其他錯誤照樣丟出，由畫面顯示可重試
+  getProductDetail: async (id: number): Promise<ProductDetailDTO | null> => {
+    try {
+      const res = await instance.get<ProductDetailDTO>(ProductApi.detail(id))
+      return res.data
+    } catch (e) {
+      if (isAxiosError(e) && e.response?.status === 404) return null
+      throw e
+    }
   },
 }

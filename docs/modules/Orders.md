@@ -38,10 +38,13 @@ flowchart TD
 ### 下單的欄位檢查
 
 errors 的 key 是欄位名稱；同一個 key 只回一則，依表格順序取第一個不符合的。
+聯絡人、電話、地址、備註先去掉頭尾空白再檢查與儲存，長度看處理後的值；只有空白的備註存成 null。
 
 | key | 規則 | 錯誤訊息原文 |
 |---|---|---|
 | `items` | 至少 1 項 | 購物車是空的 |
+| `items` | 不超過 50 筆，同一個商品分多筆送來也各算一筆（`Order.MaxItems`） | 購物車最多 50 項商品 |
+| `items` | 每一筆都要有內容（不是 `null`） | 商品資料不正確 |
 | `items` | 每項數量大於 0 | 商品數量必須大於 0 |
 | `items` | 每項數量不超過 99；同一個商品分多筆送來時看合計（`OrderItem.MaxQuantity`） | 每項商品數量不可超過 99 件 |
 | `contactName` | 必填（只有空白也算沒填） | 請填寫聯絡人姓名 |
@@ -72,8 +75,8 @@ errors 的 key 是欄位名稱；同一個 key 只回一則，依表格順序取
 
 | 情況 | 狀態碼 | 內容 |
 |---|---|---|
-| 成功 | 201 | Location 為 `/api/orders/{id}`；body 為 `{ "success": true, "errors": {}, "orderId": 123 }` |
-| 檢查沒過 | 400 | `{ "success": false, "errors": { … }, "orderId": null }` |
+| 成功 | 201 | Location 為 `/api/orders/{id}`；body 為 `{ "id": 123 }` |
+| 檢查沒過、商品不存在 | 400 | ProblemDetails，`errors` 列出每個不符合的欄位 |
 | 沒有登入或 token 失效 | 401 | 沒有內容 |
 
 ### 我的訂單
@@ -101,7 +104,7 @@ errors 的 key 是欄位名稱；同一個 key 只回一則，依表格順序取
 
 ## 尚未實作
 
-- 訂單明細 `GET /api/orders/{id}`（成功時的 Location 已經指向它）、201 回傳整個 Result、400 帶 `null` 欄位：
+- 訂單明細 `GET /api/orders/{id}`（成功時的 Location 已經指向它）：
   見 [CLAUDE.md §6](../../CLAUDE.md#6-分支與-cicd)「API 回應與 docs/api-conventions.md 的落差」。
 - 扣庫存：見 CLAUDE.md §6「庫存欄位與扣庫存交易」。
 - 結帳頁、我的訂單的 UI 規範（Element Plus、四種畫面狀態、`formatMoney`）：見 CLAUDE.md §6「前端 feature 頁面遷移到 UI 規範」。

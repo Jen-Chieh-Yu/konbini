@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormItemRule, FormRules } from 'element-plus'
 import { Iphone, Message, User } from '@element-plus/icons-vue'
 import { AuthService } from '../api/services/AuthService'
@@ -9,9 +9,14 @@ import PasswordInput from '../components/PasswordInput.vue'
 import PasswordStrength from '../components/PasswordStrength.vue'
 import { unmetPasswordRules } from '../constants/passwordRules'
 import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
+import { safeRedirect } from '@/router/redirect'
 import { SUBMIT_ONLY, focusFirstError, useClearErrorOnEdit, validateForm } from '../composables/useFormValidation'
 
+const route = useRoute()
 const router = useRouter()
+// 從登入頁的「建立帳號」過來時帶著原本要去的頁面，註冊、登入完一路回去
+const redirect = safeRedirect(route.query.redirect)
+const loginQuery = redirect ? { redirect } : {}
 const { alertErrors, alertNetworkError } = useErrorDialog()
 
 const formRef = ref<FormInstance>()
@@ -119,7 +124,7 @@ async function submit() {
     await AuthService.register({ ...rest, year: year ?? 0, month: month ?? 0, day: day ?? 0 })
     ElMessage.success('註冊成功，請登入')
     // Email 用 history state 帶到登入頁預先填好，不放網址
-    router.push({ path: '/login', state: { email: rest.email } })
+    router.push({ path: '/login', query: loginQuery, state: { email: rest.email } })
   } catch (e) {
     const result = readApiErrors(e, '註冊失敗，請稍後再試')
     if (!result) {
@@ -239,7 +244,7 @@ async function submit() {
         {{ submitting ? '建立中' : '建立帳號' }}
       </el-button>
     </el-form>
-    <template #footer>已經有帳號？<RouterLink to="/login">登入</RouterLink></template>
+    <template #footer>已經有帳號？<RouterLink :to="{ path: '/login', query: loginQuery }">登入</RouterLink></template>
   </AuthCard>
 </template>
 

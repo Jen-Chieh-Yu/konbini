@@ -38,7 +38,7 @@
 
 ### 明細與相關商品
 
-- 查無商品（或已軟刪除）回 404，沒有內容。
+- 查無商品（或已軟刪除）回 404 ProblemDetails，`general`：找不到商品。
 - 相關商品：同分類、排除自己，依 Id 由小到大取前 8 筆（`ProductRepository.RelatedLimit`），不分頁。
 
 ### 商品資料的來源
