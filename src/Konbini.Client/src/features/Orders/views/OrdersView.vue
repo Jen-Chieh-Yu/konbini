@@ -30,9 +30,12 @@ async function load() {
 }
 
 // 離開本頁時 query 也會變；這裡不擋的話，登出導頁時會多發一次沒有 token 的請求
-watch(() => route.query.page, () => {
-  if (route.name === 'Orders') load()
-})
+watch(
+  () => route.query.page,
+  () => {
+    if (route.name === 'Orders') load()
+  },
+)
 
 // 未登入的人進不來（路由守衛），這裡直接載入
 onMounted(load)
@@ -41,7 +44,11 @@ onMounted(load)
 <template>
   <h2>我的訂單</h2>
   <p v-if="loading">載入中…</p>
-  <AppStatePanel v-else-if="failed" title="暫時看不到訂單" description="連線好像出了點問題，稍等一下再重新載入。">
+  <AppStatePanel
+    v-else-if="failed"
+    title="暫時看不到訂單"
+    description="連線好像出了點問題，稍等一下再重新載入。"
+  >
     <el-button type="primary" plain @click="load">重新載入</el-button>
   </AppStatePanel>
   <template v-else>
@@ -66,6 +73,15 @@ onMounted(load)
 </template>
 
 <style scoped>
-.order { border: 1px solid #eee; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
-.order header, .order footer { display: flex; justify-content: space-between; }
+.order {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.order header,
+.order footer {
+  display: flex;
+  justify-content: space-between;
+}
 </style>

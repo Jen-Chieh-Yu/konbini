@@ -8,7 +8,12 @@ import AuthCard from '../components/AuthCard.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { readApiErrors, useErrorDialog } from '../composables/useErrorDialog'
 import { safeRedirect } from '@/router/redirect'
-import { SUBMIT_ONLY, focusFirstError, useClearErrorOnEdit, validateForm } from '../composables/useFormValidation'
+import {
+  SUBMIT_ONLY,
+  focusFirstError,
+  useClearErrorOnEdit,
+  validateForm,
+} from '../composables/useFormValidation'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,7 +62,12 @@ async function submit() {
     } else {
       // 401 是帳號或密碼錯誤（後端刻意不區分哪一個，避免洩漏哪些 Email 有註冊）
       const detail = result.status === 401 ? '請確認 Email 與密碼後再試一次。' : undefined
-      await alertError('登入失敗', result.errors.general ?? Object.values(result.errors)[0], detail, '重新輸入')
+      await alertError(
+        '登入失敗',
+        result.errors.general ?? Object.values(result.errors)[0],
+        detail,
+        '重新輸入',
+      )
     }
   } finally {
     submitting.value = false
@@ -98,13 +108,21 @@ async function submit() {
         />
       </el-form-item>
       <el-form-item label="密碼" prop="password">
-        <PasswordInput v-model="form.password" autocomplete="current-password" placeholder="請輸入密碼" />
+        <PasswordInput
+          v-model="form.password"
+          autocomplete="current-password"
+          placeholder="請輸入密碼"
+        />
       </el-form-item>
       <el-button type="primary" native-type="submit" :loading="submitting" class="auth-submit">
         {{ submitting ? '登入中' : '登入' }}
       </el-button>
     </el-form>
-    <template #footer>還沒有帳號？<RouterLink :to="{ path: '/register', query: redirect ? { redirect } : {} }">建立帳號</RouterLink></template>
+    <template #footer
+      >還沒有帳號？<RouterLink :to="{ path: '/register', query: redirect ? { redirect } : {} }"
+        >建立帳號</RouterLink
+      ></template
+    >
   </AuthCard>
 </template>
 

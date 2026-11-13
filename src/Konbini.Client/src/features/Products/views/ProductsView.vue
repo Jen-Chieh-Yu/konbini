@@ -33,15 +33,12 @@ function changeType(t: number) {
   router.push({ path: '/products', query: t ? { type: t } : {} })
 }
 
-watch(
-  [() => route.query.type, () => route.query.page],
-  ([value]) => {
-    // 離開本頁時 query 也會變，不必再查一次
-    if (route.name !== 'Products') return
-    type.value = Number(value) || 0
-    loadProducts()
-  },
-)
+watch([() => route.query.type, () => route.query.page], ([value]) => {
+  // 離開本頁時 query 也會變，不必再查一次
+  if (route.name !== 'Products') return
+  type.value = Number(value) || 0
+  loadProducts()
+})
 
 onMounted(loadProducts)
 </script>
@@ -68,7 +65,11 @@ onMounted(loadProducts)
         </RouterLink>
         <div class="row">
           <span class="price">NT$ {{ p.price }}</span>
-          <button @click="cart.add({ productId: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl })">
+          <button
+            @click="
+              cart.add({ productId: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl })
+            "
+          >
             加入購物車
           </button>
         </div>
@@ -79,13 +80,45 @@ onMounted(loadProducts)
 </template>
 
 <style scoped>
-.filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-.filters .active { background: #d33; color: #fff; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
-.card { border: 1px solid #eee; border-radius: 6px; padding: 0.75rem; }
-.card img { width: 100%; aspect-ratio: 1; object-fit: contain; }
-.card a { color: inherit; text-decoration: none; }
-.card h3 { font-size: 0.95rem; min-height: 2.5em; }
-.row { display: flex; justify-content: space-between; align-items: center; }
-.price { color: #d33; font-weight: 700; }
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.filters .active {
+  background: #d33;
+  color: #fff;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.card {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+.card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+.card a {
+  color: inherit;
+  text-decoration: none;
+}
+.card h3 {
+  font-size: 0.95rem;
+  min-height: 2.5em;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.price {
+  color: #d33;
+  font-weight: 700;
+}
 </style>

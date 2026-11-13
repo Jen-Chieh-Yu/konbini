@@ -11,11 +11,17 @@ const strength = computed(() => passwordStrength(props.value))
 <template>
   <div class="meter" :class="strength?.level">
     <div class="bars" aria-hidden="true">
-      <span v-for="n in PASSWORD_RULES.length" :key="n" :class="{ on: strength && n <= strength.filled }" />
+      <span
+        v-for="n in PASSWORD_RULES.length"
+        :key="n"
+        :class="{ on: strength && n <= strength.filled }"
+      />
     </div>
     <!-- 內容只有等級文字，報讀軟體只在等級改變時唸一次，不會每打一個字就唸 -->
     <span class="label" aria-live="polite">
-      <template v-if="strength">密碼強度：<b>{{ strength.label }}</b></template>
+      <template v-if="strength"
+        >密碼強度：<b>{{ strength.label }}</b></template
+      >
     </span>
   </div>
 </template>

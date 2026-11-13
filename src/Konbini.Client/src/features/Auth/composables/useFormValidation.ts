@@ -9,7 +9,9 @@ import type { ApiErrors } from './useErrorDialog'
 export const SUBMIT_ONLY = 'submit'
 
 /** 檢查整張表單；沒過時回傳 { 欄位: 第一則訊息 }（依畫面順序），通過時回傳 null */
-export async function validateForm(formRef: Ref<FormInstance | undefined>): Promise<ApiErrors | null> {
+export async function validateForm(
+  formRef: Ref<FormInstance | undefined>,
+): Promise<ApiErrors | null> {
   try {
     await formRef.value?.validate()
     return null

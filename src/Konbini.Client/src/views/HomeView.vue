@@ -38,18 +38,31 @@ function total(type: number): number {
   return groups.value[type]?.totalCount ?? 0
 }
 
-const totalAll = computed(() =>
-  SHOWCASE_TYPES.reduce((sum, type) => sum + total(type), 0),
-)
+const totalAll = computed(() => SHOWCASE_TYPES.reduce((sum, type) => sum + total(type), 0))
 
 /** 數量要等載入完成才有意義，載入中與失敗時不顯示 */
 const countsReady = computed(() => !loading.value && !failed.value)
 
 /** 首頁的特集區塊目前是固定內容，沒有對應的後端資料 */
 const features = [
-  { type: 2, kicker: 'FEATURE 01', title: '韓國辣麵大賞', text: '火辣雞肉、辛拉麵、王撈麵，按辣度排成一條線，挑得下去的位置自己選。' },
-  { type: 3, kicker: 'FEATURE 02', title: '日本茶飲時間', text: '伊藤園、三得利、可爾必思。冰箱裡最常見的那幾支，配什麼零食比較對。' },
-  { type: 1, kicker: 'FEATURE 03', title: '送禮用的伴手禮', text: '白色戀人、東京香蕉、Choco Pie 禮盒。價格帶從兩百到九百，依收禮的人分。' },
+  {
+    type: 2,
+    kicker: 'FEATURE 01',
+    title: '韓國辣麵大賞',
+    text: '火辣雞肉、辛拉麵、王撈麵，按辣度排成一條線，挑得下去的位置自己選。',
+  },
+  {
+    type: 3,
+    kicker: 'FEATURE 02',
+    title: '日本茶飲時間',
+    text: '伊藤園、三得利、可爾必思。冰箱裡最常見的那幾支，配什麼零食比較對。',
+  },
+  {
+    type: 1,
+    kicker: 'FEATURE 03',
+    title: '送禮用的伴手禮',
+    text: '白色戀人、東京香蕉、Choco Pie 禮盒。價格帶從兩百到九百，依收禮的人分。',
+  },
 ]
 </script>
 
@@ -59,9 +72,7 @@ const features = [
     <section class="hero">
       <p class="kicker">SEASONAL</p>
       <h1>日韓零食・泡麵・飲品，一站買齊</h1>
-      <p class="lead">
-        只做日本與韓國這三類。品項少、進得深，比什麼都賣但每樣只有一款有用得多。
-      </p>
+      <p class="lead">只做日本與韓國這三類。品項少、進得深，比什麼都賣但每樣只有一款有用得多。</p>
       <RouterLink to="/products" class="hero-btn">逛逛全部商品</RouterLink>
     </section>
 
@@ -102,7 +113,15 @@ const features = [
           <section v-else-if="loading" class="sec" aria-busy="true">
             <div class="sec-h"><h2>載入中</h2></div>
             <el-row :gutter="16">
-              <el-col v-for="n in PREVIEW_COUNT" :key="n" :xs="12" :sm="8" :md="6" :lg="6" class="cell">
+              <el-col
+                v-for="n in PREVIEW_COUNT"
+                :key="n"
+                :xs="12"
+                :sm="8"
+                :md="6"
+                :lg="6"
+                class="cell"
+              >
                 <el-skeleton animated>
                   <template #template>
                     <el-skeleton-item variant="image" class="sk-img" />
@@ -128,7 +147,10 @@ const features = [
               </div>
 
               <!-- 空資料：給下一步的引導，不只顯示「沒有資料」 -->
-              <el-empty v-if="!preview(type).length" :description="`目前沒有${categoryName(type)}商品`">
+              <el-empty
+                v-if="!preview(type).length"
+                :description="`目前沒有${categoryName(type)}商品`"
+              >
                 <RouterLink to="/products">
                   <el-button type="danger" plain>看看其他商品</el-button>
                 </RouterLink>

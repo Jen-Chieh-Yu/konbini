@@ -17,21 +17,57 @@ const routes = [
   { path: '/', name: 'Home', component: HomeView },
 
   // --- 商品與搜尋 ---
-  { path: '/products', name: 'Products', component: () => import('@features/Products/views/ProductsView.vue') },
-  { path: '/products/:id', name: 'ProductDetail', component: () => import('@features/Products/views/ProductDetailView.vue') },
-  { path: '/search', name: 'Search', component: () => import('@features/Search/views/SearchView.vue') },
+  {
+    path: '/products',
+    name: 'Products',
+    component: () => import('@features/Products/views/ProductsView.vue'),
+  },
+  {
+    path: '/products/:id',
+    name: 'ProductDetail',
+    component: () => import('@features/Products/views/ProductDetailView.vue'),
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@features/Search/views/SearchView.vue'),
+  },
 
   // --- 購物車與訂單（需要登入的頁面加 requiresAuth，由下方的守衛統一檢查，頁面不必自己判斷）---
   { path: '/cart', name: 'Cart', component: () => import('@features/Cart/views/CartView.vue') },
-  { path: '/checkout', name: 'Checkout', component: () => import('@features/Orders/views/CheckoutView.vue'), meta: { requiresAuth: true } },
-  { path: '/orders', name: 'Orders', component: () => import('@features/Orders/views/OrdersView.vue'), meta: { requiresAuth: true } },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: () => import('@features/Orders/views/CheckoutView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/orders',
+    name: 'Orders',
+    component: () => import('@features/Orders/views/OrdersView.vue'),
+    meta: { requiresAuth: true },
+  },
 
   // --- 會員 ---
-  { path: '/login', name: 'Login', component: () => import('@features/Auth/views/LoginView.vue'), meta: { guestOnly: true } },
-  { path: '/register', name: 'Register', component: () => import('@features/Auth/views/RegisterView.vue'), meta: { guestOnly: true } },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@features/Auth/views/LoginView.vue'),
+    meta: { guestOnly: true },
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@features/Auth/views/RegisterView.vue'),
+    meta: { guestOnly: true },
+  },
 
   // --- 其他網址：一定要放最後，前面的路由都對不到才會進來 ---
-  { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/NotFoundView.vue'),
+  },
 ]
 
 const router = createRouter({
