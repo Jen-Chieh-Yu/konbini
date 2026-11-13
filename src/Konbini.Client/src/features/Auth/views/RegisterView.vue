@@ -74,7 +74,8 @@ const rules: FormRules = {
     {
       validator: (_rule, value: string, callback) => {
         const unmet = unmetPasswordRules(value)
-        unmet.length ? callback(new Error(`密碼還不符合規則：${unmet.join('、')}`)) : callback()
+        if (unmet.length) callback(new Error(`密碼還不符合規則：${unmet.join('、')}`))
+        else callback()
       },
       trigger: SUBMIT_ONLY,
     },

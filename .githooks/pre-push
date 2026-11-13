@@ -1,5 +1,5 @@
 #!/bin/sh
-# pre-push：推送前在本機跑 CI 的核心子集（後端測試、Migration 檢查、前端型別檢查，約 40–70 秒）。
+# pre-push：推送前在本機跑 CI 的核心子集（後端測試、Migration 檢查、前端 ESLint／Prettier／型別檢查，約 45–80 秒）。
 # Docker 建置不在此執行，留給雲端 CI。
 # 緊急跳過：git push --no-verify
 set -e
@@ -29,11 +29,21 @@ ConnectionStrings__DefaultConnection='Host=localhost;Database=design-time-only' 
 Jwt__Secret='ci-design-time-only-secret-at-least-32-chars' \
   dotnet ef migrations has-pending-model-changes --project src/Konbini.Api --startup-project src/Konbini.Api --no-build --configuration Release
 
+# 與 CI 前端 job 的步驟④⑤⑥相同，門檻一起改（ESLint 錯誤與警告 0、Prettier 排版、型別錯誤 0）
 if [ -d src/Konbini.Client/node_modules ]; then
+  # 套件是導入 ESLint 之前裝的：npm run lint 只會報「eslint 不是內部或外部命令」，先說清楚要做什麼
+  if [ ! -e src/Konbini.Client/node_modules/.bin/eslint ]; then
+    echo "[pre-push] 前端套件不是最新的：請在 src/Konbini.Client 執行 npm install 後再推送"
+    exit 1
+  fi
+  echo "[pre-push] 前端程式碼檢查（ESLint）..."
+  (cd src/Konbini.Client && npm run --silent lint)
+  echo "[pre-push] 前端排版檢查（Prettier；修正用 npm run format）..."
+  (cd src/Konbini.Client && npm run --silent format:check)
   echo "[pre-push] 前端型別檢查..."
   (cd src/Konbini.Client && npx vue-tsc --noEmit)
 else
-  echo "[pre-push] 略過前端型別檢查（node_modules 不存在，僅由 CI 把關）"
+  echo "[pre-push] 略過前端檢查（node_modules 不存在，僅由 CI 把關）"
 fi
 
 echo "[pre-push] 全部通過，開始推送"

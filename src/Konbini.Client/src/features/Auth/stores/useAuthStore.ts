@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { isAxiosError } from 'axios'
 import { defineStore } from 'pinia'
 import { TOKEN_KEY } from '@shared/api/axios'
 import { AuthService } from '../api/services/AuthService'
@@ -25,10 +26,10 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
     try {
       user.value = await AuthService.getMe()
-    } catch (e: any) {
+    } catch (e) {
       // 401 由 axios 攔截器統一登出；404 代表帳號已不存在（例：重建資料庫）。
       // 其他錯誤（網路中斷、500）可能只是暫時的，保留 token
-      if (e.response?.status === 404) logout()
+      if (isAxiosError(e) && e.response?.status === 404) logout()
     }
   }
 

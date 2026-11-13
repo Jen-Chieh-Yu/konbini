@@ -115,6 +115,8 @@ jobs:
           fi
 
   frontend:
+    # job 名稱是 Branch protection 的必過檢查，改名後 ruleset 會永遠等不到結果：
+    # 步驟已包含 ESLint 與 Prettier，名稱仍維持「型別檢查與打包」
     name: 前端：型別檢查與打包
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -131,16 +133,26 @@ jobs:
           node-version-file: src/Konbini.Client/.nvmrc
           cache: npm
           cache-dependency-path: src/Konbini.Client/package-lock.json
-      # 弱點掃描由步驟⑥統一執行，安裝時不重複 audit
+      # 弱點掃描由步驟⑧統一執行，安裝時不重複 audit
       - name: ③ 安裝套件（npm ci）
+        id: install
         run: npm ci --no-audit --no-fund
-      # 型別錯誤零容忍（從第一天就是 0，直接阻擋，不走「僅提醒」）
-      - name: ④ 型別檢查（零容忍，會阻擋）
+      # ④⑤⑥ 三項檢查都會阻擋，從第一天就是 0 個錯誤（理由同 vue-tsc，見 CLAUDE.md §6）。
+      # 其中一項失敗時其他兩項照跑，跑一次就看到所有問題；只有套件沒裝好才略過。
+      # ESLint 的錯誤由 setup-node 內建的 problem matcher 標到檔案行號
+      - name: ④ 程式碼檢查（ESLint，錯誤與警告 0，會阻擋）
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run lint
+      - name: ⑤ 排版檢查（Prettier，會阻擋）
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run format:check
+      - name: ⑥ 型別檢查（零容忍，會阻擋）
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npx vue-tsc --noEmit
-      - name: ⑤ 打包（vite build）
+      - name: ⑦ 打包（vite build）
         run: npm run build
       # 與後端的 NuGet 弱點掃描對稱：僅提醒不阻擋
-      - name: ⑥ 套件弱點掃描（僅提醒不阻擋）
+      - name: ⑧ 套件弱點掃描（僅提醒不阻擋）
         if: always()
         run: |
           if npm audit > audit.log 2>&1; then

@@ -1,0 +1,8 @@
+# .gitignore 列的（node_modules、dist）Prettier 會自動略過，這裡只列其他不排版的檔案
+
+# unplugin 產生的型別宣告：由 vite 改寫，手動排版會在下次啟動時被蓋回去
+auto-imports.d.ts
+components.d.ts
+
+# 由 npm 產生與維護
+package-lock.json

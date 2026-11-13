@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { isAxiosError } from 'axios'
 import { OrderService } from '../api/services/OrderService'
 import { AddressService } from '@features/Addresses/api/services/AddressService'
 import type { CityDTO, DistrictDTO } from '@features/Addresses/api/interfaces/AddressDTO'
@@ -40,8 +41,12 @@ async function submit() {
     })
     cart.clear()
     router.push('/orders')
-  } catch (e: any) {
-    errors.value = e.response?.data?.errors ?? { general: '訂單送出失敗，請稍後再試' }
+  } catch (e) {
+    // 400 帶欄位錯誤；網路中斷、500 或非 axios 的錯誤都顯示通用訊息
+    const fieldErrors = isAxiosError<{ errors?: Record<string, string> }>(e)
+      ? e.response?.data?.errors
+      : undefined
+    errors.value = fieldErrors ?? { general: '訂單送出失敗，請稍後再試' }
   } finally {
     submitting.value = false
   }

@@ -75,3 +75,7 @@
 # unplugin 自動產生的型別宣告（auto-imports.d.ts、components.d.ts）一律以 LF 寫出；
 # 工作區若轉成 CRLF，dev server 每次重寫都會讓 git 誤判為已修改，並擋住切換分支
 *.d.ts text eol=lf
+
+# 前端一律 LF：Prettier 的 endOfLine 是 lf，工作目錄若是 CRLF，format:check 在 Windows 會全部失敗、Linux 卻通過。
+# 寫 text=auto 而不是 text：圖片等二進位檔仍由 Git 判斷，不會被當成文字轉換
+src/Konbini.Client/** text=auto eol=lf
