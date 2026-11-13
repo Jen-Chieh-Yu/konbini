@@ -141,9 +141,9 @@ async function submit() {
   try {
     const { year, month, day, ...rest } = form.value
     await AuthService.register({ ...rest, year: year ?? 0, month: month ?? 0, day: day ?? 0 })
-    ElMessage.success('註冊成功，請登入')
-    // Email 用 history state 帶到登入頁預先填好，不放網址
-    router.push({ path: '/login', query: loginQuery, state: { email: rest.email } })
+    ElMessage.success('註冊成功，請到信箱完成驗證')
+    // 驗證完成才能登入；Email 用 history state 帶過去顯示，不放網址
+    router.push({ path: '/verify-email/sent', state: { email: rest.email, sent: true } })
   } catch (e) {
     const result = readApiErrors(e, '註冊失敗，請稍後再試')
     if (!result) {
@@ -162,7 +162,7 @@ async function submit() {
 <template>
   <AuthCard
     title="建立帳號"
-    lead="所有欄位都是必填；註冊後用 Email 登入。"
+    lead="所有欄位都是必填；註冊後到信箱完成驗證，就能用 Email 登入。"
     heading="會員資料"
     sub="手機號碼與生日只用於訂單聯絡與會員資料。"
   >

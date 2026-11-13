@@ -20,6 +20,7 @@ API 的設定來自四個地方，**後面的蓋過前面的**：
 | `APP_DB_USER` | 應用程式專屬帳號 | 同上 | 否 | 否 | — | `konbini` |
 | `APP_DB_PASSWORD` | 應用程式帳號的密碼 | 同上 | 是 | 是 | 不可含 `;`、`'`（會截斷連線字串）；含 `$` 時整個值用單引號包起來 | — |
 | `JWT_SECRET` | JWT 簽章金鑰（HS256） | compose（api）、本機 API | 是 | 是 | 至少 32 字元的隨機字串 | — |
+| `APP_CLIENT_BASE_URL` | 驗證信中的連結指向的前端網址 | compose（prod） | 否 | 否 | 完整的 http(s) 網址，結尾不加斜線 | `http://localhost:8080` |
 | `APP_VERSION` | 部署時要啟動的映像版號 | compose（prod） | 否 | 否 | 例：`0.1.0` | `0.0.0-local` |
 
 - **帳密只在 volume 第一次初始化時生效**：之後改 `.env` 不會更新既有資料庫，要重置 volume（README「重置資料庫」）。
@@ -36,6 +37,10 @@ API 的設定來自四個地方，**後面的蓋過前面的**：
 | `Jwt:Secret` | JWT 簽章金鑰 | `.env` 的 `JWT_SECRET` | 同左，經 compose | 是 | 是 | 至少 32 字元 | 空字串（未設定或太短時啟動失敗） |
 | `Jwt:Issuer` | token 的簽發者 | `appsettings.json` | 同左 | 否 | 是 | — | `Konbini` |
 | `Jwt:Audience` | token 的對象 | `appsettings.json` | 同左 | 否 | 是 | — | `Konbini` |
+| `Email:From` | 寄件者 | `appsettings.json` | 同左 | 否 | 是 | Email 地址，可加顯示名稱 | `Konbini <no-reply@konbini.test>`（`.test` 是保留給測試的網域） |
+| `Email:Smtp:Host` | SMTP 主機 | `appsettings.json` | compose：`mailpit` | 否 | 是 | — | `127.0.0.1`（空值時啟動失敗）。不寫 `localhost`：Windows 會先試 `::1`，mailpit 只綁 IPv4，每封信多等 2 秒 |
+| `Email:Smtp:Port` | SMTP 埠 | `appsettings.json` | compose：`1025` | 否 | 是 | 1–65535 的整數 | `1025`（格式錯誤時啟動失敗） |
+| `App:ClientBaseUrl` | 前端的網址，驗證信中的連結指向這裡 | `appsettings.json` | override：`http://localhost:5173`；prod：`.env` 的 `APP_CLIENT_BASE_URL` | 否 | 是 | 完整的 http(s) 網址 | `http://localhost:5173`（不是完整網址時啟動失敗） |
 | `Logging:LogLevel:*` | log 等級 | `appsettings.json`、`appsettings.Development.json` | 同左 | 否 | 否 | — | `Default`：Information；`Microsoft.AspNetCore`：Warning（Development 為 Information） |
 | `AllowedHosts` | 允許的 Host 標頭 | `appsettings.json` | 同左 | 否 | 否 | — | `*` |
 | `ASPNETCORE_ENVIRONMENT` | 環境名稱，決定是否讀 `.env`、是否開 Scalar | `launchSettings.json`：Development | override：Development；prod：Production | 否 | — | — | Production |
@@ -44,10 +49,7 @@ API 的設定來自四個地方，**後面的蓋過前面的**：
 前端沒有執行時期的設定：`/api` 的轉發寫在 `vite.config.ts`（開發）與 `nginx.conf`（部署），
 版號在建置時由 `APP_VERSION` 參數寫進 `version.json`。
 
-### 尚未使用（Email 驗證時加入）
-
-`Email:From`、`Email:Smtp:Host`、`Email:Smtp:Port`、`App:ClientBaseUrl`：還沒有程式讀取，
-由 Email 驗證的 Pull Request 加入，並補齊上方的表格與 `.env.example`。
+寄信設定沒有帳密與 TLS：開發與部署環境都寄到 Mailpit（`CLAUDE.md` §4），換成真的 SMTP 服務時才要加。
 
 ## 為什麼沒有 `appsettings.example.json`
 

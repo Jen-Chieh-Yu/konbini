@@ -98,7 +98,31 @@ export function useErrorDialog() {
     )
   }
 
-  return { alertError, alertErrors, alertNetworkError }
+  /**
+   * 有兩個選擇的提示，例：登入時帳號尚未驗證，問要不要重寄驗證信。
+   * 按主按鈕回傳 true；按次按鈕、叉叉或 Esc 回傳 false
+   */
+  async function confirmAction(
+    title: string,
+    message: string,
+    detail: string | undefined,
+    confirmText: string,
+    cancelText: string,
+  ) {
+    const content = h('div', [
+      h('p', { class: 'kb-dialog-lead' }, message),
+      detail ? h('p', { class: 'kb-dialog-sub' }, detail) : null,
+    ])
+    return ElMessageBox.confirm(content, title, {
+      type: 'warning',
+      confirmButtonText: confirmText,
+      cancelButtonText: cancelText,
+    })
+      .then(() => true)
+      .catch(() => false)
+  }
+
+  return { alertError, alertErrors, alertNetworkError, confirmAction }
 }
 
 /** 按確定、右上角的叉叉或 Esc 關閉都算看過，回傳的 Promise 一律 resolve，呼叫端才能接著做下一步 */

@@ -1,6 +1,6 @@
 ---
 name: dev-env
-description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpit 容器健康狀態、埠號占用、.env 是否齊全（只看 key，不印值）、API 的 /health，並對照常見錯誤給出修正方式。使用時機：使用者說「API 起不來」「/api 回 502」「health 不是 Healthy」「改了程式碼但 API 行為沒變」「連不到資料庫」「收不到信」「收信畫面打不開」「換了電腦」「設定開發環境」，或畫面出現「ConnectionStrings 未設定」「Jwt:Secret 未設定或長度不足」「password authentication failed」「port is already allocated」。只檢查與說明，不替使用者填機密、不停止或刪除容器與 volume。
+description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpit 容器健康狀態、埠號占用、.env 是否齊全（只看 key，不印值）、寄信設定、API 的 /health，並對照常見錯誤給出修正方式。使用時機：使用者說「API 起不來」「/api 回 502」「health 不是 Healthy」「改了程式碼但 API 行為沒變」「連不到資料庫」「收不到信」「收不到驗證信」「收信畫面打不開」「換了電腦」「設定開發環境」，或畫面出現「ConnectionStrings 未設定」「Jwt:Secret 未設定或長度不足」「寄信設定有誤」「App:ClientBaseUrl 未設定」「password authentication failed」「port is already allocated」。只檢查與說明，不替使用者填機密、不停止或刪除容器與 volume。
 ---
 
 # 開發環境檢查（dev-env）
@@ -47,19 +47,24 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpi
    - 還有 `MYSQL_*` 的鍵：這台機器是從 MySQL 版本升級上來的，照 README「初次設定」下方的升級說明處理。
    - JWT 長度（只輸出 yes／NO）：`awk -F= '/^JWT_SECRET=/{v=substr($0,index($0,"=")+1); gsub(/^"|"$/,"",v); print (length(v)>=32?"yes":"NO")}' .env`
    - 行尾：`grep -c $'\r' .env` 應為 0（CRLF 會讓每個值多一個 `\r`）。
-4. **蓋過 `.env` 的環境變數**：只列名稱
-   - Windows：`Get-ChildItem Env: | Where-Object Name -match '^(ConnectionStrings__|Jwt__)' | Select-Object Name`
-   - macOS：`env | grep -oE '^(ConnectionStrings__|Jwt__)[A-Za-z_]*'`
+4. **蓋過 `.env` 與 appsettings 的環境變數**：只列名稱
+   - Windows：`Get-ChildItem Env: | Where-Object Name -match '^(ConnectionStrings__|Jwt__|Email__|App__)' | Select-Object Name`
+   - macOS：`env | grep -oE '^(ConnectionStrings__|Jwt__|Email__|App__)[A-Za-z_]*'`
    - 有輸出，就表示這些值不是來自 `.env`。這只看得到 Claude 這個 shell 的環境變數；
      使用者的終端機與 Rider 執行設定要請使用者自己看。
    - 舊機器殘留的 user-secrets 已經不會被讀取，不必處理。
-5. **compose 設定能否解析**：`docker compose config -q`（有錯會列出缺少的變數名稱）
-6. **API**：`curl -s -w "\nHTTP %{http_code}\n" http://localhost:5214/health`
+5. **寄信設定**（不是機密，放在 `appsettings.json`）：只列 key
+   `grep -oE '"(Email|From|Smtp|Host|Port|App|ClientBaseUrl)"' src/Konbini.Api/appsettings.json`
+   - 應有 `Email` 的 `From`、`Smtp` 的 `Host` 與 `Port`，以及 `App` 的 `ClientBaseUrl`；少一個 API 就啟動失敗。
+   - 容器的值在 compose 的 `environment:`：`grep -oE '(Email|App)__[A-Za-z_]+' docker-compose.override.yml docker-compose.prod.yml`
+   - prod 的 `.env` 可選填 `APP_CLIENT_BASE_URL`（驗證信中的連結指向的前端網址，預設 `http://localhost:8080`）。
+6. **compose 設定能否解析**：`docker compose config -q`（有錯會列出缺少的變數名稱）
+7. **API**：`curl -s -w "\nHTTP %{http_code}\n" http://localhost:5214/health`
    - `Healthy`：API 與資料庫都正常，問題在前端或別處。
    - 連不上（HTTP 000）：API 沒在跑，請使用者看啟動 API 的那個終端機的錯誤訊息，對照下表。
    - 有回應但行為和程式碼對不上：先確認回應來自哪裡——`docker ps` 有 `konbini-api-1` 綁著 5214，就是容器在回應，不是本機剛啟動的 API。
-7. **收信畫面**：`curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8025/readyz` 應為 `HTTP 200`；打不開時回到步驟 1、2。
-8. **前端**：`/api` 由 vite proxy 轉到 `http://127.0.0.1:5214`（`src/Konbini.Client/vite.config.ts`）。API 的 `/health` 正常但頁面拿不到資料時，確認 `npm run dev` 有在跑、瀏覽器打的是 5173。
+8. **收信畫面**：`curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8025/readyz` 應為 `HTTP 200`；打不開時回到步驟 1、2。
+9. **前端**：`/api` 由 vite proxy 轉到 `http://127.0.0.1:5214`（`src/Konbini.Client/vite.config.ts`）。API 的 `/health` 正常但頁面拿不到資料時，確認 `npm run dev` 有在跑、瀏覽器打的是 5173。
 
 ## 常見錯誤對照
 
@@ -78,6 +83,9 @@ description: 檢查本機開發環境為什麼跑不起來：postgres 與 mailpi
 | 前端 `/api` 回 502 或 `ECONNREFUSED` | API 沒在 5214 監聽 | 啟動 API（README 方式 A 或 B） |
 | API 啟動時出現 `relation ... already exists` | 資料庫是 `EnsureCreated` 建立的，無法套用 Migration | README「重置資料庫」（會清掉開發資料，由使用者決定） |
 | API 啟動時出現 `PendingModelChangesWarning` | 改了 Entity 但沒有產生 Migration | README「修改資料表結構」 |
+| `寄信設定有誤：Email:…`、`App:ClientBaseUrl 未設定或不是完整的 http(s) 網址` | `appsettings.json` 被改壞，或環境變數 `Email__*`、`App__*` 的值格式不對 | 依步驟 4、5 找出來源；鍵與格式見 `docs/configuration.md` |
+| 註冊成功但收不到驗證信，API log 有「註冊後寄送驗證信失敗」 | mailpit 沒有啟動；帳號已經建立 | 起 mailpit 後，在「驗證信已寄出」頁按「重寄驗證信」 |
+| 驗證信的連結打開是別的網址或連不上 | `App:ClientBaseUrl` 和實際的前端網址不同（prod 預設 `http://localhost:8080`） | prod 在 `.env` 設 `APP_CLIENT_BASE_URL`；本機確認前端跑在 5173 |
 | 收信畫面 `localhost:8025` 打不開、看不到 API 寄的信 | mailpit 沒有啟動（直接 `dotnet watch` 時要自己起；Rider 的 Konbini.Api 會在 Before launch 起），或 1025／8025 被其他專案占用 | `docker compose up -d mailpit`；依步驟 2 找出占用者 |
 | prod 與開發環境互相影響 | — | 兩者已分離（`konbini` 與 `konbini-prod` 兩個 compose 專案）；確認 prod 指令有帶 `-f docker-compose.prod.yml` |
 

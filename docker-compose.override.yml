@@ -6,6 +6,11 @@ services:
       - ASPNETCORE_HTTP_PORTS=8080
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${APP_DB_NAME:-konbini};Username=${APP_DB_USER:-konbini};Password=${APP_DB_PASSWORD:?請在 .env 設定 APP_DB_PASSWORD}
       - Jwt__Secret=${JWT_SECRET:?請在 .env 設定 JWT_SECRET}
+      # 寄信：容器裡的 localhost 是 api 自己，要用服務名 mailpit（appsettings.json 的預設值是給本機 dotnet run 的）
+      - Email__Smtp__Host=mailpit
+      - Email__Smtp__Port=1025
+      # 信中的連結指向開發用的前端（vite）
+      - App__ClientBaseUrl=http://localhost:5173
     ports:
       # 對外固定 5214，讓 vite proxy（→ 127.0.0.1:5214）不論 API 在容器內外都通。
       # 只綁本機：不綁 IP 時會開在所有網卡，同網段的人也連得到

@@ -38,7 +38,34 @@ public class AuthEndpoints : IEndpoint
             })
             .Produces<LoginResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        // 信中的連結指向前端頁面，由頁面送這個 POST：信箱的連結掃描器會先開啟 GET 連結，不能讓 GET 改狀態
+        group.MapPost("/email-verifications", async (
+                VerifyEmailRequest request,
+                ICommandHandler<VerifyEmailCommand, Result<VerifyEmailResponse>> handler,
+                CancellationToken ct)
+            =>
+            {
+                var result = await handler.Handle(new(request), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+            })
+            .Produces<VerifyEmailResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        // Email 不存在、已驗證、冷卻中都回 204，回應一致（見 ResendVerificationEmailHandler）
+        group.MapPost("/verification-emails", async (
+                ResendVerificationEmailRequest request,
+                ICommandHandler<ResendVerificationEmailCommand, Result> handler,
+                CancellationToken ct)
+            =>
+            {
+                var result = await handler.Handle(new(request), ct);
+                return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
+            })
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         group.MapPut("/password", async (
                 ChangePasswordRequest request,

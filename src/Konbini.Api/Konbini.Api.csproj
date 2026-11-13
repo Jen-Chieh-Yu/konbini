@@ -23,6 +23,8 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.*" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
+    <!-- 寄信（MIT）；Email 驗證與之後的忘記密碼共用 -->
+    <PackageReference Include="MailKit" Version="4.*" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.*" />
   </ItemGroup>
 

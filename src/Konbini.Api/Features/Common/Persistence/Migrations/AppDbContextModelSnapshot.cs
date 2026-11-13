@@ -17,7 +17,7 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -65,6 +65,67 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.ToTable("districts", (string)null);
                 });
 
+            modelBuilder.Entity("Konbini.Api.Features.Auth.Models.EmailVerificationToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_on");
+
+                    b.Property<DateTime>("ExpiresOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_on");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("modified_by");
+
+                    b.Property<DateTime>("ModifiedOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_on");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("token_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTime?>("UsedOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_on");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_email_verification_tokens");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_email_verification_tokens_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_email_verification_tokens_user_id");
+
+                    b.ToTable("email_verification_tokens", (string)null);
+                });
+
             modelBuilder.Entity("Konbini.Api.Features.Auth.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -91,6 +152,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                         .HasMaxLength(254)
                         .HasColumnType("character varying(254)")
                         .HasColumnName("email");
+
+                    b.Property<DateTime?>("EmailVerifiedOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_verified_on");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("integer")
@@ -356,6 +421,18 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                         .HasDatabaseName("ix_products_type");
 
                     b.ToTable("products", (string)null);
+                });
+
+            modelBuilder.Entity("Konbini.Api.Features.Auth.Models.EmailVerificationToken", b =>
+                {
+                    b.HasOne("Konbini.Api.Features.Auth.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_email_verification_tokens_users_user_id");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Orders.Models.OrderItem", b =>
