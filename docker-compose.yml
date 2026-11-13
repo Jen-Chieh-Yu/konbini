@@ -1,5 +1,5 @@
 # VS F5（docker-compose 啟始專案）用的 base 檔，與 docker-compose.override.yml 合併生效。
-# 只需要資料庫時：docker compose up -d postgres
+# 本機執行 API 時只起資料庫與收信：docker compose up -d postgres mailpit
 # 部署（含 client）用 docker-compose.prod.yml。
 name: konbini
 
@@ -36,6 +36,18 @@ services:
       # postgres 18 起資料目錄為 /var/lib/postgresql/<主版本>/docker，volume 掛在上一層
       - pg-data:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+
+  mailpit:
+    # 收信用：API 寄出的信都留在這裡，不會寄到真實信箱（理由見 CLAUDE.md §4）
+    # 主版本釘死，同 postgres；不掛 volume，重建容器就清空信件
+    image: axllent/mailpit:v1
+    container_name: konbini-mailpit
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
 volumes:
   pg-data:

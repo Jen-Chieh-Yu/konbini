@@ -38,6 +38,8 @@ jobs:
   backend:
     name: 後端：建置與單元測試
     runs-on: ubuntu-latest
+    # 每個 job 都設逾時：卡住時不要空轉到預設的 360 分鐘
+    timeout-minutes: 15
     steps:
       - name: ① 取出原始碼
         uses: actions/checkout@v7
@@ -52,8 +54,25 @@ jobs:
       - name: ③ 建置（Release）
         shell: bash
         run: dotnet build src/Konbini.Api -c Release | tee build.log
+      # 改了 Entity／AppDbContext 卻沒有 migrations add：API 啟動時自動套 Migration（CLAUDE.md §3），
+      # 本機 dotnet run 不會報錯，要到欄位不存在才 500。只比對模型與 Migration 快照，不連資料庫。
+      # Program.cs 在 Build() 前就檢查連線字串與 Jwt:Secret，給假值讓 EF 建得出 DbContext（不是機密）
+      - name: ③-1 檢查是否有待產生的 Migration
+        env:
+          ConnectionStrings__DefaultConnection: Host=localhost;Database=design-time-only
+          Jwt__Secret: ci-design-time-only-secret-at-least-32-chars
+        # dotnet ef 的 -c 是 --context，組態一定要寫完整的 --configuration
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --project src/Konbini.Api --startup-project src/Konbini.Api --no-build --configuration Release \
+            || { echo "::error title=待產生的 Migration::模型與 Migration 快照不一致，請執行 dotnet ef migrations add（README「修改資料表結構」）"; exit 1; }
+      # GitHubActions logger：失敗的測試標到檔案行號（Annotations），測試結果表寫進 Summary
       - name: ④ 單元測試
-        run: dotnet test tests/Konbini.Tests -c Release --logger "trx;LogFileName=test-results.trx" --results-directory TestResults
+        run: >-
+          dotnet test tests/Konbini.Tests -c Release
+          --logger "trx;LogFileName=test-results.trx"
+          --logger GitHubActions
+          --results-directory TestResults
       # 測試失敗時上傳 trx 報告，可下載到本機用 Visual Studio 開啟排查
       - name: ④-1 上傳測試報告（僅失敗時）
         if: failure()
@@ -64,25 +83,28 @@ jobs:
           retention-days: 7
 
       # ---- 以下皆「僅提醒、不阻擋」：印在執行頁上方的 Annotations 與 Summary ----
-      - name: ⑤ 編譯警告統計（僅提醒不阻擋）
+      # 所有警告代碼：CS（編譯器）、NU（NuGet，含 NU1901–1904 套件弱點）、CA（分析器）等
+      - name: ⑤ 建置警告統計（僅提醒不阻擋）
         if: always()
         run: |
-          count=$(grep -cE 'warning CS[0-9]+' build.log || true)
+          count=$(grep -cE 'warning [A-Z]+[0-9]+' build.log || true)
           if [ "${count:-0}" -gt 0 ]; then
-            echo "::warning title=後端編譯警告::共 ${count} 個（分類統計見 Summary 與步驟⑤ log），僅提醒不阻擋"
+            echo "::warning title=後端建置警告::共 ${count} 個（分類統計見 Summary 與步驟⑤ log），僅提醒不阻擋"
             {
-              echo "## 後端編譯警告：${count} 個"
+              echo "## 後端建置警告：${count} 個"
               echo '```'
-              grep -oE 'warning CS[0-9]+' build.log | sort | uniq -c | sort -rn
+              grep -oE 'warning [A-Z]+[0-9]+' build.log | sort | uniq -c | sort -rn
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "## 後端編譯警告：0 個 ✅" >> "$GITHUB_STEP_SUMMARY"
+            echo "## 後端建置警告：0 個 ✅" >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: ⑥ 套件弱點掃描（僅提醒不阻擋）
         if: always()
         run: |
-          dotnet list src/Konbini.Api package --vulnerable --include-transitive | tee vuln.log || true
+          # 測試專案的套件（xunit、test logger 等）也掃，只是不會進成品
+          { dotnet list src/Konbini.Api package --vulnerable --include-transitive
+            dotnet list tests/Konbini.Tests package --vulnerable --include-transitive; } | tee vuln.log || true
           # 只比對「有弱點」的句子：沒有弱點時的訊息「has no vulnerable packages」也含 vulnerable packages，
           # 只 grep 後半句會把「沒有弱點」誤判成有弱點
           if grep -q "has the following vulnerable packages" vuln.log; then
@@ -95,6 +117,7 @@ jobs:
   frontend:
     name: 前端：型別檢查與打包
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: src/Konbini.Client
@@ -108,8 +131,9 @@ jobs:
           node-version-file: src/Konbini.Client/.nvmrc
           cache: npm
           cache-dependency-path: src/Konbini.Client/package-lock.json
+      # 弱點掃描由步驟⑥統一執行，安裝時不重複 audit
       - name: ③ 安裝套件（npm ci）
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       # 型別錯誤零容忍（從第一天就是 0，直接阻擋，不走「僅提醒」）
       - name: ④ 型別檢查（零容忍，會阻擋）
         run: npx vue-tsc --noEmit
@@ -130,6 +154,7 @@ jobs:
   docker:
     name: 容器：驗證 Dockerfile
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: ① 取出原始碼
         uses: actions/checkout@v7
@@ -146,6 +171,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.test_package)
     needs: [backend, frontend, docker]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.info.outputs.version }}
       kind: ${{ steps.info.outputs.kind }}
@@ -174,6 +200,8 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
+    # 建置＋冒煙測試（--wait-timeout 180）＋docker save；arm64 runner 較慢，留餘裕
+    timeout-minutes: 30
     env:
       APP_VERSION: ${{ needs.release-info.outputs.version }}
       SUFFIX: ${{ needs.release-info.outputs.suffix }}
@@ -191,7 +219,7 @@ jobs:
             --build-arg APP_VERSION="$APP_VERSION" --build-arg GIT_SHA="${GITHUB_SHA::7}" \
             -t "konbini-client:$APP_VERSION" src/Konbini.Client
       # 用剛建好的映像跑部署佈局（prod compose，--no-build），確認成品真的能動：
-      # 三個容器都起得來且健康、首頁 200、/api 反代通、版號正確、種子資料已建立
+      # 四個容器都起得來（api、postgres、mailpit 健康，client 執行中）、首頁 200、/api 反代通、版號正確、種子資料已建立
       - name: ③ 冒煙測試（部署佈局）
         run: |
           printf '%s\n' \
@@ -234,6 +262,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [release-info, package]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     env:

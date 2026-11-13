@@ -1,0 +1,657 @@
+<title>Konbini 購物車版面草稿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --brand:#D33A2C;--brand-dark:#B32B1F;--brand-soft:#FCEDEB;
+  --ground:#F8F6F4;--surface:#FFFFFF;--surface-2:#EFEBE7;
+  --ink:#1E1917;--muted:#7A716C;--line:#E2DCD7;--line-strong:#CFC6BF;
+  --ok:#2E7D5B;--ok-soft:#E4F1EA;--warn:#946214;--flag:#9A6B12;--flag-soft:#FBF0D9;--shell:#EFEBE7;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--shell);color:var(--ink);
+  font-family:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
+  font-size:14px;line-height:1.7;-webkit-font-smoothing:antialiased;
+  padding:0 16px;padding-block:0 56px;
+}
+h1,h2,h3,h4{margin:0;line-height:1.35;text-wrap:balance}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:3px}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:"IBM Plex Mono",monospace}
+
+/* ══ 工具列 ══ */
+.toolbar{max-width:1280px;margin:0 auto;padding-block:22px 14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.toolbar .who{display:flex;flex-direction:column;gap:2px}
+.toolbar h1{font-size:19px;font-weight:700}
+.toolbar .sub{font-size:12.5px;color:var(--muted)}
+.tgl{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:4px;padding:9px 14px;min-height:44px;background:var(--surface);font-size:13px;font-weight:500}
+.tgl .dot{width:9px;height:9px;border-radius:50%;background:var(--line-strong)}
+.tgl[aria-pressed="true"]{border-color:var(--flag);background:var(--flag-soft);color:var(--flag)}
+.tgl[aria-pressed="true"] .dot{background:var(--flag)}
+
+.frame{max-width:1280px;margin:0 auto;background:var(--ground);border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;position:relative}
+.frame + .frame,.frame-cap + .frame{margin-top:14px}
+.frame-cap{max-width:1280px;margin:34px auto 0;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.frame-cap .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--brand);font-weight:500}
+.frame-cap h2{font-size:17px;font-weight:900}
+.frame-cap p{font-size:12.5px;color:var(--muted)}
+
+.mark{display:none!important;position:absolute;z-index:30;top:6px;left:6px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;background:var(--flag);color:#fff;border-radius:2px;padding:2px 6px;white-space:nowrap;line-height:1.5}
+.mark.need{background:var(--brand)}
+body.annot .mark{display:inline-block!important}
+body.annot .anchor{outline:1px dashed var(--flag);outline-offset:3px}
+.anchor{position:relative}
+
+/* ══ header（與 App.vue 一致）══ */
+.notice{background:var(--brand);color:#fff;text-align:center;font-size:12.5px;font-weight:500;padding:7px 16px}
+.notice b{font-weight:700}
+.notice .sep{opacity:.7;margin:0 6px}
+.hdr{background:var(--surface);border-bottom:1px solid var(--line)}
+.hdr-top{max-width:1180px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;gap:16px}
+.logo{display:flex;align-items:baseline;gap:7px;font-weight:900;font-size:21px;letter-spacing:.02em;white-space:nowrap}
+.logo .jp{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.14em}
+.searchbar{flex:1;min-width:0;display:flex;align-items:stretch;border:1.5px solid var(--line-strong);border-radius:4px;overflow:hidden;background:var(--surface)}
+.searchbar input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);padding:0 12px;font:inherit;font-size:13.5px;min-height:42px}
+.searchbar input::placeholder{color:var(--muted)}
+.searchbar .go{background:var(--brand);color:#fff;padding:0 18px;font-weight:700;font-size:13px;min-height:42px;min-width:56px}
+.util{display:flex;gap:4px;align-items:center}
+.util a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:56px;min-height:44px;padding:4px 6px;border-radius:4px;font-size:11px;color:var(--muted);white-space:nowrap}
+.util a .ico{font-size:16px;line-height:1}
+.util a.on{color:var(--brand);font-weight:700}
+.util .badge{position:absolute;top:0;right:6px;background:var(--brand);color:#fff;font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;font-variant-numeric:tabular-nums}
+.hdr-nav{border-top:1px solid var(--line)}
+.hdr-nav ul{max-width:1180px;margin:0 auto;padding:0 18px;list-style:none;display:flex;gap:2px;overflow-x:auto}
+.hdr-nav a{display:block;padding:11px 14px;font-size:13.5px;font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;min-height:44px}
+.hdr-nav a.on{border-bottom-color:var(--brand);color:var(--brand);font-weight:700}
+
+.crumb{max-width:1180px;margin:0 auto;padding:16px 20px 0;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.crumb .sep{opacity:.5}
+.crumb .cur{color:var(--ink)}
+
+/* ══ 主體 ══ */
+.page{max-width:1180px;margin:0 auto;padding:22px 20px 56px;display:flex;flex-direction:column;gap:34px}
+.page.narrow{max-width:1000px}
+.head{display:flex;flex-direction:column;gap:7px}
+.head.center{align-items:center;text-align:center}
+.head .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;color:var(--brand);font-weight:500}
+.head h2{font-size:clamp(22px,3vw,28px);font-weight:900}
+.head p{font-size:13.5px;color:var(--muted);max-width:60ch}
+
+.box{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:26px 28px;display:flex;flex-direction:column;gap:18px}
+.box h3{font-size:17px;font-weight:900;letter-spacing:.02em}
+.box .sub{font-size:12.5px;color:var(--muted);margin-top:-12px}
+
+/* 區塊標題 */
+.sec{display:flex;flex-direction:column;gap:18px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line-strong);padding-bottom:9px;flex-wrap:wrap}
+.sec-h h3{font-size:17px;font-weight:900;letter-spacing:.02em}
+.sec-h .cap{font-size:11.5px;color:var(--muted)}
+
+/* ── 按鈕 ── */
+.btn-main{background:var(--brand);color:#fff;font-weight:700;font-size:15px;border-radius:4px;min-height:52px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:0 18px}
+.btn-main:hover{background:var(--brand-dark)}
+.btn-main[disabled],.btn-main.wait{background:var(--line-strong);cursor:default}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);font-size:13.5px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--ink)}
+.btn.plain-brand{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.btn.solid{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:700}
+.btn.text{border-color:transparent;background:transparent;color:var(--muted);padding:0 8px}
+.btn.sm{min-height:36px;font-size:12.5px;padding:0 12px}
+.link{font-size:13px;color:var(--brand);font-weight:500}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;flex:none}
+.spin.dark{border-color:rgba(0,0,0,.12);border-top-color:var(--brand)}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── 數量增減（el-input-number 放大到 44px）── */
+.stepper{display:inline-flex;align-items:stretch;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);height:44px;overflow:hidden}
+.stepper button{width:44px;font-size:17px;color:var(--ink);display:flex;align-items:center;justify-content:center}
+.stepper button:hover{background:var(--surface-2)}
+.stepper button[disabled]{color:var(--line-strong);cursor:default;background:var(--surface)}
+.stepper .v{min-width:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-variant-numeric:tabular-nums;border-inline:1px solid var(--line)}
+.stepper.full{display:flex;width:100%}
+.stepper.full .v{flex:1}
+.stepper.brand{border-color:var(--brand)}
+.stepper.brand button{color:var(--brand)}
+
+/* ── 商品格線與卡片（與 HomeView 一致）── */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:30px 18px}
+.grid.g5{grid-template-columns:repeat(5,1fr)}
+.card{display:flex;flex-direction:column;position:relative;gap:0}
+.thumb{aspect-ratio:1/1;max-width:100%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;border-radius:8px;overflow:hidden;position:relative}
+.thumb .ph{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;color:var(--muted);opacity:.75}
+.t1{background:linear-gradient(150deg,#F7EDE2,#EFE0CF)}
+.t2{background:linear-gradient(150deg,#F8E7E3,#F0D3CC)}
+.t3{background:linear-gradient(150deg,#E4EEEF,#D2E2E4)}
+.t4{background:linear-gradient(150deg,#EFEDE4,#E2DFCF)}
+.card-b{padding:10px 2px 0;display:flex;flex-direction:column;gap:6px;flex:1}
+.pname{font-size:12.5px;line-height:1.55;min-height:calc(12.5px * 1.55 * 2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.price{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.price small{font-size:11px;font-weight:500;margin-right:1px}
+.card .act{margin-top:auto;padding-top:4px}
+.btn-add{width:100%;min-height:44px;border:1px solid var(--brand);color:var(--brand);background:var(--surface);border-radius:4px;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-add:hover{background:var(--brand-soft)}
+.incart{position:absolute;top:6px;left:6px;background:var(--brand);color:#fff;font-size:10.5px;font-weight:700;border-radius:2px;padding:2px 7px}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:2px;letter-spacing:.03em;display:inline-block;line-height:1.6}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--flag-soft);color:var(--flag)}
+.tag.line{border:1px solid var(--line-strong);color:var(--muted);background:var(--surface)}
+
+/* ── 骨架、空、錯誤（el-skeleton／el-empty）── */
+.sk{background:linear-gradient(90deg,var(--surface-2) 25%,#F6F3F0 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}
+.sk.img{aspect-ratio:1/1;border-radius:8px}
+.sk.t{height:12px;margin-top:9px}
+.state .sk.img{aspect-ratio:4/3}
+.state .sk.t:nth-child(4){display:none}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:34px 16px}
+.empty .ill{width:84px;height:84px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:34px}
+.empty .ill.err{background:var(--brand-soft);color:var(--brand);font-weight:900;font-size:30px}
+.empty .ill.ok{background:var(--ok-soft);color:var(--ok);font-weight:900}
+.empty h4{font-size:15px;font-weight:700}
+.empty p{font-size:12.5px;color:var(--muted);max-width:36ch}
+.empty .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+
+/* 四種狀態縮圖 */
+.states{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.state{border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:10px;min-height:200px}
+.state .h{font-size:11px;letter-spacing:.12em;color:var(--muted);font-family:"IBM Plex Mono",monospace;display:flex;justify-content:space-between;gap:8px}
+.state .h em{font-style:normal;color:var(--ink);letter-spacing:0;font-family:"Noto Sans TC",sans-serif;font-size:11.5px}
+.state .empty{padding:14px 6px}
+.state .empty .ill{width:56px;height:56px;font-size:22px}
+.state .empty h4{font-size:13px}
+.state .empty p{font-size:11.5px}
+.mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.mini-card .thumb{border-radius:6px}
+.mini-card .l{font-size:11px;line-height:1.5;margin-top:6px}
+.mini-card .p{font-size:12px;font-weight:900;font-variant-numeric:tabular-nums}
+.mini-inp{border:1px solid var(--line-strong);border-radius:3px;min-height:36px;display:flex;align-items:center;padding:0 10px;font-size:12px;color:var(--muted)}
+.mini-inp.bad{border-color:var(--brand);background:var(--brand-soft);color:var(--brand)}
+.mini-btn{background:var(--brand);color:#fff;border-radius:3px;min-height:36px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;gap:6px}
+.mini-btn.wait{background:var(--line-strong)}
+.mini-note{font-size:11.5px;color:var(--brand);line-height:1.6}
+.mini-ok{font-size:11.5px;color:var(--ok);line-height:1.6}
+
+/* ── 表單（與 login.html 一致：輸入框 48px）── */
+.form{display:flex;flex-direction:column;gap:17px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.field .lb{font-size:13px;font-weight:500;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.field .req{color:var(--brand);font-size:11px;font-weight:700}
+.field .hint{font-size:11.5px;color:var(--muted);font-weight:400}
+.inp{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:0 13px;min-height:48px}
+.inp .pi{color:var(--muted);font-size:14px;flex:none;width:16px;text-align:center}
+.inp input,.inp textarea{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;min-height:46px;outline:0}
+.inp textarea{resize:none;padding:11px 0;min-height:76px}
+.inp.area{align-items:flex-start}
+.inp input::placeholder,.inp textarea::placeholder{color:var(--muted)}
+.inp:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.inp.bad{border-color:var(--brand);background:var(--brand-soft)}
+.inp.sel{justify-content:space-between;color:var(--ink);font-size:14px}
+.inp.sel::after{content:"⌄";color:var(--muted);font-size:15px;margin-top:-6px}
+.inp.sel.ph{color:var(--muted)}
+.inp.dis{background:var(--surface-2);color:var(--muted)}
+.counter{font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.msg{font-size:12px;color:var(--brand);display:flex;align-items:flex-start;gap:5px;line-height:1.6}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.radio-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rc{border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:12px 14px;min-height:56px;display:flex;gap:10px;align-items:flex-start;position:relative}
+.rc i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-strong);flex:none;margin-top:3px}
+.rc.on{border-color:var(--brand);background:var(--brand-soft)}
+.rc.on i{border:5px solid var(--brand)}
+.rc.off{background:var(--surface-2);color:var(--muted)}
+.rc b{font-size:13.5px;display:block}
+.rc span{font-size:11.5px;color:var(--muted)}
+
+/* ── 錯誤 modal（ElMessageBox）── */
+.modal-scrim{position:absolute;inset:0;background:rgba(30,25,23,.45);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:6px;width:min(420px,100%);padding:20px 22px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.modal .mh{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700}
+.modal .mh .ic{width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none}
+.modal ul{margin:0;padding-left:1.2em;font-size:13.5px;line-height:1.8}
+.modal .mf{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+
+/* ── 分頁（el-pagination）── */
+.pager{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.pager a,.pager span{min-width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:13.5px;font-weight:500}
+.pager a{background:var(--surface);border:1px solid var(--line)}
+.pager a.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:700}
+.pager a.dis{color:var(--line-strong)}
+.pager .total{color:var(--muted);font-size:12.5px;margin-right:8px;min-width:auto}
+
+/* ── 手機底部固定條 ── */
+.bbar{display:none}
+
+/* footer */
+.ftr{background:var(--surface);border-top:1px solid var(--line)}
+.ftr-in{max-width:1180px;margin:0 auto;padding:34px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.ftr h4{font-size:12.5px;font-weight:700;margin-bottom:8px}
+.ftr ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.ftr li{font-size:12.5px;color:var(--muted)}
+.ftr-btm{border-top:1px solid var(--line);padding:13px 18px;text-align:center;font-size:11.5px;color:var(--muted)}
+
+/* ══ 說明 ══ */
+.notes{max-width:1180px;margin:0 auto;padding-block:44px 0;display:flex;flex-direction:column;gap:28px}
+.notes h2{font-size:20px;font-weight:900}
+.notes .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.notes .lead{font-size:13px;color:var(--muted);margin-top:6px}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:13px}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;letter-spacing:.08em;color:var(--muted);font-weight:500;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+.warnbox{background:var(--brand-soft);border:1px solid var(--brand);border-radius:4px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.warnbox .k{color:var(--brand)}
+.warnbox p{font-size:13.5px;line-height:1.85}
+.okbox{background:var(--ok-soft);border:1px solid var(--ok);border-radius:4px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.okbox .k{color:var(--ok)}
+.okbox p{font-size:13.5px;line-height:1.85}
+ul.plain{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:6px}
+ul.plain li{font-size:13.5px;line-height:1.75}
+ul.plain li::marker{color:var(--brand)}
+code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface-2);padding:1px 5px;border-radius:2px}
+
+@media (max-width:820px){
+  .states{grid-template-columns:repeat(2,1fr)}
+  .ftr-in{grid-template-columns:repeat(2,1fr)}
+  .hdr-top{flex-wrap:wrap;gap:10px 12px;padding:10px 14px}
+  .util{margin-left:auto}
+  .searchbar{order:3;width:100%;flex-basis:100%}
+  .grid,.grid.g5{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:560px){
+  body{padding:0 10px 40px}
+  .box{padding:20px 18px}
+  .states{grid-template-columns:1fr}
+  .ftr-in{grid-template-columns:1fr 1fr;padding:26px 16px}
+  .grid,.grid.g5{grid-template-columns:repeat(2,1fr);gap:24px 12px}
+  .logo .jp{display:none}
+  .util a{min-width:48px;padding:4px 3px}
+  .page{padding:16px 14px 40px;gap:26px}
+  .crumb{padding:12px 14px 0}
+  .row2,.radio-cards{grid-template-columns:1fr}
+  .notice{font-size:11.5px}
+  .notice .sep,.notice .tail{display:none}
+  .bbar{display:flex;position:sticky;bottom:0;z-index:15;background:var(--surface);border-top:1px solid var(--line-strong);box-shadow:0 -4px 14px rgba(0,0,0,.06);padding:10px 14px calc(10px + env(safe-area-inset-bottom));align-items:center;gap:12px}
+  .bbar .sum{flex:1;display:flex;flex-direction:column;line-height:1.35;min-width:0}
+  .bbar .sum small{font-size:11.5px;color:var(--muted)}
+  .bbar .sum b{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}
+  .bbar .btn-main{width:auto;min-height:48px;padding:0 22px;font-size:14.5px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ══════ 本頁 ══════ */
+/* 背景頁（列表的簡化版） */
+.bg-page{max-width:1180px;margin:0 auto;padding:22px 20px 40px;display:flex;flex-direction:column;gap:18px}
+.bg-page h2{font-size:24px;font-weight:900}
+.scrim{position:absolute;inset:0;background:rgba(30,25,23,.42);z-index:10}
+
+/* 購物車內容（抽屜、側欄、完整頁共用） */
+.cart{display:flex;flex-direction:column;background:var(--surface);min-height:0}
+.cart-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.cart-h h3{font-size:18px;font-weight:900}
+.cart-h .cnt{font-size:12.5px;color:var(--muted);margin-left:8px;font-weight:500}
+.x{width:44px;height:44px;border-radius:4px;font-size:18px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.x:hover{background:var(--surface-2)}
+.ship{padding:12px 20px;background:var(--ground);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:7px;font-size:12.5px}
+.ship b{color:var(--brand)}
+.ship.done b{color:var(--ok)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:3px}
+.ship.done .bar i{background:var(--ok)}
+.items{list-style:none;margin:0;padding:0 20px;overflow:auto;flex:1}
+.it{display:grid;grid-template-columns:64px minmax(0,1fr);gap:4px 14px;padding:16px 0;border-bottom:1px solid var(--line)}
+.it:last-child{border-bottom:0}
+.it .thumb{width:64px;border-radius:6px;grid-row:1/3}
+.it .nm{font-size:13px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.it .unit{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.it .ctl{grid-column:2;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;flex-wrap:wrap}
+.it .sub{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums}
+.it .rm{font-size:12px;color:var(--muted);min-height:44px;padding:0 6px;display:flex;align-items:center;gap:4px}
+.it .rm:hover{color:var(--brand)}
+.it .lim{grid-column:2;font-size:11.5px;color:var(--flag)}
+.sum{padding:16px 20px 18px;border-top:1px solid var(--line-strong);display:flex;flex-direction:column;gap:7px;background:var(--surface)}
+.sum .r{display:flex;justify-content:space-between;font-size:13.5px;font-variant-numeric:tabular-nums}
+.sum .r small{color:var(--muted);font-size:11.5px;margin-left:6px}
+.sum .tot{font-size:15px;font-weight:700;border-top:1px solid var(--line);padding-top:9px;margin-top:2px;align-items:baseline}
+.sum .tot b{font-size:22px;font-weight:900}
+.sum .note{font-size:11.5px;color:var(--muted)}
+.sum .btn-main{margin-top:6px}
+.sum .more{text-align:center;font-size:12.5px;color:var(--muted);min-height:36px;display:flex;align-items:center;justify-content:center}
+
+/* A：抽屜 */
+.drawer{position:absolute;top:0;right:0;bottom:0;width:420px;z-index:11;box-shadow:-12px 0 32px rgba(0,0,0,.16)}
+/* B：固定側欄 */
+.grid.g3{grid-template-columns:repeat(3,1fr)}
+.with-side{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+.sidecart{border:1px solid var(--line);border-radius:6px;overflow:hidden;position:sticky;top:12px}
+.items.ro .it{grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 0}
+.items.ro .it .thumb{width:48px;grid-row:auto}
+.items.ro .qty{font-size:13px;color:var(--muted);font-weight:500;white-space:nowrap}
+.sidecart .cart-h{padding:12px 16px}
+.sidecart .cart-h h3{font-size:16px}
+.sidecart .ship{padding:10px 16px}
+.sidecart .items{padding:0 16px;max-height:430px}
+.sidecart .it{grid-template-columns:48px minmax(0,1fr);gap:2px 12px;padding:12px 0}
+.sidecart .it .thumb{width:48px}
+.sidecart .sum{padding:12px 16px 14px}
+.sidecart .sum .tot b{font-size:19px}
+/* C：完整頁 */
+.cartpage{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+.cartpage .list{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.cartpage .it{grid-template-columns:88px minmax(0,1fr) auto;align-items:center}
+.cartpage .it .thumb{width:88px}
+.cartpage .it .ctl{grid-column:3;grid-row:1/3;margin:0;justify-content:flex-end;gap:16px}
+.cartpage .it .sub{min-width:78px;text-align:right}
+.cartpage .sumbox{border:1px solid var(--line);border-radius:6px;overflow:hidden;position:sticky;top:12px}
+.cartpage .sumbox h4{font-size:15px;font-weight:900;padding:14px 20px 0;background:var(--surface)}
+
+.st-cart{border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.st-cart .ship{padding:9px 12px;font-size:11.5px}
+.st-cart .it{grid-template-columns:40px 1fr;padding:10px 12px;gap:2px 10px}
+.st-cart .it .thumb{width:40px}
+.st-cart .it .nm{font-size:11.5px}
+.st-cart .stepper{height:36px}
+.st-cart .stepper button{width:36px;font-size:14px}
+.st-cart .stepper .v{min-width:30px;font-size:12.5px}
+
+@media (max-width:820px){
+  .with-side{grid-template-columns:1fr}
+  .sidecart{display:none}
+  .cartpage{grid-template-columns:1fr}
+  .cartpage .sumbox{position:static}
+}
+@media (max-width:560px){
+  .grid.g3{grid-template-columns:repeat(2,1fr)}
+  .drawer{width:100%;box-shadow:none}
+  .cartpage .it{grid-template-columns:72px minmax(0,1fr)}
+  .cartpage .it .thumb{width:72px}
+  .cartpage .it .ctl{grid-column:2;grid-row:auto;justify-content:space-between;margin-top:6px}
+  .cartpage .sumbox .btn-main{display:none}
+  .items{padding:0 14px}
+  .cart-h,.ship,.sum{padding-inline:14px}
+}
+</style>
+
+<div class="toolbar">
+  <div class="who">
+    <h1>Konbini 購物車版面草稿</h1>
+    <p class="sub">桌機比較「右側抽屜」與「固定側欄」兩種做法，手機一律底部固定條＋完整購物車頁 · 購物車在 Pinia＋localStorage，金額以下單時後端計算為準 · 靜態 HTML，專案程式碼未更動</p>
+  </div>
+  <button class="tgl" id="annotBtn" aria-pressed="false"><span class="dot"></span>顯示區塊標註</button>
+</div>
+<div class="frame-cap"><span class="k">FRAME A</span><h2>桌機做法一：右側抽屜（el-drawer）</h2><p>點 header 的購物車圖示從右側滑出；只列出內容，改數量、看金額、結帳都要進購物車頁</p></div>
+<div class="frame">
+  <div class="notice">單筆滿 <b class="num">NT$500</b> 免運費<span class="sep">·</span><span class="tail">平日 15:00 前下單當日出貨</span></div>
+  <header class="hdr">
+    <div class="hdr-top">
+      <a class="logo" href="#">🏪 Konbini <span class="jp">NICHI–KAN SNACKS</span></a>
+      <div class="searchbar">
+        <input placeholder="搜尋商品，例如：辛拉麵、白色戀人" aria-label="搜尋商品">
+        <button class="go">搜尋</button>
+      </div>
+      <nav class="util"><a href="#"><span class="ico">📋</span>我的訂單</a><a href="#"><span class="ico">👤</span>登出</a><a class="on" href="#"><span class="ico">🛒</span>購物車<span class="badge">8</span></a></nav>
+    </div>
+    <nav class="hdr-nav"><ul><li><a href="#">全部商品</a></li><li><a href="#" class="on">零食</a></li><li><a href="#">泡麵</a></li><li><a href="#">飲品</a></li></ul></nav>
+  </header>
+  <div class="bg-page">
+    <h2>零食</h2>
+    <div class="grid"><div class="card"><div class="thumb t1"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本 明治「GOCHI」軟糖</p><p class="price"><small>NT$</small>65</p></div></div>
+<div class="card"><div class="thumb t2"><span class="ph">IMG</span><span class="incart">已在購物車 × 2</span></div><div class="card-b"><p class="pname">日本BOURBON北日本條狀軟糖</p><p class="price"><small>NT$</small>59</p></div></div>
+<div class="card"><div class="thumb t3"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本Glico格力高 9袋入百利滋野菜棒</p><p class="price"><small>NT$</small>129</p></div></div>
+<div class="card"><div class="thumb t4"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本Glico格力高 Pocky百奇 櫻花抹茶棒-9袋入</p><p class="price"><small>NT$</small>149</p></div></div>
+<div class="card"><div class="thumb t1"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本《明治》杏仁巧克力</p><p class="price"><small>NT$</small>89</p></div></div>
+<div class="card"><div class="thumb t2"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本梅津堂特選梅片</p><p class="price"><small>NT$</small>79</p></div></div>
+<div class="card"><div class="thumb t3"><span class="ph">IMG</span><span class="incart">已在購物車 × 1</span></div><div class="card-b"><p class="pname">日本神田 綜合點心米果</p><p class="price"><small>NT$</small>69</p></div></div>
+<div class="card"><div class="thumb t4"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">東豊洋芋片-奶油鹽風味4枚入包</p><p class="price"><small>NT$</small>85</p></div></div></div>
+  </div>
+  <div class="scrim"></div>
+
+  <!-- 01 抽屜 -->
+  <aside class="drawer cart anchor" aria-label="購物車"><span class="mark">01 購物車抽屜（寬 420px，唯讀）</span>
+    <div class="cart-h"><h3>購物車<span class="cnt num">4 項 · 8 件</span></h3><button class="x" aria-label="關閉">✕</button></div>
+    <ul class="items ro anchor"><span class="mark">02 商品列（只顯示名稱與數量）</span>
+      <li class="it"><div class="thumb t2"></div><p class="nm">日本BOURBON北日本條狀軟糖</p><span class="qty num">× 2</span></li>
+      <li class="it"><div class="thumb t3"></div><p class="nm">日本神田 綜合點心米果</p><span class="qty num">× 1</span></li>
+      <li class="it"><div class="thumb t1"></div><p class="nm">韓國辛拉麵</p><span class="qty num">× 4</span></li>
+      <li class="it"><div class="thumb t4"></div><p class="nm">韓國ORION好麗友 葡萄軟糖</p><span class="qty num">× 1</span></li>
+    </ul>
+    <div class="sum anchor"><span class="mark">03 唯一的按鈕</span>
+      <p class="note">要修改數量、查看金額或結帳，請到購物車頁。</p>
+      <a class="btn-main" href="#">查看購物車</a>
+    </div>
+  </aside>
+</div>
+
+<div class="frame-cap"><span class="k">FRAME B</span><h2>桌機做法二：列表右側固定側欄</h2><p>列表與搜尋頁常駐；只列出內容，改數量、看金額、結帳都要進購物車頁</p></div>
+<div class="frame">
+  <div class="notice">單筆滿 <b class="num">NT$500</b> 免運費<span class="sep">·</span><span class="tail">平日 15:00 前下單當日出貨</span></div>
+  <header class="hdr">
+    <div class="hdr-top">
+      <a class="logo" href="#">🏪 Konbini <span class="jp">NICHI–KAN SNACKS</span></a>
+      <div class="searchbar">
+        <input placeholder="搜尋商品，例如：辛拉麵、白色戀人" aria-label="搜尋商品">
+        <button class="go">搜尋</button>
+      </div>
+      <nav class="util"><a href="#"><span class="ico">📋</span>我的訂單</a><a href="#"><span class="ico">👤</span>登出</a><a href="#"><span class="ico">🛒</span>購物車<span class="badge">8</span></a></nav>
+    </div>
+    <nav class="hdr-nav"><ul><li><a href="#">全部商品</a></li><li><a href="#" class="on">零食</a></li><li><a href="#">泡麵</a></li><li><a href="#">飲品</a></li></ul></nav>
+  </header>
+  <div class="bg-page">
+    <div class="with-side">
+      <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <h2>零食</h2>
+        <div class="grid g3"><div class="card"><div class="thumb t1"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本 明治「GOCHI」軟糖</p><p class="price"><small>NT$</small>65</p></div></div>
+<div class="card"><div class="thumb t2"><span class="ph">IMG</span><span class="incart">已在購物車 × 2</span></div><div class="card-b"><p class="pname">日本BOURBON北日本條狀軟糖</p><p class="price"><small>NT$</small>59</p></div></div>
+<div class="card"><div class="thumb t3"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本Glico格力高 9袋入百利滋野菜棒</p><p class="price"><small>NT$</small>129</p></div></div>
+<div class="card"><div class="thumb t4"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本Glico格力高 Pocky百奇 櫻花抹茶棒-9袋入</p><p class="price"><small>NT$</small>149</p></div></div>
+<div class="card"><div class="thumb t1"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本《明治》杏仁巧克力</p><p class="price"><small>NT$</small>89</p></div></div>
+<div class="card"><div class="thumb t2"><span class="ph">IMG</span></div><div class="card-b"><p class="pname">日本梅津堂特選梅片</p><p class="price"><small>NT$</small>79</p></div></div></div>
+      </div>
+      <!-- 04 固定側欄 -->
+      <aside class="sidecart cart anchor" aria-label="購物車"><span class="mark">04 固定側欄（寬 300px，sticky，唯讀）</span>
+        <div class="cart-h"><h3>購物車<span class="cnt num">4 項 · 8 件</span></h3></div>
+        <ul class="items ro">
+          <li class="it"><div class="thumb t2"></div><p class="nm">日本BOURBON北日本條狀軟糖</p><span class="qty num">× 2</span></li>
+          <li class="it"><div class="thumb t3"></div><p class="nm">日本神田 綜合點心米果</p><span class="qty num">× 1</span></li>
+          <li class="it"><div class="thumb t1"></div><p class="nm">韓國辛拉麵</p><span class="qty num">× 4</span></li>
+          <li class="it"><div class="thumb t4"></div><p class="nm">韓國ORION好麗友 葡萄軟糖</p><span class="qty num">× 1</span></li>
+        </ul>
+        <div class="sum">
+          <a class="btn-main" href="#">查看購物車</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="bbar"><div class="sum" style="padding:0;border:0;gap:0"><small>購物車 8 件</small><b>NT$472</b></div><a class="btn-main" href="#">看購物車</a></div>
+</div>
+
+<div class="frame-cap"><span class="k">FRAME C</span><h2>完整購物車頁 /cart</h2><p>改數量、移除、看金額、結帳的唯一地方；手機從底部固定條進來，桌機從抽屜或側欄的「查看購物車」進來</p></div>
+<div class="frame">
+  <div class="notice">單筆滿 <b class="num">NT$500</b> 免運費<span class="sep">·</span><span class="tail">平日 15:00 前下單當日出貨</span></div>
+  <header class="hdr">
+    <div class="hdr-top">
+      <a class="logo" href="#">🏪 Konbini <span class="jp">NICHI–KAN SNACKS</span></a>
+      <div class="searchbar">
+        <input placeholder="搜尋商品，例如：辛拉麵、白色戀人" aria-label="搜尋商品">
+        <button class="go">搜尋</button>
+      </div>
+      <nav class="util"><a href="#"><span class="ico">📋</span>我的訂單</a><a href="#"><span class="ico">👤</span>登出</a><a class="on" href="#"><span class="ico">🛒</span>購物車<span class="badge">8</span></a></nav>
+    </div>
+    <nav class="hdr-nav"><ul><li><a href="#">全部商品</a></li><li><a href="#">零食</a></li><li><a href="#">泡麵</a></li><li><a href="#">飲品</a></li></ul></nav>
+  </header>
+  <nav class="crumb"><a href="#">首頁</a><span class="sep">›</span><span class="cur">購物車</span></nav>
+  <div class="page">
+    <div class="head"><h2>購物車</h2><p class="num">4 項商品 · 共 8 件</p></div>
+    <div class="cartpage">
+      <div class="list cart anchor"><span class="mark">06 商品清單</span>
+        <div class="ship"><span>再買 <b class="num">NT$88</b> 就免運費</span><div class="bar"><i style="width:82%"></i></div></div>
+        <ul class="items">
+          <li class="it"><div class="thumb t2"></div><div><p class="nm">日本BOURBON北日本條狀軟糖</p><p class="unit">NT$59 / 件</p></div>
+            <div class="ctl"><div class="stepper"><button>－</button><span class="v">2</span><button>＋</button></div><span class="sub">NT$118</span><button class="rm">✕ 移除</button></div></li>
+          <li class="it"><div class="thumb t3"></div><div><p class="nm">日本神田 綜合點心米果</p><p class="unit">NT$69 / 件</p></div>
+            <div class="ctl"><div class="stepper"><button>－</button><span class="v">1</span><button>＋</button></div><span class="sub">NT$69</span><button class="rm">✕ 移除</button></div></li>
+          <li class="it"><div class="thumb t1"></div><div><p class="nm">韓國辛拉麵</p><p class="unit">NT$45 / 件</p></div>
+            <div class="ctl"><div class="stepper"><button>－</button><span class="v">4</span><button>＋</button></div><span class="sub">NT$180</span><button class="rm">✕ 移除</button></div></li>
+          <li class="it"><div class="thumb t4"></div><div><p class="nm">韓國ORION好麗友 葡萄軟糖</p><p class="unit">NT$45 / 件</p></div>
+            <div class="ctl"><div class="stepper"><button>－</button><span class="v">1</span><button>＋</button></div><span class="sub">NT$45</span><button class="rm">✕ 移除</button></div></li>
+        </ul>
+      </div>
+      <div class="sumbox anchor"><span class="mark">07 訂單摘要（sticky）</span>
+        <h4>訂單摘要</h4>
+        <div class="sum" style="border-top:0">
+          <div class="r"><span>小計</span><span>NT$412</span></div>
+          <div class="r"><span>運費<small>滿 NT$500 免運</small></span><span>NT$60</span></div>
+          <div class="r tot"><span>合計</span><b>NT$472</b></div>
+          <p class="note">實際金額以送出訂單時的計算為準。</p>
+          <a class="btn-main" href="#">前往結帳</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer class="ftr">
+    <div class="ftr-in">
+      <div><h4>購物指南</h4><ul><li>運費與配送</li><li>付款方式</li><li>退換貨說明</li><li>常見問題</li></ul></div>
+      <div><h4>關於 Konbini</h4><ul><li>我們怎麼選貨</li><li>進貨與效期政策</li><li>聯絡我們</li></ul></div>
+      <div><h4>條款</h4><ul><li>服務條款</li><li>隱私權政策</li><li>食品標示資訊</li></ul></div>
+      <div><h4>訂單</h4><ul><li>查詢訂單</li><li>購物車</li></ul></div>
+    </div>
+    <p class="ftr-btm">客服時間 週一至週五 10:00–18:00　·　© 2026 Konbini</p>
+  </footer>
+  <div class="bbar anchor"><span class="mark">08 底部固定條（手機）</span>
+    <div class="sum" style="padding:0;border:0;gap:0"><small>合計（8 件）</small><b>NT$472</b></div>
+    <a class="btn-main" href="#">前往結帳</a>
+  </div>
+</div>
+
+<div class="page" style="padding-inline:0;max-width:1280px">
+  <!-- 09 狀態 -->
+  <section class="sec anchor"><span class="mark">09 購物車的四種狀態</span>
+    <div class="sec-h"><h3>狀態示意</h3><span class="cap">購物車在前端，沒有載入中與載入失敗；改畫四種會影響操作的情況</span></div>
+    <div class="states">
+      <div class="state">
+        <span class="h">EMPTY<em>引導回列表</em></span>
+        <div class="empty"><div class="ill">🛒</div><h4>購物車是空的</h4><p>先去挑幾樣零食吧。</p><div class="acts"><span class="btn sm plain-brand">開始購物</span></div></div>
+      </div>
+      <div class="state">
+        <span class="h">BELOW<em>未達免運</em></span>
+        <div class="st-cart"><div class="ship"><span>再買 <b class="num">NT$88</b> 就免運費</span><div class="bar"><i style="width:82%"></i></div></div></div>
+        <p style="font-size:11.5px;color:var(--muted)">運費 NT$60 列在小計下方，提示文字給差額，不只給門檻。</p>
+      </div>
+      <div class="state">
+        <span class="h">FREE<em>已達免運</em></span>
+        <div class="st-cart"><div class="ship done"><span><b>✓ 已享免運費</b></span><div class="bar"><i style="width:100%"></i></div></div></div>
+        <p style="font-size:11.5px;color:var(--muted)">運費列顯示「免運」，不是 NT$0。</p>
+      </div>
+      <div class="state">
+        <span class="h">LIMIT<em>每項最多 99 件</em></span>
+        <div class="st-cart"><div class="it"><div class="thumb t3"></div><div><p class="nm">韓國辛拉麵</p></div>
+          <div class="ctl"><div class="stepper"><button>－</button><span class="v">99</span><button disabled>＋</button></div></div>
+          <p class="lim">每項商品最多 99 件</p></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ══════ 說明 ══════ -->
+<div class="notes">
+
+  <section class="okbox">
+    <p class="k">Ready · 現有的程式就做得到</p>
+    <ul class="plain">
+      <li><b>抽屜與側欄的唯讀清單</b> — 只讀 <code>items</code> 的名稱、圖片、數量，不呼叫任何修改方法。</li>
+      <li><b>內容與數量</b> — <code>useCartStore</code>（Pinia＋localStorage）已有 <code>items / quantity / subtotal / deliveryFee / total</code> 與 <code>add / updateQuantity / remove</code>。</li>
+      <li><b>免運進度</b> — 門檻與運費是前端常數 <code>FREE_DELIVERY_THRESHOLD</code>（與後端 <code>Pricing</code> 同為 NT$500、NT$60），差額直接算。</li>
+      <li><b>每項上限 99</b> — <code>MAX_ITEM_QUANTITY</code>，與後端 <code>OrderItem.MaxQuantity</code> 一致。</li>
+      <li><b>抽屜</b> — <code>el-drawer</code>（<code>direction="rtl" size="420px"</code>），手機改 <code>size="100%"</code>；焦點鎖定與 Esc 關閉是現成的。</li>
+    </ul>
+  </section>
+
+  <section class="warnbox">
+    <p class="k">Blocked · 後端沒有的功能</p>
+    <ul class="plain">
+      <li><b>庫存與缺貨提示</b> — 沒有庫存欄位，購物車無法提示「只剩 3 件」或「已售完」，<code>ui-guidelines</code> 的「庫存與購物車不同步時的提示」要等庫存上線。</li>
+      <li><b>價格變動提示</b> — 購物車存的是加入當下的單價；後端改價後，要到送出訂單才會以新價格計算。要在購物車就提示，需要「依 id 批次查商品」的 API。</li>
+      <li><b>跨裝置同步</b> — 購物車只在這台瀏覽器（CLAUDE.md §5 刻意的決定），草稿不畫「登入後合併購物車」。</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="k">Decision</p>
+    <h2>抽屜 vs 固定側欄</h2>
+    <div class="tblwrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th></th><th>A 右側抽屜</th><th>B 固定側欄</th></tr></thead>
+        <tbody>
+          <tr><td><b>列表密度</b></td><td>不佔寬度，格線維持 4 欄</td><td>佔 300px，格線剩 3 欄（一頁 20 件要 7 列）</td></tr>
+          <tr><td><b>看得到內容的時機</b></td><td>點了 header 的購物車才看得到</td><td>逛列表時一直看得到買了哪些</td></tr>
+          <tr><td><b>出現在哪些頁</b></td><td>全站任何頁（header 的入口共用）</td><td>只適合列表與搜尋；首頁、詳情頁仍要另一個入口</td></tr>
+          <tr><td><b>實作量</b></td><td>一個全域元件＋開關狀態</td><td>每個列表頁版型都要改成兩欄，平板以下還是要退回抽屜</td></tr>
+          <tr><td><b>適合的使用方式</b></td><td>逛完再一起看</td><td>邊逛邊對照清單（雜貨的大量採買）</td></tr>
+          <tr><td><b>共同規則</b></td><td colspan="2">兩種都只列名稱與數量，不能改數量、不顯示金額；唯一的按鈕是「查看購物車」。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lead" style="margin-top:10px">兩種做法都改為唯讀後，差別只剩「要點開才看得到」或「一直看得到」。改數量、移除、金額與結帳都集中在 /cart，規則只有一處。</p>
+  </section>
+
+  <section>
+    <p class="k">Reference</p>
+    <h2>與參考網站的區塊對照</h2>
+    <p class="lead">只記錄版型結構與資訊密度的觀察，不沿用任何網站的配色、圖示、文案與素材；細節實作前以實際網站為準。</p>
+    <div class="tblwrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>參考網站的做法</th><th>Konbini</th><th>調整理由</th></tr></thead>
+        <tbody>
+          <tr><td>Instacart：購物車從右側滑出，可直接改數量與結帳</td><td><b>右側只列內容，按鈕改為「查看購物車」</b></td><td>右側不放任何修改操作與金額；所有修改集中在 /cart，避免在兩個地方改同一份資料、看到兩個不同位置的合計。</td></tr>
+          <tr><td>雜貨電商常見：顯示距離免運還差多少</td><td><b>免運進度條＋差額</b></td><td>門檻 NT$500 不高，提示差額能直接帶動多買一兩項。</td></tr>
+          <tr><td>家樂福線上購物：完整購物車頁左清單、右摘要</td><td><b>/cart 左清單、右側 sticky 摘要</b></td><td>保留完整頁給手機與想仔細核對的人；桌機摘要 sticky，清單長也看得到結帳按鈕。</td></tr>
+          <tr><td>全聯 PXGo!：手機底部常駐購物車與結帳入口</td><td><b>手機底部固定條：合計＋結帳</b></td><td><code>ui-guidelines</code> RWD 表的規定；列表頁的固定條導到 /cart，購物車頁的固定條直接結帳。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="k">Layout</p>
+    <h2>為什麼這樣排</h2>
+    <div class="tblwrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>做法</th><th>說明</th></tr></thead>
+        <tbody>
+          <tr><td><b>保留 /cart 完整頁</b></td><td>它是唯一能修改購物車的地方：手機的底部固定條、桌機抽屜或側欄的「查看購物車」都連到這裡。</td></tr>
+          <tr><td><b>抽屜與側欄只看不改</b></td><td>改數量、移除、金額、結帳都只在 /cart；右側只回答「買了哪些、各幾件」。數量減到 0 時跳 <code>ElMessageBox</code> 確認移除，這也只在 /cart 發生。</td></tr>
+          <tr><td><b>金額旁註明「以送出時為準」</b></td><td>購物車的單價是加入當下的價格，下單時後端重新計價（CLAUDE.md §5）；先講清楚，結帳時金額變了才不會像是錯誤。</td></tr>
+          <tr><td><b>未登入按「前往結帳」</b></td><td><code>/checkout</code> 有 <code>requiresAuth</code>，會導到登入頁；登入後要回到結帳，需要前端補 <code>redirect</code> 參數（<code>login.html</code> 下一步已記錄）。購物車在 localStorage，登入過程不會遺失。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="k">Notes</p>
+    <h2>下一步</h2>
+    <ul class="plain" style="margin-top:12px">
+      <li><b>先決定 A 或 B</b>：A 要把 header 的購物車入口從 RouterLink 改成開抽屜；B 保留連結，在列表與搜尋頁加側欄。</li>
+      <li><b>手機底部固定條</b>做成全域元件，購物車有商品才出現；在 /checkout 頁改顯示「送出訂單」。</li>
+      <li><b>加入購物車只在商品說明頁</b>（見 <code>product-detail.html</code>），列表與首頁的商品卡只連到說明頁。</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  var btn = document.getElementById('annotBtn');
+  btn.addEventListener('click', function(){
+    var on = btn.getAttribute('aria-pressed') === 'true';
+    btn.setAttribute('aria-pressed', String(!on));
+    document.body.classList.toggle('annot', !on);
+  });
+  if (location.hash === '#annot') btn.click();
+})();
+</script>

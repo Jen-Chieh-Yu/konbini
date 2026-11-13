@@ -35,7 +35,7 @@
 | 認證 | JWT | 取代原 Session 機制 |
 | 前端 | Vue 3, Vite, Pinia, Vue Router, Axios | SPA，購物車狀態存於 Pinia |
 | UI 元件庫 | Element Plus | 按需自動引入（unplugin），template 直接用 `<el-xxx>` 不需 import |
-| 部署 | Docker Compose | nginx（client）+ api + postgres |
+| 部署 | Docker Compose | nginx（client）+ api + postgres + mailpit（收信） |
 
 ---
 
@@ -45,20 +45,20 @@
 Konbini/
 ├── Konbini.slnx                  # 方案檔（XML 格式）
 ├── global.json                   # 限定 .NET 10 SDK，本機與 CI 共用
-├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api + postgres 並附加偵錯器
-├── docker-compose.yml            # 偵錯/開發 base：api + postgres
+├── docker-compose.dcproj         # VS 容器協調專案：F5 起 api、postgres、mailpit 並附加偵錯器
+├── docker-compose.yml            # 偵錯/開發 base：api + postgres + mailpit
 ├── docker-compose.override.yml   # 偵錯用環境變數與埠（自動與 base 合併）
-├── docker-compose.prod.yml       # 部署環境：client + api + postgres 全套
+├── docker-compose.prod.yml       # 部署環境：client + api + postgres + mailpit 全套
 ├── .dockerignore
-├── .env                          # 機密（不進版控）
+├── .env                          # 機密（不進版控；容器與本機 API 共用）
 ├── .env.example                  # 鍵值範本（進版控）
 ├── CHANGELOG.md                  # 變更紀錄（發行時整理）
 ├── .idea/                        # Rider 共用設定（附加前端資料夾；個人檔不進版控）
-├── .run/                         # Rider 執行設定：本機 API、容器模式、postgres（見「啟動服務」）
+├── .run/                         # Rider 執行設定：本機 API、容器模式、postgres、mailpit（見「啟動服務」）
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：feature-flow、create-pr、review-pr、dev-env
-├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試與前端型別檢查
+├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試、Migration 檢查與前端型別檢查
 ├── .github/
 │   ├── scripts/release-info.sh   # 打包時決定版號（格式檢查、標籤須在 main 上）
 │   ├── workflows/ci.yml          # CI：後端、前端、Docker，v* 標籤打包映像
@@ -66,6 +66,7 @@ Konbini/
 ├── docker/postgres/init/         # postgres 首次初始化腳本：建立應用程式帳號與資料庫
 ├── docs/
 │   ├── api-conventions.md        # API 分層、路由、錯誤格式與驗證規範
+│   ├── configuration.md          # 設定鍵一覽：用途、來源、是否機密、格式限制
 │   ├── database-design.md        # 資料表、欄位型別與 Migration 規範
 │   ├── deployment.md             # 部署手冊（半自動）
 │   ├── release.md                # 版號規則與發行流程
@@ -118,6 +119,7 @@ Features/Orders/
 ├── Queries/      # 唯讀用例：GetOrdersQuery.cs
 ├── Endpoints/     # 每個 feature 一支：OrderEndpoints.cs（MapGroup 集中路由）
 ├── Repositories/  # 資料存取：OrderRepository.cs（介面＋實作同檔）
+├── Errors/        # 業務錯誤：OrderErrors.cs（有第一個業務錯誤才建立）
 └── Services/      # ★ 僅在被 2+ 個 handler 共用時存在
 ```
 
@@ -164,6 +166,8 @@ src/features/Products/
 
 前端一律打相對路徑 `/api/...`，由 nginx 轉發 —— 瀏覽器端**沒有跨域**，不需要 CORS 白名單。
 
+api 寄出的信送到同在內部網路的 `mailpit:1025`，不會寄到真實信箱；收信畫面只綁部署機本機的 `127.0.0.1:8026`。
+
 ### docker-compose 服務清單
 
 **偵錯／開發環境（`docker-compose.yml` + `docker-compose.override.yml`）**
@@ -173,29 +177,31 @@ src/features/Products/
 | --- | --- | --- |
 | `api` | 後端 API（容器內偵錯） | 對外 `127.0.0.1:5214:8080`，vite proxy 不需改任何設定 |
 | `postgres` | 開發用資料庫 | 對外 `127.0.0.1:5432`，named volume |
+| `mailpit` | 收信：API 寄出的信都在這裡，不會寄到真實信箱 | SMTP `127.0.0.1:1025`；收信畫面 `http://localhost:8025`；信件不保存 |
 
-★ 只要資料庫、想走本機最快迭代時：`docker compose up -d postgres`（指定服務名，不會起 api）。
+★ API 想在本機跑、走最快迭代時：`docker compose up -d postgres mailpit`（指定服務名，不會起 api）。
 
-**部署環境（`docker-compose.prod.yml`）** —— 完整三服務：
+**部署環境（`docker-compose.prod.yml`）** —— 完整四個服務：
 
 | 服務 | 用途 | 連接/備註 |
 | --- | --- | --- |
 | `client` | 對外入口：SPA 靜態檔 + `/api` 反代 | 對外 `8080:80` |
 | `api` | 後端 API | `expose: 8080`，**不映射到主機** |
 | `postgres` | 資料庫 | 不對外開埠，named volume + init 腳本 |
+| `mailpit` | 收信：部署演練不寄真實信件 | SMTP 只在內部網路；收信畫面 `127.0.0.1:8026`，只有部署機本機看得到 |
 
 部署環境的 compose 專案名是 `konbini-prod`，容器名一律 `konbini-prod-*`、
 volume 是 `konbini-prod_pg-data`——與開發環境完全分開，兩套可以同時存在。
 
 ⚠️ `docker compose up` 不帶 `-f` 會抓 `docker-compose.yml` + override，
-起的是 **api + postgres 的偵錯組合**（Development 環境、不含 client）——
+起的是 **api + postgres + mailpit 的偵錯組合**（Development 環境、不含 client）——
 不是部署佈局；部署一律明確指定 `-f docker-compose.prod.yml`。
 
 ⚠️ **compose 的 `.env` 只做 `${}` 變數替換，不會自動注入容器。**
 要覆蓋 `appsettings.json` 必須在 compose 的 `environment:` 區段明寫
 （鍵名用 .NET 設定鍵格式：`ConnectionStrings__DefaultConnection`）。
 
-⚠️ macOS（Apple Silicon）：.NET、nginx、PostgreSQL 18 官方映像皆原生支援 arm64，
+⚠️ macOS（Apple Silicon）：.NET、nginx、PostgreSQL 18 官方映像與 Mailpit 皆原生支援 arm64，
 不需要 `platform` 覆寫。
 
 ---
@@ -211,56 +217,42 @@ volume 是 `konbini-prod_pg-data`——與開發環境完全分開，兩套可�
 ### 初次設定（clone 後執行一次）
 
 ```bash
-# 1. 建立 .env（照 .env.example 的鍵補值）
+# 1. 建立 .env（照 .env.example 的鍵補值；容器與本機 dotnet run 都讀這份，鍵的說明見 docs/configuration.md）
 cp .env.example .env
 
-# 2. 本機開發的機密放 user-secrets（不進 repo，不會誤 commit）
-#    值與 .env 相同：konbini 帳號由 postgres 的 init 腳本依 .env 建立，密碼必須一致。
-#    csproj 已設定 UserSecretsId，不需要 dotnet user-secrets init。
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
-  "Host=127.0.0.1;Port=5432;Database=konbini;Username=konbini;Password=<.env 的 APP_DB_PASSWORD>" \
-  --project src/Konbini.Api
-dotnet user-secrets set "Jwt:Secret" "<.env 的 JWT_SECRET>" --project src/Konbini.Api
-
-# 3. 前端套件
+# 2. 前端套件
 cd src/Konbini.Client && npm install
 
-# 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
+# 3. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
 cd ../..
 git config core.hooksPath .githooks
 
-# 5.（建議）安裝 actionlint：hook 會在推送前靜態檢查 GitHub workflow 檔，
+# 4.（建議）安裝 actionlint：hook 會在推送前靜態檢查 GitHub workflow 檔，
 #    未安裝時該項檢查自動略過（Windows 擇一；macOS 用 brew install actionlint）
 scoop install actionlint
 # 或 choco install actionlint
 
-# 6.（選用）安裝 GitHub CLI：讓 Claude Code 的 create-pr 技能可直接建立 Pull Request；
+# 5.（選用）安裝 GitHub CLI：讓 Claude Code 的 create-pr 技能可直接建立 Pull Request；
 #    不裝也行，改在網頁建立（macOS 用 brew install gh）
 winget install GitHub.cli
 gh auth login
 ```
 
-Windows（PowerShell）的第 2 步可以直接從 `.env` 帶入，不必重打密碼，過程中不會印出值：
+> 本機 `dotnet run`／`dotnet watch` 在 Development 環境會自己讀根目錄的 `.env`，不需要 user-secrets。
+> API 只在啟動時讀一次，改了 `.env` 要重新啟動（`dotnet watch` 按 Ctrl+R）。
+> 終端機或 Rider 設定的同名環境變數（例 `Jwt__Secret`）會蓋過 `.env`。
 
-```powershell
-$e = Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ConvertFrom-StringData
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=127.0.0.1;Port=5432;Database=$($e.APP_DB_NAME);Username=$($e.APP_DB_USER);Password=$($e.APP_DB_PASSWORD)" --project src/Konbini.Api
-dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
-```
+> **之前用過 user-secrets 的機器**（2026-11-12 之前）：API 已經不讀 user-secrets，留著也不會生效。
+> 要清掉的話執行 `dotnet user-secrets clear --id konbini-api`。
 
-> 值含反斜線 `\` 或用引號包起來時，`ConvertFrom-StringData` 會解讀錯誤，改用上面手動輸入的寫法。
-> 確認是否設好用 `dotnet user-secrets list --project src/Konbini.Api`——它會印出值，不要貼到對話或 issue。
-> 已在執行的 `dotnet watch` 偵測不到 user-secrets 的變動，改完要按 Ctrl+R 重新啟動。
-
-> ⚠️ 第 4 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
+> ⚠️ 第 3 步不會自動生效，**每台開發機都要執行一次**；未設定時 hook 完全
 > 不會觸發，且沒有任何提示。緊急情況可用 `git push --no-verify` 跳過。
 
 > ⚠️ **應用程式不使用超級使用者連線。** 資料庫帳號一律用專屬帳號 `konbini`
 >（由 `docker/postgres/init` 的腳本依 `.env` 的 `APP_DB_USER` 建立）。理由見 `CLAUDE.md` §3。
 
 > **從 MySQL 版本升級上來的機器**（2026-11-02 改用 PostgreSQL）：`.env` 改照新的 `.env.example`
-> 補上 `POSTGRES_PASSWORD`、`APP_DB_PASSWORD`；user-secrets 照第 2 步重設（舊的鍵可用
-> `dotnet user-secrets remove "ConnectionStrings:MySqlConnection" --project src/Konbini.Api` 移除）；
+> 補上 `POSTGRES_PASSWORD`、`APP_DB_PASSWORD`；
 > 舊的 MySQL 容器與 volume 用 `docker rm -f konbini-mysql`、`docker volume rm konbini_mysql-data` 清掉
 >（開發資料不轉移，API 啟動時會重建 schema 與種子）。
 > `Jwt:Secret` 空值或不足 32 字元時 API 會啟動失敗——這是刻意的 fail fast。
@@ -277,8 +269,8 @@ dotnet user-secrets set "Jwt:Secret" $e.JWT_SECRET --project src/Konbini.Api
 **方式 B：本機最快迭代** —— API 不進容器，熱重載最快：
 
 ```bash
-# 1. 只起資料庫（指定服務名）
-docker compose up -d postgres
+# 1. 只起資料庫與收信（指定服務名，不會起 api）
+docker compose up -d postgres mailpit
 
 # 2. 後端（http://localhost:5214，Scalar API 文件在 /scalar）
 dotnet watch --project src/Konbini.Api
@@ -288,23 +280,25 @@ cd src/Konbini.Client && npm run dev
 ```
 
 兩種方式的 api 對外都是 `5214`，前端與 Scalar 的用法完全相同。
+API 寄出的信也一樣，都在 Mailpit 的收信畫面 `http://localhost:8025`，不會寄到真實信箱。
 
 > 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
-> 資料庫仍要先自己 `docker compose up -d postgres`。
+> 資料庫與收信仍要先自己 `docker compose up -d postgres mailpit`。
 
 > 用 Rider 時，常用的啟動步驟已做成共用的執行設定（`.run/`），選好按 Debug 即可：
 >
 > | 執行設定 | 啟動內容 |
 > |---|---|
-> | **Konbini.Api** | 先起 postgres（容器），再建置並啟動本機 API，等同方式 B 的第 1、2 步 |
-> | **api + postgres（容器）** | api 與 postgres 都在容器內，偵錯器附加進 api 容器，等同方式 A |
+> | **Konbini.Api** | 先起 postgres 與 mailpit（容器），再建置並啟動本機 API，等同方式 B 的第 1、2 步 |
+> | **api + postgres（容器）** | api、postgres、mailpit 都在容器內，偵錯器附加進 api 容器，等同方式 A |
 > | postgres | 只起 postgres |
+> | mailpit | 只起 mailpit |
 >
 > 前端兩種方式都一樣，另開終端機執行 `npm run dev`（方式 B 的第 3 步）。
 > Docker Desktop 需已在執行，建議在 Settings → General 勾選 **Start Docker Desktop when you sign in**。
-> Konbini.Api 的 Before launch 是用名稱參照 postgres，改名時要一起改。
+> Konbini.Api 的 Before launch 是用名稱參照 postgres 與 mailpit，改名時要一起改。
 >
-> ⚠️ 切回本機模式前，確認 api 容器已停止：在 Debug 視窗按停止即可（postgres 會一起停，
+> ⚠️ 切回本機模式前，確認 api 容器已停止：在 Debug 視窗按停止即可（postgres 與 mailpit 會一起停，
 > 切回本機模式時 Konbini.Api 的 Before launch 會再啟動它）。api 容器若還在執行，會繼續占住 5214，
 > 本機模式的 API 拿不到這個埠，請求會打到容器內的舊版程式碼；不確定時執行 `docker compose stop api`。
 
@@ -319,6 +313,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 open http://localhost:8080
 ```
 
+收信畫面在 `http://localhost:8026`（只綁本機；開發環境的 8025 可以同時開著）。
 本機演練用原始碼建置，映像標籤為 `0.0.0-local`。部署 CI 產出的發行版映像見 `docs/deployment.md`。
 
 ---
@@ -348,7 +343,7 @@ dotnet tool restore   # 還原 repo 固定版本的 dotnet-ef，每台機器一�
 dotnet ef migrations add <描述意圖的名稱> --project src/Konbini.Api --startup-project src/Konbini.Api
 ```
 
-先讀產出的檔案，確認沒有意外的 DROP COLUMN，下次啟動 API 就會自動套用。需要先設好 user-secrets。
+先讀產出的檔案，確認沒有意外的 DROP COLUMN，下次啟動 API 就會自動套用。需要先建好 `.env`（`dotnet ef` 也會讀）。
 
 > ⚠️ 以 `EnsureCreated` 建立的舊資料庫無法套用 Migration（2026-11-09 之前），要重置一次。
 
@@ -411,7 +406,10 @@ Features/{Feature}/Repositories/{Entity}Repository.cs   # 介面＋實作同檔
 ### Step 3: Command / Query —— 用例本體
 
 **Command / Query、Handler、Response 一律同一個檔案**，改一個功能不用開四、五個檔案。
-被多個用例共用的 Result 例外，放 `Models/`（例：`AuthResult` 由註冊與改密碼共用）。
+被多個用例共用的 DTO 例外，放 `Models/`（例：`UserDto`）。
+會失敗的用例回 `Result`／`Result<T>`：業務錯誤先定義在 `Errors/{Feature}Errors.cs`，Handler 寫
+`return ProductErrors.NotFound;`；欄位檢查彙整進 errors 字典後 `return Error.Validation(errors);`。
+錯誤類型與狀態碼見 `docs/api-conventions.md`「Handler 的結果表達」；不會失敗的查詢直接回資料。
 
 ```csharp
 // Features/Products/Queries/GetProductsQuery.cs
@@ -444,18 +442,20 @@ public class ProductEndpoints : IEndpoint
             .Produces<PagedResult<ProductDto>>();
 
         group.MapGet("/{id:int}", async (int id,
-            IQueryHandler<GetProductDetailQuery, ProductDetailDto?> handler,
+            IQueryHandler<GetProductDetailQuery, Result<ProductDetailDto>> handler,
             CancellationToken ct)
-            => await handler.Handle(new(id), ct) is { } dto
-                ? Results.Ok(dto)
-                : Results.NotFound())
+            =>
+            {
+                var result = await handler.Handle(new(id), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+            })
             .Produces<ProductDetailDto>()
-            .Produces(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }
 ```
 
-每個 endpoint 都要用 `.Produces<T>()` 標註回應型別與狀態碼，Scalar 才看得到回應結構（見 `docs/api-conventions.md`）。
+每個 endpoint 都要用 `.Produces<T>()` 標註回應型別與狀態碼、失敗用 `.ProducesProblem(狀態碼)`，Scalar 才看得到回應結構（見 `docs/api-conventions.md`）。
 
 ---
 
@@ -503,7 +503,7 @@ public class ProductEndpoints : IEndpoint
 | | `POST /api/auth/login` | 登入，回傳 JWT |
 | | `PUT /api/auth/password` 🔒 | 修改密碼 |
 | | `GET /api/auth/me` 🔒 | 目前使用者 |
-| Search | `GET /api/search?keyword=&page=&pageSize=` | 商品搜尋，分頁 |
+| Search | `GET /api/search?keyword=&page=&pageSize=` | 商品搜尋（空白分隔，最多 10 個關鍵字），分頁 |
 | Addresses | `GET /api/addresses/cities` | 縣市 |
 | | `GET /api/addresses/cities/{cityCode}/districts` | 行政區 |
 | Health | `GET /health` | 健康檢查（含資料庫連線；容器 healthcheck 亦打此端點） |
@@ -534,7 +534,7 @@ dotnet test tests/Konbini.Tests
 
 | Job | 內容 | 執行時機 |
 |---|---|---|
-| 後端：建置與單元測試 | `dotnet build` + `dotnet test`（Release、Linux、UTC——與部署環境一致） | 每次 |
+| 後端：建置與單元測試 | `dotnet build` → 待產生 Migration 檢查 → `dotnet test`（Release、Linux、UTC——與部署環境一致） | 每次 |
 | 前端：型別檢查與打包 | `npm ci` → `vue-tsc`（型別錯誤 0 容忍）→ `vite build` → `npm audit`（僅提醒） | 每次 |
 | 容器：驗證 Dockerfile | 兩個 Dockerfile 各建置一次，建完即丟 | 每次 |
 | 打包：決定版號 | 從標籤取版號並檢查格式、確認標籤在 main 上；測試打包為 `0.0.0-test.<編號>` | **`v*` 標籤或測試打包** |
@@ -543,8 +543,10 @@ dotnet test tests/Konbini.Tests
 
 各 job 的步驟以 ①②③ 編號命名，警告訊息引用步驟編號（如「明細見步驟⑤ log」）。
 
+- **測試失敗**會標在 Annotations（含測試檔案與行號），測試結果表寫進 Summary；完整的 trx 報告只在失敗時上傳。
+- **改了 Entity 或 `AppDbContext` 卻沒有 `dotnet ef migrations add`**，後端 job 會失敗（不連資料庫，只比對 Migration 快照）。
 - **僅提醒、不阻擋的警告**會印在執行頁上方的 Annotations 與 Summary：
-  後端編譯警告統計（依 CS 代碼分類）、NuGet 與 npm 套件弱點掃描。
+  後端建置警告統計（依代碼分類，含 CS、NU 套件弱點、CA）、NuGet（Api 與測試專案）與 npm 套件弱點掃描。
   前端型別檢查不在此列——它從第一天就是 0 個錯誤、直接阻擋。
 - 純文件變更（`*.md` 與 `docs/`）的「推送」不觸發建置；Pull Request 與標籤不受此限
   ——Pull Request 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。

@@ -55,8 +55,8 @@ async function submit() {
     if (!result) {
       await alertNetworkError()
     } else {
-      // 400 是帳號或密碼錯誤（後端刻意不區分哪一個，避免洩漏哪些 Email 有註冊）
-      const detail = result.status === 400 ? '請確認 Email 與密碼後再試一次。' : undefined
+      // 401 是帳號或密碼錯誤（後端刻意不區分哪一個，避免洩漏哪些 Email 有註冊）
+      const detail = result.status === 401 ? '請確認 Email 與密碼後再試一次。' : undefined
       await alertError('登入失敗', result.errors.general ?? Object.values(result.errors)[0], detail, '重新輸入')
     }
   } finally {
