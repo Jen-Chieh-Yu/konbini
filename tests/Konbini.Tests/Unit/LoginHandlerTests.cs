@@ -11,6 +11,7 @@ namespace Konbini.Tests.Unit;
 public class LoginHandlerTests
 {
     private const string Email = "user@example.com";
+    private const string UnverifiedEmail = "unverified@example.com";
 
     [Fact]
     public async Task CorrectPassword_ReturnsToken()
@@ -40,6 +41,23 @@ public class LoginHandlerTests
     }
 
     [Fact]
+    public async Task Unverified_CorrectPassword_ReturnsForbidden()
+    {
+        var result = await Handle(new LoginRequest(UnverifiedEmail, "Password!23"), passwordMatches: true);
+
+        Assert.Same(AuthErrors.EmailNotVerified, result.Error);
+    }
+
+    [Fact]
+    public async Task Unverified_WrongPassword_ReturnsSameUnauthorizedAsOtherAccounts()
+    {
+        var result = await Handle(new LoginRequest(UnverifiedEmail, "Wrong!234"), passwordMatches: false);
+
+        // 不知道密碼的人看不出帳號驗證了沒有
+        Assert.Same(AuthErrors.InvalidCredentials, result.Error);
+    }
+
+    [Fact]
     public async Task BlankPassword_ReturnsValidationError()
     {
         var result = await Handle(new LoginRequest(Email, " "), passwordMatches: true);
@@ -62,11 +80,15 @@ public class LoginHandlerTests
         public string CreateToken(User user) => "token";
     }
 
-    /// <summary>只有 <see cref="Email"/> 這個帳號存在。</summary>
+    /// <summary>只有 <see cref="Email"/>（已驗證）與 <see cref="UnverifiedEmail"/> 兩個帳號。</summary>
     private sealed class FakeUserRepository : IUserRepository
     {
-        public Task<User?> GetByEmailAsync(string email, CancellationToken ct) =>
-            Task.FromResult(email == Email ? new User { Id = 1, Name = "王小明", Email = Email, PasswordHash = "hashed" } : null);
+        public Task<User?> GetByEmailAsync(string email, CancellationToken ct) => Task.FromResult(email switch
+        {
+            Email => new User { Id = 1, Name = "王小明", Email = Email, PasswordHash = "hashed", EmailVerifiedOn = DateTime.UtcNow },
+            UnverifiedEmail => new User { Id = 2, Name = "陳小華", Email = UnverifiedEmail, PasswordHash = "hashed" },
+            _ => null,
+        });
 
         public Task<bool> EmailExistsAsync(string email, CancellationToken ct) => throw new NotSupportedException();
         public void Add(User user) => throw new NotSupportedException();

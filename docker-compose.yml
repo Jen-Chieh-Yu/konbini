@@ -12,6 +12,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # 註冊會寄驗證信（Email 驗證）
+      mailpit:
+        condition: service_healthy
 
   postgres:
     # 主版本釘死（18 支援至 2030-11）；不用 latest，避免主版本升級後舊資料目錄無法啟動

@@ -27,6 +27,12 @@ public class LoginHandler(IUserRepository users, IPasswordHasher hasher, IJwtTok
             return AuthErrors.InvalidCredentials;
         }
 
+        // 密碼正確才檢查：不知道密碼的人看不出帳號驗證了沒有
+        if (user.EmailVerifiedOn is null)
+        {
+            return AuthErrors.EmailNotVerified;
+        }
+
         var token = tokenService.CreateToken(user);
         var dto = new UserDto(user.Id, user.Name, user.Email, user.Phone);
         return new LoginResponse(token, dto);

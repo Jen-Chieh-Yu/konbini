@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Konbini.Api.Features.Common.Abstractions;
+using Konbini.Api.Features.Auth.Services;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Configuration;
+using Konbini.Api.Features.Common.Email;
 using Konbini.Api.Features.Common.Persistence;
 using Konbini.Api.Features.Common.Persistence.Seed;
 using Konbini.Api.Features.Common.Web;
@@ -52,11 +54,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// --- 寄信（Email 驗證）：設定缺漏或格式錯誤直接啟動失敗，同 Jwt:Secret ---
+builder.Services.AddSingleton(EmailOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton(AppOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton<IEmailSender, MailKitEmailSender>();
+
 // --- 應用服務與 endpoint/handler 註冊 ---
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+// token 效期與重寄冷卻用它取時間，測試可以換成固定時間
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHandlers();
 builder.Services.AddRepositories();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

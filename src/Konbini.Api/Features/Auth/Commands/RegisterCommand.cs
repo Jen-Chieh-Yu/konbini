@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
+using Konbini.Api.Features.Auth.Services;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
@@ -10,14 +11,16 @@ namespace Konbini.Api.Features.Auth.Commands;
 
 public record RegisterCommand(RegisterRequest Request);
 
-public partial class RegisterHandler(IUserRepository users, IPasswordHasher hasher, IUnitOfWork unitOfWork)
+public partial class RegisterHandler(
+    IUserRepository users,
+    IPasswordHasher hasher,
+    IEmailVerificationService verification,
+    IUnitOfWork unitOfWork,
+    ILogger<RegisterHandler> logger)
     : ICommandHandler<RegisterCommand, Result>
 {
     [GeneratedRegex(@"^09\d{8}$")]
     private static partial Regex PhoneRegex();
-
-    [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
-    private static partial Regex EmailRegex();
 
     public async Task<Result> Handle(RegisterCommand command, CancellationToken ct)
     {
@@ -51,7 +54,7 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         {
             errors["email"] = $"Email不可超過 {User.EmailMaxLength} 個字元";
         }
-        else if (!EmailRegex().IsMatch(email))
+        else if (!User.IsValidEmailFormat(email))
         {
             errors["email"] = "Email格式不正確";
         }
@@ -100,14 +103,16 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
             return Error.Validation(errors);
         }
 
-        users.Add(new User
+        var user = new User
         {
             Name = lastName + firstName,
             Email = email,
             PasswordHash = hasher.Hash(request.Password),
             Birthday = birthday,
             Phone = phone,
-        });
+        };
+        users.Add(user);
+        var rawToken = verification.Issue(user);
 
         try
         {
@@ -117,6 +122,16 @@ public partial class RegisterHandler(IUserRepository users, IPasswordHasher hash
         {
             // 先查時還沒有人用，寫入前被同時送出的請求搶先；users 只有 email 一個唯一索引
             return AuthErrors.EmailTaken;
+        }
+
+        // 帳號已經建立，寄信失敗也回成功：使用者可以在「驗證信已寄出」頁重寄（DD-AUT-001）
+        try
+        {
+            await verification.SendAsync(user, rawToken, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "註冊後寄送驗證信失敗，UserId {UserId}", user.Id);
         }
 
         return Result.Success();

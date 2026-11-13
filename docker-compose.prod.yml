@@ -48,6 +48,10 @@ services:
       # compose 的 .env 只做 ${} 替換，要進容器的鍵必須在此明寫（.NET 設定鍵用 __ 雙底線）
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${APP_DB_NAME:-konbini};Username=${APP_DB_USER:-konbini};Password=${APP_DB_PASSWORD:?請在 .env 設定 APP_DB_PASSWORD}
       Jwt__Secret: ${JWT_SECRET:?請在 .env 設定 JWT_SECRET}
+      Email__Smtp__Host: mailpit
+      Email__Smtp__Port: "1025"
+      # 信中的連結指向 client（nginx）；部署機用其他網址或埠時在 .env 設 APP_CLIENT_BASE_URL
+      App__ClientBaseUrl: ${APP_CLIENT_BASE_URL:-http://localhost:8080}
     expose:
       - "8080"
     healthcheck:
@@ -59,6 +63,8 @@ services:
       start_period: 40s
     depends_on:
       postgres:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
 
   postgres:

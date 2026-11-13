@@ -2,9 +2,11 @@ using Konbini.Api.Features.Auth.Commands;
 using Konbini.Api.Features.Auth.Errors;
 using Konbini.Api.Features.Auth.Models;
 using Konbini.Api.Features.Auth.Repositories;
+using Konbini.Api.Features.Auth.Services;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Persistence;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Konbini.Tests.Unit;
@@ -155,9 +157,80 @@ public class RegisterHandlerTests
         Assert.Equal(0, uow.SaveCount);
     }
 
-    private static Task<Result> Handle(RegisterRequest request, FakeUnitOfWork uow, FakeUserRepository? users = null) =>
-        new RegisterHandler(users ?? new FakeUserRepository(), new FakePasswordHasher(), uow)
+    [Fact]
+    public async Task Success_IssuesTokenBeforeSaving_AndSendsAfterSaving()
+    {
+        var uow = new FakeUnitOfWork();
+        var verification = new FakeVerificationService(uow);
+
+        var result = await Handle(ValidRequest(), uow, verification: verification);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, verification.SaveCountAtIssue);
+        Assert.Equal(1, verification.SaveCountAtSend);
+        Assert.Equal("user@example.com", verification.SentTo);
+    }
+
+    [Fact]
+    public async Task SendFails_StillSucceeds()
+    {
+        var uow = new FakeUnitOfWork();
+        var verification = new FakeVerificationService(uow) { ThrowOnSend = true };
+
+        var result = await Handle(ValidRequest(), uow, verification: verification);
+
+        // 帳號已經建立，使用者可以重寄（DD-AUT-001）
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task ValidationError_DoesNotIssueOrSend()
+    {
+        var uow = new FakeUnitOfWork();
+        var verification = new FakeVerificationService(uow);
+
+        await Handle(ValidRequest() with { PhoneNumber = "123" }, uow, verification: verification);
+
+        Assert.Null(verification.SaveCountAtIssue);
+        Assert.Null(verification.SentTo);
+    }
+
+    private static Task<Result> Handle(
+        RegisterRequest request,
+        FakeUnitOfWork uow,
+        FakeUserRepository? users = null,
+        FakeVerificationService? verification = null) =>
+        new RegisterHandler(
+                users ?? new FakeUserRepository(),
+                new FakePasswordHasher(),
+                verification ?? new FakeVerificationService(uow),
+                uow,
+                NullLogger<RegisterHandler>.Instance)
             .Handle(new RegisterCommand(request), CancellationToken.None);
+
+    /// <summary>記下 Issue 與 SendAsync 被呼叫時已經 SaveChanges 幾次，確認「先產生 token、寫入後才寄」。</summary>
+    private sealed class FakeVerificationService(FakeUnitOfWork uow) : IEmailVerificationService
+    {
+        public bool ThrowOnSend { get; init; }
+        public int? SaveCountAtIssue { get; private set; }
+        public int? SaveCountAtSend { get; private set; }
+        public string? SentTo { get; private set; }
+
+        public string Issue(User user)
+        {
+            SaveCountAtIssue = uow.SaveCount;
+            return "raw-token";
+        }
+
+        public Task SendAsync(User user, string rawToken, CancellationToken ct)
+        {
+            if (ThrowOnSend) throw new InvalidOperationException("SMTP 連不上");
+            SaveCountAtSend = uow.SaveCount;
+            SentTo = user.Email;
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {

@@ -26,4 +26,16 @@ public static class AuthErrors
     public const string EmailTakenMessage = "此Email已註冊過";
 
     public static readonly Error EmailTaken = Error.Validation("email", EmailTakenMessage);
+
+    /// <summary>
+    /// 密碼正確、但還沒完成 Email 驗證。密碼錯誤時照樣回 <see cref="InvalidCredentials"/>，
+    /// 不知道密碼的人看不出帳號驗證了沒有。前端依 403 顯示「重寄驗證信」。
+    /// </summary>
+    public static readonly Error EmailNotVerified = Error.Forbidden("此帳號尚未完成 Email 驗證，請到信箱點驗證連結");
+
+    /// <summary>找不到 token，包含被重寄取代、已刪除的舊連結。</summary>
+    public static readonly Error VerificationTokenInvalid =
+        Error.Validation("token", "驗證連結無效，請使用最新一封驗證信中的連結，或重新寄送驗證信");
+
+    public static readonly Error VerificationTokenExpired = Error.Validation("token", "驗證連結已過期，請重新寄送驗證信");
 }
