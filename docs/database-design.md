@@ -78,9 +78,18 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 - 商品搜尋目前用 `ILIKE '%關鍵字%'`（無法使用一般索引）；量大時改用
   `pg_trgm` 的 GIN 索引或全文檢索，不要硬撐。
 
-> 現況：只有 order_items.order_id 設了外鍵約束；orders.user_id、orders.city_code／district_code、
+> 現況：只有 order_items.order_id 與 email_verification_tokens.user_id 設了外鍵約束；orders.user_id、orders.city_code／district_code、
 > order_items.product_id、districts.city_code 是邏輯關聯（沒有 FK 約束），其中有索引的是
 > orders.user_id 與 districts.city_code。
+
+## Email 驗證
+
+- users.email_verified_on（timestamptz，可為 null）：完成 Email 驗證的時間，null 表示還沒驗證、不能登入。
+  加欄位的 Migration 把既有帳號填成套用當時的時間（視為已驗證）。
+- email_verification_tokens：驗證信中的 token，只存 SHA-256 雜湊值（token_hash，char(64)，唯一索引），不存原文。
+  expires_on 是效期，used_on 是完成驗證的時間；用過的 token 保留，被新的驗證信取代的 token 直接刪除（不是軟刪除）。
+  使用者軟刪除後，HasQueryFilter 也查不到他的 token。
+- 規則與理由見 docs/modules/decisions/Auth.md DD-AUT-001。
 
 ## Migration
 

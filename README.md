@@ -283,6 +283,7 @@ cd src/Konbini.Client && npm run dev
 
 兩種方式的 api 對外都是 `5214`，前端與 Scalar 的用法完全相同。
 API 寄出的信也一樣，都在 Mailpit 的收信畫面 `http://localhost:8025`，不會寄到真實信箱。
+註冊後要到這裡點驗證信的連結，帳號才能登入；Migration 套用前就存在的帳號視為已驗證。
 
 > 方式 B 的第 2、3 步也定義在 `.claude/launch.json`，供 Claude Code 的預覽視窗直接啟動；
 > 資料庫與收信仍要先自己 `docker compose up -d postgres mailpit`。
@@ -315,7 +316,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 open http://localhost:8080
 ```
 
-收信畫面在 `http://localhost:8026`（只綁本機；開發環境的 8025 可以同時開著）。
+收信畫面在 `http://localhost:8026`（只綁本機；開發環境的 8025 可以同時開著），註冊後的驗證信也在這裡。
+驗證信中的連結預設指向 `http://localhost:8080`，部署機用其他網址或埠時在 `.env` 設 `APP_CLIENT_BASE_URL`。
 本機演練用原始碼建置，映像標籤為 `0.0.0-local`。部署 CI 產出的發行版映像見 `docs/deployment.md`。
 
 ---
@@ -502,7 +504,9 @@ public class ProductEndpoints : IEndpoint
 | Orders | `GET /api/orders?page=&pageSize=` 🔒 | 訂單列表，分頁 |
 | | `POST /api/orders` 🔒 | 建立訂單 |
 | Auth | `POST /api/auth/register` | 註冊 |
-| | `POST /api/auth/login` | 登入，回傳 JWT |
+| | `POST /api/auth/login` | 登入，回傳 JWT（未完成 Email 驗證回 403） |
+| | `POST /api/auth/email-verifications` | 以驗證信中的 token 完成 Email 驗證 |
+| | `POST /api/auth/verification-emails` | 重寄驗證信 |
 | | `PUT /api/auth/password` 🔒 | 修改密碼 |
 | | `GET /api/auth/me` 🔒 | 目前使用者 |
 | Search | `GET /api/search?keyword=&page=&pageSize=` | 商品搜尋（空白分隔，最多 10 個關鍵字），分頁 |

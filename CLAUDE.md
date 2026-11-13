@@ -349,7 +349,7 @@ nginx（client 容器）是唯一入口：SPA 靜態檔 + `/api` 反代。
   （兩者本來就是分開的 compose 專案）。SMTP（1025）在部署佈局只走 compose 內部網路；開發環境綁 `127.0.0.1:1025`，給本機執行的 API 用。
 - **不掛 volume**：信只用來點連結，重建容器時清空可以接受。
 - **寄信設定鍵與 api 的 `depends_on` 跟 Email 驗證一起加入**：沒有程式讀的設定鍵打錯也不會報錯，
-  要和讀它的程式一起加入、一起驗證（鍵名見 §6 的 Email 驗證那一列）。
+  要和讀它的程式一起加入、一起驗證（2026-11-12 已隨 Email 驗證加入，鍵名見 `docs/configuration.md`）。
 
 放棄的東西：部署佈局寄不出真實信件，定位改為正式上線時要換成真的 SMTP 服務（與 §6「明確不做」同樣是上線前檢查項目）；
 多一個容器要跟著升版；信件不保存。
@@ -570,7 +570,8 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
 | API 回應與 `docs/api-conventions.md` 的落差：~~下單 201 回整個 Result、400 帶 `null` 欄位~~（已實施（2026-11-12）：泛型 Result＋ProblemDetails，見 §2「用例結果」）、Location 指向尚無的 `GET /api/orders/{id}` | Location 留給訂單明細一起處理 |
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView 與 Auth 的登入、註冊頁（2026-11-11）照規範（見 `docs/ui-guidelines.md`）。遷移時一併處理（2026-11-12 全站掃描）：商品、搜尋列表的錯誤與空資料狀態；加入購物車的回饋，明細頁數量輸入用 min／max 限制，不默默截斷；結帳頁縣市／行政區載入失敗的處理、快速切換縣市時舊回應蓋掉新選項、送出成功的回饋；header 搜尋列改用 Element Plus 並達 44px、搜尋頁不重複放搜尋框；header 的「我的訂單」與「登入／登出」統一依同一個狀態顯示；訂單時間轉 Asia/Taipei 顯示（比照 `formatMoney` 抽共用函式） |
-| Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。收信用 Mailpit（2026-11-12 已加入開發與部署環境，見 §4）；寄信用 MailKit，抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；設定鍵 `Email:From`、`Email:Smtp:Host`、`Email:Smtp:Port` 與 `App:ClientBaseUrl`（信中連結指向前端）隨這一支加入，容器用的值在 compose `environment:` 明寫；驗證 token 存雜湊值、不存原文。已定案：未完成驗證的帳號不能登入（2026-11-12）；先決定 token 效期、重寄次數、既有帳號是否視為已驗證 |
+| ~~Email 驗證（可延伸到忘記密碼）~~ | 已實施（2026-11-12）：註冊後寄驗證信，未完成驗證的帳號登入回 403；寄信用 MailKit，抽成 `Common/Email` 的 `IEmailSender`（之後與忘記密碼共用），寄信設定在啟動時檢查（`EmailOptions`、`AppOptions`）。token 效期 24 小時、只存 SHA-256 雜湊值，重寄冷卻 60 秒，既有帳號視為已驗證；業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-001，設定鍵見 `docs/configuration.md`。忘記密碼尚未實作 |
+| 忘記密碼 | 練習題（2026-11-12 從「Email 驗證」那一列拆出）；寄信沿用 `IEmailSender`，token 比照 `EmailVerificationToken`（只存雜湊值、只能用一次）。先決定重設連結的效期、重設後已發出的 JWT 是否作廢（見下方 refresh token）、要不要回一致的回應（同重寄驗證信） |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
 | ~~前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步）~~ | 已實施（2026-11-12）：`flat/recommended`＋typescript-eslint `recommended`＋Prettier，錯誤與警告 0，CI 與 pre-push 一起阻擋；前端檔案強制 LF。理由見上方「為什麼前端 ESLint＋Prettier 的門檻也是 0」。原本預期要開的 unplugin-auto-import `eslintrc` 選項，實測不需要 |
