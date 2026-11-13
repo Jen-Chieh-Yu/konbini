@@ -36,6 +36,12 @@ function submitSearch() {
   if (!q) return
   router.push({ path: '/search', query: { q } })
 }
+
+// 在需要登入的頁面登出時回首頁，畫面不留著剛才那個帳號的資料
+function logout() {
+  auth.logout()
+  if (route.meta.requiresAuth) router.push('/')
+}
 </script>
 
 <template>
@@ -70,7 +76,7 @@ function submitSearch() {
           <RouterLink v-if="!auth.token" to="/login" class="util-item">
             <span class="ico" aria-hidden="true">👤</span>登入
           </RouterLink>
-          <button v-else type="button" class="util-item" @click="auth.logout()">
+          <button v-else type="button" class="util-item" @click="logout">
             <span class="ico" aria-hidden="true">👤</span>登出
           </button>
           <RouterLink to="/cart" class="util-item cart">

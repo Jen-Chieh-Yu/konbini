@@ -5,11 +5,9 @@ import { OrderService } from '../api/services/OrderService'
 import { AddressService } from '@features/Addresses/api/services/AddressService'
 import type { CityDTO, DistrictDTO } from '@features/Addresses/api/interfaces/AddressDTO'
 import { useCartStore } from '@features/Cart/stores/useCartStore'
-import { useAuthStore } from '@features/Auth/stores/useAuthStore'
 
 const router = useRouter()
 const cart = useCartStore()
-const auth = useAuthStore()
 
 const cities = ref<CityDTO[]>([])
 const districts = ref<DistrictDTO[]>([])
@@ -47,11 +45,8 @@ async function submit() {
   }
 }
 
+// 未登入的人進不來（路由守衛），這裡直接載入
 onMounted(async () => {
-  if (!auth.token) {
-    router.push('/login')
-    return
-  }
   cities.value = await AddressService.getCities()
 })
 </script>
