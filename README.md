@@ -58,7 +58,7 @@ Konbini/
 ├── .claude/
 │   ├── launch.json               # Claude Code 預覽啟動設定（前端、API）
 │   └── skills/                   # 專案技能：feature-flow、create-pr、review-pr、dev-env
-├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試、Migration 檢查與前端型別檢查
+├── .githooks/pre-push            # 推送前跑 workflow 檢查、後端測試、Migration 檢查與前端 lint、排版、型別檢查
 ├── .github/
 │   ├── scripts/release-info.sh   # 打包時決定版號（格式檢查、標籤須在 main 上）
 │   ├── workflows/ci.yml          # CI：後端、前端、Docker，v* 標籤打包映像
@@ -74,6 +74,8 @@ Konbini/
 ├── src/
 │   ├── Konbini.Client/           # Vue 3 SPA（不在方案檔內，Rider 以附加資料夾顯示）
 │   │   ├── .nvmrc                # Node 版本，本機與 CI 共用
+│   │   ├── eslint.config.js      # ESLint：vue recommended＋typescript-eslint（排版交給 Prettier）
+│   │   ├── .prettierrc.json      # Prettier 排版設定（.prettierignore 排除產生的檔案）
 │   │   ├── Dockerfile            # node:24-alpine build → nginx:alpine
 │   │   ├── nginx.conf            # SPA fallback + /api 反向代理
 │   │   └── src/
@@ -229,7 +231,7 @@ dotnet user-secrets set "Jwt:Secret" "<.env 的 JWT_SECRET>" --project src/Konbi
 # 3. 前端套件
 cd src/Konbini.Client && npm install
 
-# 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端型別檢查
+# 4. 啟用版控的 Git hooks：push 前自動跑後端測試與前端 lint、排版、型別檢查
 cd ../..
 git config core.hooksPath .githooks
 
@@ -533,6 +535,32 @@ tests/Konbini.Tests/
 dotnet test tests/Konbini.Tests
 ```
 
+### 前端程式碼檢查與排版
+
+在 `src/Konbini.Client` 執行。CI 與 pre-push 跑的是 `lint` 和 `format:check`，門檻都是 0：
+
+```bash
+npm run lint           # ESLint：錯誤與警告都要是 0
+npm run lint:fix       # 自動修正 ESLint 能修的問題
+npm run format:check   # Prettier：列出排版不符的檔案
+npm run format         # Prettier：直接改成正確的排版
+```
+
+- 排版只由 Prettier 負責（`.prettierrc.json`），ESLint 的排版規則已關掉，兩者不會互相打架。
+- `auto-imports.d.ts`、`components.d.ts` 是 unplugin 產生的檔案，lint 與排版都不檢查。
+- 前端檔案在工作目錄一律是 LF（`.gitattributes`）。導入 Prettier 之前就有的 Windows 工作目錄，檔案仍是 CRLF，
+  `format:check` 與 pre-push 會失敗。先提交或收好手上的修改，再到 `src/Konbini.Client` 依序執行：
+
+  ```bash
+  npm install
+  npm run format     # 把 CRLF 換成 LF
+  git add .          # 只讓 Git 重新記錄檔案狀態，git diff --cached 應該沒有輸出
+  ```
+
+  最後的 `git add` 不能省：Git for Windows 會把只換了換行的檔案列成已修改，雖然內容和版控完全相同。
+- **Rider**：Settings → Languages & Frameworks → JavaScript → Prettier 選 **Automatic Prettier configuration**、
+  勾 **Run on save**；ESLint 預設就是 Automatic，會讀 `eslint.config.js`。
+
 ### CI（GitHub Actions）
 
 `.github/workflows/ci.yml` 定義三個每次都跑的平行 job，另有三個只在打包時執行。推送到 `main` /
@@ -542,7 +570,7 @@ dotnet test tests/Konbini.Tests
 | Job | 內容 | 執行時機 |
 |---|---|---|
 | 後端：建置與單元測試 | `dotnet build` → 待產生 Migration 檢查 → `dotnet test`（Release、Linux、UTC——與部署環境一致） | 每次 |
-| 前端：型別檢查與打包 | `npm ci` → `vue-tsc`（型別錯誤 0 容忍）→ `vite build` → `npm audit`（僅提醒） | 每次 |
+| 前端：型別檢查與打包 | `npm ci` → ESLint（錯誤與警告 0）→ Prettier 排版檢查 → `vue-tsc`（型別錯誤 0）→ `vite build` → `npm audit`（僅提醒） | 每次 |
 | 容器：驗證 Dockerfile | 兩個 Dockerfile 各建置一次，建完即丟 | 每次 |
 | 打包：決定版號 | 從標籤取版號並檢查格式、確認標籤在 main 上；測試打包為 `0.0.0-test.<編號>` | **`v*` 標籤或測試打包** |
 | 打包：映像與冒煙測試 | matrix 依 amd64／arm64 各建置版本映像 → 用 prod compose 實際啟動驗證 → `docker save` 上傳為 artifact | **`v*` 標籤或測試打包** |
@@ -554,7 +582,7 @@ dotnet test tests/Konbini.Tests
 - **改了 Entity 或 `AppDbContext` 卻沒有 `dotnet ef migrations add`**，後端 job 會失敗（不連資料庫，只比對 Migration 快照）。
 - **僅提醒、不阻擋的警告**會印在執行頁上方的 Annotations 與 Summary：
   後端建置警告統計（依代碼分類，含 CS、NU 套件弱點、CA）、NuGet（Api 與測試專案）與 npm 套件弱點掃描。
-  前端型別檢查不在此列——它從第一天就是 0 個錯誤、直接阻擋。
+  前端的 ESLint、Prettier 與型別檢查不在此列——從第一天就是 0 個錯誤、直接阻擋；三項之中有一項失敗時，其他兩項照跑。
 - 純文件變更（`*.md` 與 `docs/`）的「推送」不觸發建置；Pull Request 與標籤不受此限
   ——Pull Request 一律回報檢查結果，Branch protection 的必過檢查才不會被卡住。
 - 同一分支連續推送只跑最新一次（concurrency 自動取消舊的）。

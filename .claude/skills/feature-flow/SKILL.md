@@ -71,9 +71,10 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
    - 輸入驗證寫在 Handler，彙整進 errors 一次回傳。
    - 路由用 REST 資源風格、複數名詞。
 3. 使用者說「照 diff 套用」（關卡 B）才改檔。
-4. 套用後跑建置與型別檢查：
+4. 套用後跑建置、lint、排版與型別檢查：
    - `dotnet build tests/Konbini.Tests/Konbini.Tests.csproj -v q -nologo`
-   - 在 `src/Konbini.Client` 執行 `npx vue-tsc --noEmit`
+   - 在 `src/Konbini.Client` 執行 `npm run lint`、`npm run format:check`、`npx vue-tsc --noEmit`
+     （排版不符就跑 `npm run format`，不要手動調）
    失敗就修正後重跑，不要帶著錯誤進 ④。
 
 ## ④ 驗證

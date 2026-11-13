@@ -345,7 +345,7 @@ API 啟動即失敗（fail fast，不要帶病上線）。
 ## 6. 分支與 CI/CD
 
 CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`）：
-三個平行 job——後端 build+test、前端 type-check+build、Dockerfile 驗證。
+三個平行 job——後端 build+test、前端 lint＋排版＋type-check＋build、Dockerfile 驗證。
 內容見 `README.md`「測試 → CI」，這裡只記設計理由：
 
 - **為什麼初期就上 CI**：導入條件「測試專案有實際內容」已成立；
@@ -355,6 +355,28 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
   dcproj，建它只是多做事。原本的理由「dcproj 讓裸建必炸」2026-11-02 實測已不成立。
 - **為什麼 `vue-tsc` 從第一天就阻擋**：目前型別錯誤為 0，此時設阻擋的
   成本是零；等錯誤累積後再想擋，就得先還債。
+- **為什麼前端 ESLint＋Prettier 的門檻也是 0、從第一天就阻擋（2026-11-12 定案）**：理由同上，導入時只有 3 個 lint 錯誤，當場修掉。
+  參照的另一專案先開 ESLint、Prettier 規則關著，累積約 1,500 處排版差異至今沒開——越晚導入越貴。
+  警告也擋（`--max-warnings 0`）：vue recommended 的規則大多是 warn 等級，不擋就會一直累積。
+  - **規則組**：`eslint-plugin-vue` 的 `flat/recommended`＋`@vue/eslint-config-typescript` 的 `recommended`。
+    導入時三種等級（essential／strongly-recommended／recommended）的錯誤數相同，選最嚴的不多花成本。
+    需要型別資訊的 `recommendedTypeChecked` 不開：lint 會變慢、設定變多，等有需要再評估。
+  - **排版只交給 Prettier**：`@vue/eslint-config-prettier/skip-formatting` 關掉 ESLint 的排版規則，Prettier 另外跑 `format:check`；
+    不用 `eslint-plugin-prettier`，lint 的輸出只講程式問題。
+  - **Prettier 的選項從既有程式碼推出**：不加分號、單引號、尾逗號；`printWidth: 100`
+    （導入時 80／100／120 分別改到 25／17／13 個檔案，100 是改動量和並排 diff 可讀性的折衷）。
+    版本釘死、不加 `^`：Prettier 的小版本也可能改變排版結果，本機和 CI 要是同一版。
+  - **前端檔案強制 LF**（`.gitattributes` 的 `src/Konbini.Client/** text=auto eol=lf`＋`endOfLine: 'lf'`）：
+    Windows 的 `core.autocrlf` 會讓工作目錄變成 CRLF，`format:check` 就會在 Windows 失敗、Linux 通過。
+    `endOfLine: 'auto'` 也能讓兩邊一致，但等於不檢查換行；選和 `*.d.ts` 同一套做法。
+  - **不需要 unplugin-auto-import 的 `eslintrc` 選項**：typescript-eslint 對 `.ts`／`.vue` 關掉 `no-undef`（型別檢查已涵蓋），
+    自動引入的 `ElMessage` 不會被誤報。
+  - **CI 前端 job 的名稱不改**：名稱是必過檢查，改名後 ruleset 會永遠等不到結果。ESLint、Prettier、型別檢查其中一項失敗時，
+    其他兩項照跑，跑一次就看到全部問題。
+
+  放棄的東西：導入時整個前端要格式化一次（獨立一個 `style(client)` commit），當時進行中的前端分支合併 main 時會有排版衝突，
+  所以等它們合併後才產生格式化 commit；各台 Windows 機器第一次拉下來要 `npm install`、執行一次 `npm run format` 把工作目錄的 CRLF 換成 LF，再 `git add` 一次
+  （`core.autocrlf=true` 時，只換了換行的檔案會被列成已修改，內容其實和版控相同），步驟見 README。
 - **為什麼 `*.md` 與 `docs/` 不觸發**：文件變更跑建置是純浪費（`docs/mockups` 的 HTML 草稿也屬文件）。
 - **為什麼檢查待產生的 Migration（2026-11-12 定案）**：API 啟動時自動套 Migration（§3），改了 Entity 卻忘了
   `migrations add`，本機與單元測試都不會發現，要到打包的冒煙測試或欄位不存在的 500 才知道。
@@ -391,7 +413,8 @@ CI 已於專案初始化時導入（GitHub Actions，`.github/workflows/ci.yml`�
 ＋ `YYYYMMDD-描述`，與 Conventional Commits 的 type 對齊。
 
 本機防線：`.githooks/pre-push` 於推送前跑 CI 的核心子集（workflow 靜態檢查、後端測試、待產生 Migration 檢查＋前端
-型別檢查；Docker 建置留給雲端）。main 的必過檢查會擋住紅燈的 merge（見下方
+ESLint、Prettier 與型別檢查；Docker 建置留給雲端）。前端檢查在 `node_modules` 不存在時略過；存在卻沒有 ESLint（導入前裝的套件）時擋下，
+提示先 `npm install`——略過的話，「hook 有跑」會被誤以為「前端檢查過了」。main 的必過檢查會擋住紅燈的 merge（見下方
 Branch protection），hook 的作用是把紅燈提早到推送前發現，省一輪 CI 等待。每台機器需 `git config core.hooksPath .githooks`
 啟用（未設定時靜默不觸發）；跳過用 `git push --no-verify`。
 hook 測的是工作目錄、不是要推送的 commit，有未提交的修改時只印警告（2026-11-12）：擋下的話，「先推上去給別人看」也要 `--no-verify`。
@@ -507,7 +530,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | Email 驗證（可延伸到忘記密碼） | 練習題（2026-11-10 記錄）；接在 Auth 頁面遷移到 UI 規範之後（會多出驗證結果、重寄驗證信的頁面）。收信用 Mailpit（2026-11-12 已加入開發與部署環境，見 §4）；寄信用 MailKit，抽成 `Common/` 的 `IEmailSender`（與忘記密碼共用）；設定鍵 `Email:From`、`Email:Smtp:Host`、`Email:Smtp:Port` 與 `App:ClientBaseUrl`（信中連結指向前端）隨這一支加入，容器用的值在 compose `environment:` 明寫；驗證 token 存雜湊值、不存原文。已定案：未完成驗證的帳號不能登入（2026-11-12）；先決定 token 效期、重寄次數、既有帳號是否視為已驗證 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
-| 前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步） | 越晚導入越貴（2026-11-12 記錄）：前端檔案少的現在，全專案格式化的 diff 最小；參照的另一專案先開 ESLint、Prettier 規則關著，累積約 1,500 處排版差異至今沒開。ESLint 與 Prettier 同一個分支開、格式化獨立一個 commit；unplugin-auto-import 要開 `eslintrc` 選項產生全域宣告（否則 `ElMessage` 會被報 `no-undef`）；`.gitattributes` 是 `text=auto`，Windows 工作目錄為 CRLF，要設 `endOfLine` 或對前端檔強制 LF。不與前端功能分支並行 |
+| ~~前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步）~~ | 已實施（2026-11-12）：`flat/recommended`＋typescript-eslint `recommended`＋Prettier，錯誤與警告 0，CI 與 pre-push 一起阻擋；前端檔案強制 LF。理由見上方「為什麼前端 ESLint＋Prettier 的門檻也是 0」。原本預期要開的 unplugin-auto-import `eslintrc` 選項，實測不需要 |
 | E2E 測試（Playwright） | 練習題（2026-11-12 記錄）：接在 Testcontainers 整合測試與前端 Vitest 之後。CI 用 prod compose 起完整環境再跑（同冒煙測試），先涵蓋註冊 → 登入 → 加入購物車 → 下單這條主線。先決定測試資料怎麼準備、只在打包時跑還是每個 Pull Request 都跑 |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
