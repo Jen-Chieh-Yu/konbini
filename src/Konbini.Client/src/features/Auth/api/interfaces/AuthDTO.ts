@@ -31,3 +31,16 @@ export interface LoginResponseDTO {
   token: string
   user: UserDTO
 }
+
+export interface VerifyEmailRequestDTO {
+  token: string
+}
+
+export interface VerifyEmailResponseDTO {
+  /** 這個連結之前就用過了（例：連點兩次），帳號早已完成驗證 */
+  alreadyVerified: boolean
+}
+
+export interface ResendVerificationEmailRequestDTO {
+  email: string
+}

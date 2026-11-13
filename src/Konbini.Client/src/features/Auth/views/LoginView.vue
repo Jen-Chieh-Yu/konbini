@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Message } from '@element-plus/icons-vue'
+import { AuthService } from '../api/services/AuthService'
 import { useAuthStore } from '../stores/useAuthStore'
 import AuthCard from '../components/AuthCard.vue'
 import PasswordInput from '../components/PasswordInput.vue'
@@ -18,7 +19,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const { alertError, alertErrors, alertNetworkError } = useErrorDialog()
+const { alertError, alertErrors, alertNetworkError, confirmAction } = useErrorDialog()
 
 // 從需要登入的頁面被導過來時，登入後回到那一頁（例：結帳）
 const redirect = safeRedirect(route.query.redirect)
@@ -59,6 +60,9 @@ async function submit() {
     const result = readApiErrors(e, '登入失敗，請稍後再試')
     if (!result) {
       await alertNetworkError()
+    } else if (result.status === 403) {
+      // 密碼正確、但還沒完成 Email 驗證（密碼錯誤時是 401，看不出帳號驗證了沒有）
+      await offerResend(result.errors.general ?? Object.values(result.errors)[0])
     } else {
       // 401 是帳號或密碼錯誤（後端刻意不區分哪一個，避免洩漏哪些 Email 有註冊）
       const detail = result.status === 401 ? '請確認 Email 與密碼後再試一次。' : undefined
@@ -71,6 +75,30 @@ async function submit() {
     }
   } finally {
     submitting.value = false
+  }
+}
+
+/** 未驗證的帳號：問要不要重寄，寄出後到「驗證信已寄出」頁 */
+async function offerResend(message: string) {
+  const resend = await confirmAction(
+    '尚未完成 Email 驗證',
+    message,
+    '找不到驗證信，或連結已經過期的話，可以重寄一封。',
+    '重寄驗證信',
+    '關閉',
+  )
+  if (!resend) return
+  const email = form.value.email
+  try {
+    await AuthService.resendVerificationEmail({ email })
+    router.push({ path: '/verify-email/sent', state: { email, sent: true } })
+  } catch (e) {
+    const result = readApiErrors(e, '寄送失敗，請稍後再試')
+    if (!result) {
+      await alertNetworkError()
+    } else {
+      await alertError('無法寄出驗證信', result.errors.general ?? Object.values(result.errors)[0])
+    }
   }
 }
 </script>
