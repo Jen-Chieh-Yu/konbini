@@ -26,9 +26,7 @@ watch(
 const isHome = computed(() => route.path === '/')
 
 // 分類導覽的選取狀態：router-link-active 只看 path，帶 query 的分類要自己判斷
-const activeType = computed(() =>
-  route.path === '/products' ? Number(route.query.type) || 0 : -1,
-)
+const activeType = computed(() => (route.path === '/products' ? Number(route.query.type) || 0 : -1))
 
 // 關鍵字帶在 query 上，搜尋結果的網址才能直接分享或重整
 function submitSearch() {

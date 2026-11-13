@@ -10,7 +10,12 @@ import PasswordStrength from '../components/PasswordStrength.vue'
 import { unmetPasswordRules } from '../constants/passwordRules'
 import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
 import { safeRedirect } from '@/router/redirect'
-import { SUBMIT_ONLY, focusFirstError, useClearErrorOnEdit, validateForm } from '../composables/useFormValidation'
+import {
+  SUBMIT_ONLY,
+  focusFirstError,
+  useClearErrorOnEdit,
+  validateForm,
+} from '../composables/useFormValidation'
 
 const route = useRoute()
 const router = useRouter()
@@ -65,21 +70,34 @@ watch(days, (list) => {
   if (form.value.day && form.value.day > list.length) form.value.day = undefined
 })
 
-const required = (message: string): FormItemRule => ({ required: true, whitespace: true, message, trigger: SUBMIT_ONLY })
+const required = (message: string): FormItemRule => ({
+  required: true,
+  whitespace: true,
+  message,
+  trigger: SUBMIT_ONLY,
+})
 // 下拉選單的值是數字：帶 whitespace 的規則會被 async-validator 當成字串檢查，數字一律不通過，所以分開寫
-const picked = (message: string): FormItemRule => ({ required: true, message, trigger: SUBMIT_ONLY })
+const picked = (message: string): FormItemRule => ({
+  required: true,
+  message,
+  trigger: SUBMIT_ONLY,
+})
 
 // 前端檢查必填、格式、密碼規則與兩次密碼是否一致；後端仍會再檢查一次
 const rules: FormRules = {
   lastName: [required('請輸入姓氏')],
   firstName: [required('請輸入名字')],
-  email: [required('請輸入 Email'), { type: 'email', message: 'Email 格式不正確', trigger: SUBMIT_ONLY }],
+  email: [
+    required('請輸入 Email'),
+    { type: 'email', message: 'Email 格式不正確', trigger: SUBMIT_ONLY },
+  ],
   password: [
     required('請輸入密碼'),
     {
       validator: (_rule, value: string, callback) => {
         const unmet = unmetPasswordRules(value)
-        unmet.length ? callback(new Error(`密碼還不符合規則：${unmet.join('、')}`)) : callback()
+        if (unmet.length) callback(new Error(`密碼還不符合規則：${unmet.join('、')}`))
+        else callback()
       },
       trigger: SUBMIT_ONLY,
     },
@@ -88,7 +106,9 @@ const rules: FormRules = {
     required('請再輸入一次密碼'),
     {
       validator: (_rule, value, callback) =>
-        value === form.value.password ? callback() : callback(new Error('密碼與確認密碼不一致，請重新輸入')),
+        value === form.value.password
+          ? callback()
+          : callback(new Error('密碼與確認密碼不一致，請重新輸入')),
       trigger: SUBMIT_ONLY,
     },
   ],
@@ -243,7 +263,11 @@ async function submit() {
         {{ submitting ? '建立中' : '建立帳號' }}
       </el-button>
     </el-form>
-    <template #footer>已經有帳號？<RouterLink :to="{ path: '/login', query: loginQuery }">登入</RouterLink></template>
+    <template #footer
+      >已經有帳號？<RouterLink :to="{ path: '/login', query: loginQuery }"
+        >登入</RouterLink
+      ></template
+    >
   </AuthCard>
 </template>
 

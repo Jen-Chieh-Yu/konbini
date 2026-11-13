@@ -23,11 +23,11 @@ description: 把目前分支整理成可送審的 Pull Request：自我檢查、
    - **落後但沒有衝突**：告訴使用者落後幾個 commit，詢問要先同步還是直接送審（ruleset 要求分支與 main 同步，晚點也得在網頁按 Update branch）。
    - 同步一律 **merge**（`git merge origin/main`），不要 rebase——推送過的分支 rebase 要 force push；同步用的 merge commit 會在 Squash 時消失。還沒推送過的分支才可以 rebase。
 4. **自我檢查**（失敗就停下來回報，不要推送）
-   - 只有 push 時 `.githooks/pre-push` 會自動跑 actionlint、後端測試、待產生 Migration 檢查、前端型別檢查；尚未設定 `core.hooksPath` 時要提醒使用者，並說明這些檢查沒有在本機跑過。
+   - 只有 push 時 `.githooks/pre-push` 會自動跑 actionlint、後端測試、待產生 Migration 檢查、前端 ESLint、Prettier 與型別檢查；尚未設定 `core.hooksPath` 時要提醒使用者，並說明這些檢查沒有在本機跑過。
    - 新增或修改會在容器內執行的腳本（`*.sh`）：`git ls-files --eol <檔案>` 應為 `w/lf`。Windows 的 `core.autocrlf=true` 可能把新檔寫成 CRLF，容器執行時會出現 `cannot execute: required file not found`；是 `w/crlf` 就用 `sed -i 's/\r$//' <檔案>` 轉回 LF。
    - 改到 compose 或 `.env.example`：`docker compose config -q` 與 `docker compose -f docker-compose.prod.yml config -q`（**加 `-q`**，不帶時會印出 `.env` 的實際值）。
    - 測試：走 feature-flow 時，④ 已經由 AI 和使用者各驗證一輪，這裡不重跑，推送時 pre-push hook 會再跑一次。
-     沒走 feature-flow 時，先跑 `dotnet test tests/Konbini.Tests` 和前端型別檢查，把結果告訴使用者。
+     沒走 feature-flow 時，先跑 `dotnet test tests/Konbini.Tests` 和前端的 `npm run lint`、`npm run format:check`、型別檢查，把結果告訴使用者。
 5. **看變更範圍**：`git diff origin/main...HEAD --stat`。混了多個主題、或有意義的變更超過約 500 行時，建議拆分，由使用者決定。主題不同的改動（例如 `ci:` 與 `chore:`）不要擠在同一個 Pull Request——Squash 後只剩一個標題，寫不清楚。
 6. **推送**：使用者同意後 `git push -u origin <分支>`。不 force push、不推送到 `main`（ruleset 也會擋）。
 7. **產出三段內容**（見下方格式），內容以實際做過的事為準：

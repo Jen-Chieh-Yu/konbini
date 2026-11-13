@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { isAxiosError } from 'axios'
 import { OrderService } from '../api/services/OrderService'
 import { AddressService } from '@features/Addresses/api/services/AddressService'
 import type { CityDTO, DistrictDTO } from '@features/Addresses/api/interfaces/AddressDTO'
@@ -23,10 +24,13 @@ const form = ref({
 const errors = ref<Record<string, string>>({})
 const submitting = ref(false)
 
-watch(() => form.value.cityCode, async (cityCode) => {
-  form.value.districtCode = 0
-  districts.value = cityCode ? await AddressService.getDistricts(cityCode) : []
-})
+watch(
+  () => form.value.cityCode,
+  async (cityCode) => {
+    form.value.districtCode = 0
+    districts.value = cityCode ? await AddressService.getDistricts(cityCode) : []
+  },
+)
 
 async function submit() {
   errors.value = {}
@@ -38,8 +42,12 @@ async function submit() {
     })
     cart.clear()
     router.push('/orders')
-  } catch (e: any) {
-    errors.value = e.response?.data?.errors ?? { general: '訂單送出失敗，請稍後再試' }
+  } catch (e) {
+    // 400 帶欄位錯誤；網路中斷、500 或非 axios 的錯誤都顯示通用訊息
+    const fieldErrors = isAxiosError<{ errors?: Record<string, string> }>(e)
+      ? e.response?.data?.errors
+      : undefined
+    errors.value = fieldErrors ?? { general: '訂單送出失敗，請稍後再試' }
   } finally {
     submitting.value = false
   }
@@ -57,16 +65,20 @@ onMounted(async () => {
   <form v-else class="form" @submit.prevent="submit">
     <label>聯絡人姓名<input v-model="form.contactName" /></label>
     <label>聯絡電話<input v-model="form.contactPhone" /></label>
-    <label>縣市
+    <label
+      >縣市
       <select v-model.number="form.cityCode">
         <option :value="0">請選擇</option>
         <option v-for="c in cities" :key="c.cityCode" :value="c.cityCode">{{ c.cityName }}</option>
       </select>
     </label>
-    <label>行政區
+    <label
+      >行政區
       <select v-model.number="form.districtCode">
         <option :value="0">請選擇</option>
-        <option v-for="d in districts" :key="d.districtCode" :value="d.districtCode">{{ d.districtName }}</option>
+        <option v-for="d in districts" :key="d.districtCode" :value="d.districtCode">
+          {{ d.districtName }}
+        </option>
       </select>
     </label>
     <label>地址<input v-model="form.streetAddress" /></label>
@@ -80,8 +92,19 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.form { display: grid; gap: 0.75rem; max-width: 420px; }
-.form label { display: grid; gap: 0.25rem; }
-.errors { color: #d33; }
-.amount { font-weight: 700; }
+.form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 420px;
+}
+.form label {
+  display: grid;
+  gap: 0.25rem;
+}
+.errors {
+  color: #d33;
+}
+.amount {
+  font-weight: 700;
+}
 </style>

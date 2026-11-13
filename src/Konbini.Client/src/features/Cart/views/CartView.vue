@@ -12,7 +12,13 @@ const cart = useCartStore()
   <template v-else>
     <table>
       <thead>
-        <tr><th>商品</th><th>單價</th><th>數量</th><th>小計</th><th></th></tr>
+        <tr>
+          <th>商品</th>
+          <th>單價</th>
+          <th>數量</th>
+          <th>小計</th>
+          <th></th>
+        </tr>
       </thead>
       <tbody>
         <tr v-for="item in cart.items" :key="item.productId">
@@ -24,7 +30,12 @@ const cart = useCartStore()
           <td>
             <button @click="cart.updateQuantity(item.productId, item.quantity - 1)">－</button>
             {{ item.quantity }}
-            <button :disabled="item.quantity >= MAX_ITEM_QUANTITY" @click="cart.updateQuantity(item.productId, item.quantity + 1)">＋</button>
+            <button
+              :disabled="item.quantity >= MAX_ITEM_QUANTITY"
+              @click="cart.updateQuantity(item.productId, item.quantity + 1)"
+            >
+              ＋
+            </button>
           </td>
           <td>NT$ {{ item.price * item.quantity }}</td>
           <td><button @click="cart.remove(item.productId)">移除</button></td>
@@ -41,14 +52,41 @@ const cart = useCartStore()
 </template>
 
 <style scoped>
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 0.5rem; border-bottom: 1px solid #eee; text-align: left; }
-.name { display: flex; align-items: center; gap: 0.5rem; }
-.name img { width: 48px; height: 48px; object-fit: contain; }
-.summary { margin-top: 1rem; text-align: right; }
-.total { font-size: 1.2rem; font-weight: 700; color: #d33; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.name img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.summary {
+  margin-top: 1rem;
+  text-align: right;
+}
+.total {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #d33;
+}
 .checkout {
-  display: inline-block; padding: 0.5rem 1.5rem; background: #d33; color: #fff;
-  border-radius: 4px; text-decoration: none;
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  background: #d33;
+  color: #fff;
+  border-radius: 4px;
+  text-decoration: none;
 }
 </style>

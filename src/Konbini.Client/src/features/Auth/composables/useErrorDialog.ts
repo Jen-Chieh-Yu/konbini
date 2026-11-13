@@ -24,8 +24,9 @@ const GATEWAY_ERRORS = [502, 503, 504]
  * 回應裡沒有 errors（例：500 只帶 title）時，整理成 general，呼叫端只要處理一種格式。
  */
 export function readApiErrors(e: unknown, fallback: string): ApiErrorResult | null {
-  const response = (e as { response?: { status: number; data?: { errors?: ApiErrors; title?: string } } })
-    .response
+  const response = (
+    e as { response?: { status: number; data?: { errors?: ApiErrors; title?: string } } }
+  ).response
   if (!response || GATEWAY_ERRORS.includes(response.status) || !response.data) return null
   return {
     status: response.status,
@@ -51,7 +52,12 @@ export function useErrorDialog() {
    * 多個欄位的錯誤，逐項列出「欄位：訊息」。labels 沒有的 key（例：general），
    * 或訊息本身已經以欄位名稱開頭（例：「密碼需包含…」），只列訊息
    */
-  function alertErrors(title: string, errors: ApiErrors, labels: Record<string, string>, confirmText = '我知道了') {
+  function alertErrors(
+    title: string,
+    errors: ApiErrors,
+    labels: Record<string, string>,
+    confirmText = '我知道了',
+  ) {
     const entries = Object.entries(errors)
     if (entries.length === 1) {
       return alertError(title, entries[0][1], undefined, confirmText)
@@ -67,7 +73,9 @@ export function useErrorDialog() {
             h(
               'li',
               { key },
-              labels[key] && !message.startsWith(labels[key]) ? [h('b', `${labels[key]}：`), message] : message,
+              labels[key] && !message.startsWith(labels[key])
+                ? [h('b', `${labels[key]}：`), message]
+                : message,
             ),
           ),
         ),
