@@ -6,7 +6,9 @@ import type {
   LoginRequestDTO,
   LoginResponseDTO,
   RegisterRequestDTO,
+  RequestPasswordResetRequestDTO,
   ResendVerificationEmailRequestDTO,
+  ResetPasswordRequestDTO,
   UserDTO,
   VerifyEmailRequestDTO,
   VerifyEmailResponseDTO,
@@ -41,5 +43,14 @@ export const AuthService = {
   /** Email 不存在、已驗證或還在冷卻時間內也回成功（204），畫面不能說「已寄出」 */
   resendVerificationEmail: async (data: ResendVerificationEmailRequestDTO) => {
     await instance.post(AuthApi.verificationEmails, data)
+  },
+
+  /** Email 不存在或還在冷卻時間內也回成功（204），畫面不能說「已寄出」 */
+  requestPasswordReset: async (data: RequestPasswordResetRequestDTO) => {
+    await instance.post(AuthApi.passwordResetEmails, data)
+  },
+
+  resetPassword: async (data: ResetPasswordRequestDTO) => {
+    await instance.post(AuthApi.passwordResets, data)
   },
 }

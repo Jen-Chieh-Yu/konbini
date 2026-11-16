@@ -71,6 +71,18 @@ const routes = [
     name: 'VerificationSent',
     component: () => import('@features/Auth/views/VerificationSentView.vue'),
   },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@features/Auth/views/ForgotPasswordView.vue'),
+    meta: { guestOnly: true },
+  },
+  {
+    // 不設 guestOnly：已登入的人點信中的連結時被導走，token 就沒了
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@features/Auth/views/ResetPasswordView.vue'),
+  },
 
   // --- 其他網址：一定要放最後，前面的路由都對不到才會進來 ---
   {

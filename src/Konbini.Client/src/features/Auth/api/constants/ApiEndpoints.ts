@@ -5,4 +5,6 @@ export const AuthApi = {
   password: '/api/auth/password',
   emailVerifications: '/api/auth/email-verifications',
   verificationEmails: '/api/auth/verification-emails',
+  passwordResetEmails: '/api/auth/password-reset-emails',
+  passwordResets: '/api/auth/password-resets',
 } as const

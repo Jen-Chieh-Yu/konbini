@@ -142,6 +142,12 @@ async function offerResend(message: string) {
           placeholder="請輸入密碼"
         />
       </el-form-item>
+      <p class="forgot">
+        <!-- 已經打好的 Email 帶過去，不放網址（同註冊成功後帶回登入頁） -->
+        <RouterLink :to="{ path: '/forgot-password', state: { email: form.email } }"
+          >忘記密碼？</RouterLink
+        >
+      </p>
       <el-button type="primary" native-type="submit" :loading="submitting" class="auth-submit">
         {{ submitting ? '登入中' : '登入' }}
       </el-button>
@@ -157,5 +163,19 @@ async function offerResend(message: string) {
 <style scoped>
 .auth-notice {
   margin-bottom: 1rem;
+}
+.forgot {
+  margin: -0.8rem 0 0.4rem;
+  text-align: right;
+  font-size: 0.85rem;
+}
+.forgot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--kb-tap);
+  padding: 0 0.25rem;
+  color: var(--kb-brand);
+  font-weight: 500;
+  text-decoration: none;
 }
 </style>
