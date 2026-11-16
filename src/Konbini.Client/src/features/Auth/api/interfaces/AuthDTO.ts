@@ -44,3 +44,13 @@ export interface VerifyEmailResponseDTO {
 export interface ResendVerificationEmailRequestDTO {
   email: string
 }
+
+export interface RequestPasswordResetRequestDTO {
+  email: string
+}
+
+export interface ResetPasswordRequestDTO {
+  token: string
+  newPassword: string
+  confirmPassword: string
+}
