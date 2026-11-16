@@ -38,4 +38,13 @@ public static class AuthErrors
         Error.Validation("token", "驗證連結無效，請使用最新一封驗證信中的連結，或重新寄送驗證信");
 
     public static readonly Error VerificationTokenExpired = Error.Validation("token", "驗證連結已過期，請重新寄送驗證信");
+
+    /// <summary>找不到重設 token，包含被新的重設信取代、重設成功後失效的舊連結。</summary>
+    public static readonly Error ResetTokenInvalid =
+        Error.Validation("token", "重設連結無效，請使用最新一封重設密碼信中的連結，或重新申請");
+
+    /// <summary>重設連結只能用一次；和驗證連結不同，用過再點一次是錯誤。</summary>
+    public static readonly Error ResetTokenUsed = Error.Validation("token", "此重設連結已使用過，如需再次重設請重新申請");
+
+    public static readonly Error ResetTokenExpired = Error.Validation("token", "重設連結已過期，請重新申請重設密碼");
 }

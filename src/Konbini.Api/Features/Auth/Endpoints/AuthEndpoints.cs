@@ -67,6 +67,32 @@ public class AuthEndpoints : IEndpoint
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
+        // 忘記密碼：Email 不存在、冷卻中都回 204，回應一致（見 RequestPasswordResetHandler）
+        group.MapPost("/password-reset-emails", async (
+                RequestPasswordResetRequest request,
+                ICommandHandler<RequestPasswordResetCommand, Result> handler,
+                CancellationToken ct)
+            =>
+            {
+                var result = await handler.Handle(new(request), ct);
+                return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
+            })
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        // 信中的連結指向前端頁面，由頁面帶著 token 與新密碼送這個 POST（理由同 email-verifications）
+        group.MapPost("/password-resets", async (
+                ResetPasswordRequest request,
+                ICommandHandler<ResetPasswordCommand, Result> handler,
+                CancellationToken ct)
+            =>
+            {
+                var result = await handler.Handle(new(request), ct);
+                return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
+            })
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
         group.MapPut("/password", async (
                 ChangePasswordRequest request,
                 ICurrentUser currentUser,
