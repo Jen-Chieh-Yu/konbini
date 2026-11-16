@@ -10,6 +10,8 @@
 | 註冊 | 訪客 | `POST /api/auth/register` | `RegisterView.vue`（`/register`） |
 | Email 驗證 | 訪客 | `POST /api/auth/email-verifications` | `VerifyEmailView.vue`（`/verify-email?token=`，驗證信中的連結） |
 | 重寄驗證信 | 訪客 | `POST /api/auth/verification-emails` | `VerificationSentView.vue`（`/verify-email/sent`）、驗證失敗時的 `VerifyEmailView.vue`、登入頁的 modal |
+| 申請重設密碼 | 訪客 | `POST /api/auth/password-reset-emails` | `ForgotPasswordView.vue`（`/forgot-password`，登入頁的「忘記密碼？」） |
+| 重設密碼 | 訪客 | `POST /api/auth/password-resets` | `ResetPasswordView.vue`（`/reset-password?token=`，重設密碼信中的連結） |
 | 登入 | 訪客 | `POST /api/auth/login` | `LoginView.vue`（`/login`） |
 | 登出 | 會員 | 沒有（前端清除 token） | header 的「登出」（`App.vue`） |
 | 取得目前使用者 | 會員 | `GET /api/auth/me` 🔒 | 沒有畫面；`App.vue` 啟動時呼叫 |
@@ -19,7 +21,8 @@
 後端：[AuthEndpoints.cs](../../src/Konbini.Api/Features/Auth/Endpoints/AuthEndpoints.cs)、
 [Commands/](../../src/Konbini.Api/Features/Auth/Commands/)、
 [PasswordPolicy.cs](../../src/Konbini.Api/Features/Auth/Models/PasswordPolicy.cs)、
-[EmailVerificationToken.cs](../../src/Konbini.Api/Features/Auth/Models/EmailVerificationToken.cs)。
+[EmailVerificationToken.cs](../../src/Konbini.Api/Features/Auth/Models/EmailVerificationToken.cs)、
+[PasswordResetToken.cs](../../src/Konbini.Api/Features/Auth/Models/PasswordResetToken.cs)。
 業務決策：[decisions/Auth.md](decisions/Auth.md)。
 前端：[features/Auth/](../../src/Konbini.Client/src/features/Auth/)。
 
@@ -55,6 +58,21 @@ flowchart TD
   O --> Q{"目前頁面需要登入？<br>/checkout、/orders"}
   Q -- 是 --> R["提示「登入已過期，請重新登入」<br>導向 /login"]
   Q -- 否 --> S["留在原頁"]
+```
+
+## 流程：忘記密碼
+
+```mermaid
+flowchart TD
+  L["登入頁按「忘記密碼？」"] --> F["/forgot-password<br>輸入 Email，按「寄出重設密碼信」"]
+  F -- 204 --> N["顯示「已送出申請：{Email}」與說明<br>60 秒內不能再按"]
+  N --> M["收信（開發：Mailpit localhost:8025）<br>帳號不存在時不會有信"]
+  M -- 點信中的連結 --> R["/reset-password?token=…<br>輸入新密碼與確認新密碼"]
+  R -- 204 --> OK["提示「密碼已重設，請用新密碼登入」<br>（這台瀏覽器有登入就先登出）導向 /login"]
+  OK --> MC["收到「您的密碼已變更」通知信"]
+  R -- "400 token（不完整、無效、已使用、過期）" --> X["「這個連結不能使用」<br>＋「重新申請重設密碼」"]
+  X --> F
+  R -- "400 密碼欄位" --> E["modal 列出錯誤，留在表單"]
 ```
 
 ## 業務規則
@@ -94,7 +112,7 @@ flowchart TD
 
 ### 密碼規則（`PasswordPolicy`）
 
-註冊與修改密碼共用，依序檢查，只回第一條不符合的：
+註冊、修改密碼與重設密碼共用，依序檢查，只回第一條不符合的：
 
 | 順序 | 規則 | 錯誤訊息原文 |
 |---|---|---|
@@ -155,6 +173,42 @@ flowchart TD
 - 重寄的回應一致，看不出哪些 Email 註冊過；畫面上一律顯示「如果這個 Email 已註冊且尚未驗證，我們已寄出驗證信」。
 - Email 與註冊相同：先去頭尾空白、轉小寫，再檢查格式與比對。
 
+### 忘記密碼
+
+決定與理由見 [DD-AUT-002](decisions/Auth.md#dd-aut-002忘記密碼的規則2026-11-16使用者決定claudemd-6忘記密碼)。
+
+- **重設密碼信**：主旨「【Konbini】重設您的密碼」，寄件者同驗證信。連結是 `{App:ClientBaseUrl}/reset-password?token=…`，
+  **30 分鐘**內有效（`PasswordResetToken.Lifetime`），只能用一次。token 的產生與保存方式同 Email 驗證（`SecureToken`）。
+- **申請**（`POST /api/auth/password-reset-emails`，body `{ "email": "…" }`）：
+
+| 情況 | 狀態碼 | 回應 |
+|---|---|---|
+| Email 是空的 | 400 | `email`：請輸入 Email |
+| 超過 254 個字元，或格式不對 | 400 | `email`：Email 格式不正確 |
+| 帳號不存在（含已軟刪除）、距離上一封不到 **60 秒**（`PasswordResetToken.ResendCooldown`，和驗證信分開計算） | 204 | 沒有內容，不寄信 |
+| 其他（包含還沒完成 Email 驗證的帳號）：舊的未使用 token 全部刪除，產生新的並寄出 | 204 | 沒有內容 |
+| 寄不出去（SMTP 連不上、超過 10 秒） | 500 | `title`：伺服器發生錯誤，請稍後再試。 |
+
+- **重設**（`POST /api/auth/password-resets`，body `{ "token", "newPassword", "confirmPassword" }`）：先檢查 token，
+  token 有效才檢查密碼欄位；密碼欄位的錯誤一起回傳。
+
+| 順序 | 情況 | 狀態碼 | 回應 |
+|---|---|---|---|
+| 1 | token 是空的 | 400 | `token`：重設連結不完整，請從信中重新點選連結 |
+| 2 | 找不到（打錯、被新的重設信取代、重設成功後失效） | 400 | `token`：重設連結無效，請使用最新一封重設密碼信中的連結，或重新申請 |
+| 3 | 已經用過（不看效期） | 400 | `token`：此重設連結已使用過，如需再次重設請重新申請 |
+| 4 | 超過效期（剛好到期也算） | 400 | `token`：重設連結已過期，請重新申請重設密碼 |
+| 5 | 新密碼不符合密碼規則 | 400 | `newPassword`：見「密碼規則」 |
+| 5 | 確認新密碼與新密碼不同 | 400 | `confirmPassword`：密碼與確認密碼不一致，請重新輸入 |
+| 6 | 成功 | 204 | 沒有內容 |
+
+- 成功時：密碼換成新的雜湊值、token 標為已使用、同一帳號其他未使用的重設 token 全部刪除；
+  還沒完成 Email 驗證的帳號一併標為已驗證（點得到連結就證明信箱屬於本人）。
+- 不檢查新密碼是否和舊密碼相同（修改密碼才檢查）。
+- 成功後寄「【Konbini】您的密碼已變更」通知信，信中不帶 token，只附 `/forgot-password` 的網址；
+  寄不出去時照樣回 204，API 記 error log。
+- 不會自動登入。已發出的 JWT 在效期內仍然有效（同修改密碼）。
+
 ### 目前使用者
 
 - `GET /api/auth/me` 回傳 `{ id, name, email, phone }`；token 有效但使用者已不存在時回 404，`general`：找不到使用者。
@@ -177,7 +231,7 @@ flowchart TD
 
 ## 前端行為
 
-- **表單錯誤**：登入、註冊與重寄驗證信都只在按送出時檢查。沒過或後端回了錯誤，用 modal 列出，同時標在欄位下方；
+- **表單錯誤**：登入、註冊、重寄驗證信、忘記密碼與重設密碼都只在按送出時檢查。沒過或後端回了錯誤，用 modal 列出，同時標在欄位下方；
   關掉 modal 後游標移到第一個出錯的欄位，修改某一欄時清掉那一欄的錯誤
   （[CLAUDE.md §2](../../CLAUDE.md#2-架構決策)「表單錯誤」、[ui-guidelines「表單頁」](../ui-guidelines.md#表單頁)）。
 - 連不到 API（沒有回應、502–504、代理回的空白 500）時顯示 modal「連線失敗」。
@@ -186,6 +240,17 @@ flowchart TD
 - **登入頁**：只檢查必填與 Email 格式。401 時 modal 標題「登入失敗」，內容是後端的訊息加上
   「請確認 Email 與密碼後再試一次。」。403 時 modal 標題「尚未完成 Email 驗證」，主按鈕「重寄驗證信」、次按鈕「關閉」；
   按重寄後寄出驗證信並導向 `/verify-email/sent`。成功時提示「登入成功」，一律導向首頁。
+  密碼欄下方有「忘記密碼？」，已經輸入的 Email 以 history state 帶到 `/forgot-password`。
+- **忘記密碼（`/forgot-password`）**：只給訪客（已登入時導回首頁）。送出後在表單上方顯示「已送出申請：{Email}」
+  （去頭尾空白、轉小寫後的形式）與「如果這個 Email 已註冊，我們已寄出重設密碼信，請在 30 分鐘內點信中的連結。
+  沒有收到的話，請確認上方的 Email 是否正確，或查看垃圾郵件匣。」，按鈕倒數 60 秒，倒數完變成「再寄一次」。
+  帳號不存在時畫面完全相同。
+- **重設密碼（`/reset-password?token=…`）**：已登入也能開（點信中的連結時不會被導走）。進頁面後先把 token 從網址拿掉，
+  顯示新密碼（強度條與規則提示，同註冊頁）與確認新密碼。送出時 token 有問題，換成「這個連結不能使用」、後端的訊息與
+  「重新申請重設密碼」；密碼欄位有錯，modal 列出並標在欄位下方。成功時這台瀏覽器若有登入就先登出，
+  提示「密碼已重設，請用新密碼登入」並導向 `/login`。網址上沒有 token，或重新整理頁面（token 已經不在網址上）時，
+  直接顯示「這個連結不能使用」與「重設連結不完整，請從信中重新點選連結」。
+  已登入時，按鈕改成「登出並重新申請」（先登出再前往 `/forgot-password`），頁尾也不顯示「想起密碼了？前往登入」。
 - **驗證信已寄出（`/verify-email/sent`）**：從註冊或登入頁過來時，顯示「驗證信已寄出」與寄到哪個 Email，
   重寄按鈕一開始就倒數 60 秒（不顯示下方的重寄提示）；直接開網址時標題是「重寄驗證信」，Email 欄是空的。
   重寄成功後顯示「如果這個 Email 已註冊且尚未驗證，我們已寄出驗證信，請在 24 小時內點信中的連結。」並倒數 60 秒
@@ -203,8 +268,7 @@ flowchart TD
 
 都在 [CLAUDE.md §6](../../CLAUDE.md#6-分支與-cicd)：
 
-- 「忘記密碼」：沿用 Email 驗證的 `IEmailSender` 與 token 的做法。
 - 清除長期未驗證的帳號、改 Email 後重新驗證（[DD-AUT-001](decisions/Auth.md) 的「未做」）。
 - 「圖形驗證碼」、「第三方登入（Google、LINE）」。
-- 「refresh token」：登出、改密碼後讓舊 token 提早作廢。
+- 「refresh token」：登出、改密碼、重設密碼後讓舊 token 提早作廢。
 - 修改密碼的畫面：§6 沒有列；[CLAUDE.md §2](../../CLAUDE.md#2-架構決策)「表單錯誤」提到有改密碼表單時要再檢視一次錯誤呈現方式。

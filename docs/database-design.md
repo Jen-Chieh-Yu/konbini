@@ -78,7 +78,7 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 - 商品搜尋目前用 `ILIKE '%關鍵字%'`（無法使用一般索引）；量大時改用
   `pg_trgm` 的 GIN 索引或全文檢索，不要硬撐。
 
-> 現況：只有 order_items.order_id 與 email_verification_tokens.user_id 設了外鍵約束；orders.user_id、orders.city_code／district_code、
+> 現況：只有 order_items.order_id、email_verification_tokens.user_id 與 password_reset_tokens.user_id 設了外鍵約束；orders.user_id、orders.city_code／district_code、
 > order_items.product_id、districts.city_code 是邏輯關聯（沒有 FK 約束），其中有索引的是
 > orders.user_id 與 districts.city_code。
 
@@ -90,6 +90,14 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
   expires_on 是效期，used_on 是完成驗證的時間；用過的 token 保留，被新的驗證信取代的 token 直接刪除（不是軟刪除）。
   使用者軟刪除後，HasQueryFilter 也查不到他的 token。
 - 規則與理由見 docs/modules/decisions/Auth.md DD-AUT-001。
+
+## 重設密碼
+
+- password_reset_tokens：重設密碼信中的 token，欄位與 email_verification_tokens 相同（token_hash 只存 SHA-256 雜湊值、
+  char(64)、唯一索引；expires_on、used_on）。效期 30 分鐘；用過的 token 保留（再點一次回「已使用過」），
+  被新的重設信取代、或重設成功時同一帳號其他未使用的 token，直接刪除（不是軟刪除）。
+- 不和 email_verification_tokens 合併成一張表：兩種 token 用過之後的處理不同，合併的話要搬已上線的驗證資料。
+- 規則與理由見 docs/modules/decisions/Auth.md DD-AUT-002。
 
 ## Migration
 

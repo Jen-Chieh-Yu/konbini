@@ -507,6 +507,8 @@ public class ProductEndpoints : IEndpoint
 | | `POST /api/auth/login` | 登入，回傳 JWT（未完成 Email 驗證回 403） |
 | | `POST /api/auth/email-verifications` | 以驗證信中的 token 完成 Email 驗證 |
 | | `POST /api/auth/verification-emails` | 重寄驗證信 |
+| | `POST /api/auth/password-reset-emails` | 忘記密碼：寄出重設密碼信 |
+| | `POST /api/auth/password-resets` | 以重設密碼信中的 token 設定新密碼 |
 | | `PUT /api/auth/password` 🔒 | 修改密碼 |
 | | `GET /api/auth/me` 🔒 | 目前使用者 |
 | Search | `GET /api/search?keyword=&page=&pageSize=` | 商品搜尋（空白分隔，最多 10 個關鍵字），分頁 |
