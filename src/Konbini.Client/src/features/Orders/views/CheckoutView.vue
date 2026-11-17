@@ -36,12 +36,13 @@ async function submit() {
   errors.value = {}
   submitting.value = true
   try {
-    await OrderService.createOrder({
+    const { id } = await OrderService.createOrder({
       ...form.value,
       items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     })
     cart.clear()
-    router.push('/orders')
+    ElMessage.success('訂單已送出')
+    router.push(`/orders/${id}`)
   } catch (e) {
     // 400 帶欄位錯誤；網路中斷、500 或非 axios 的錯誤都顯示通用訊息
     const fieldErrors = isAxiosError<{ errors?: Record<string, string> }>(e)

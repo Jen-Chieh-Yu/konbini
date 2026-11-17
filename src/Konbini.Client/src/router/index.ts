@@ -47,6 +47,12 @@ const routes = [
     component: () => import('@features/Orders/views/OrdersView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/orders/:id',
+    name: 'OrderDetail',
+    component: () => import('@features/Orders/views/OrderDetailView.vue'),
+    meta: { requiresAuth: true },
+  },
 
   // --- 會員 ---
   {
