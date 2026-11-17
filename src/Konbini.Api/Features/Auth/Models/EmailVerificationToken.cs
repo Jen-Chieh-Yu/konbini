@@ -1,6 +1,3 @@
-using System.Buffers.Text;
-using System.Security.Cryptography;
-using System.Text;
 using Konbini.Api.Features.Common.Persistence;
 
 namespace Konbini.Api.Features.Auth.Models;
@@ -17,10 +14,8 @@ public class EmailVerificationToken : AuditableEntity
     /// <summary>同一帳號兩次寄信至少間隔多久；以最新一筆 token 的 CreatedOn 判斷。</summary>
     public static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
 
-    /// <summary>SHA-256 的十六進位字串長度，也是 token_hash 欄位的長度。</summary>
-    public const int HashLength = 64;
-
-    private const int TokenBytes = 32;
+    /// <summary>token_hash 欄位的長度。</summary>
+    public const int HashLength = SecureToken.HashLength;
 
     public int Id { get; set; }
     public int UserId { get; set; }
@@ -38,8 +33,8 @@ public class EmailVerificationToken : AuditableEntity
     /// </summary>
     public static (EmailVerificationToken Token, string RawToken) Issue(User user, DateTime now)
     {
-        var raw = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(TokenBytes));
-        var token = new EmailVerificationToken { TokenHash = Hash(raw), ExpiresOn = now + Lifetime };
+        var (raw, hash) = SecureToken.Generate();
+        var token = new EmailVerificationToken { TokenHash = hash, ExpiresOn = now + Lifetime };
         if (user.Id == 0)
         {
             token.User = user;
@@ -51,11 +46,7 @@ public class EmailVerificationToken : AuditableEntity
         return (token, raw);
     }
 
-    /// <summary>
-    /// 用 SHA-256 而不是 PBKDF2：慢雜湊是為了保護低熵的密碼，256 位元的亂數本來就猜不到。
-    /// </summary>
-    public static string Hash(string rawToken) =>
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
+    public static string Hash(string rawToken) => SecureToken.Hash(rawToken);
 
     public bool IsExpired(DateTime now) => now >= ExpiresOn;
 }

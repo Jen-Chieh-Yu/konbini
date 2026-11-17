@@ -25,3 +25,7 @@ public record VerifyEmailRequest(string Token);
 public record VerifyEmailResponse(bool AlreadyVerified);
 
 public record ResendVerificationEmailRequest(string Email);
+
+public record RequestPasswordResetRequest(string Email);
+
+public record ResetPasswordRequest(string Token, string NewPassword, string ConfirmPassword);

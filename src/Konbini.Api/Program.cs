@@ -65,6 +65,7 @@ builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 // token 效期與重寄冷卻用它取時間，測試可以換成固定時間
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHandlers();

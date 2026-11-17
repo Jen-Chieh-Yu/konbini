@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Message } from '@element-plus/icons-vue'
 import { AuthService } from '../api/services/AuthService'
 import { RESEND_COOLDOWN_SECONDS, RESEND_NOTICE } from '../constants/emailVerification'
 import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
+import { useCooldown } from '../composables/useCooldown'
 import {
   SUBMIT_ONLY,
   focusFirstError,
@@ -33,9 +34,7 @@ const form = ref({ email: props.email ?? '' })
 const serverErrors = ref<ApiErrors>({})
 const submitting = ref(false)
 const sent = ref(false)
-/** 還要幾秒才能再寄；0 表示可以寄 */
-const remaining = ref(0)
-let timer: ReturnType<typeof setInterval> | undefined
+const { remaining, start: startCooldown } = useCooldown(RESEND_COOLDOWN_SECONDS)
 
 const FIELD_LABELS: Record<string, string> = { email: 'Email' }
 const rules: FormRules = {
@@ -46,19 +45,9 @@ const rules: FormRules = {
 }
 useClearErrorOnEdit(formRef, form, serverErrors)
 
-function startCooldown() {
-  remaining.value = RESEND_COOLDOWN_SECONDS
-  clearInterval(timer)
-  timer = setInterval(() => {
-    remaining.value -= 1
-    if (remaining.value <= 0) clearInterval(timer)
-  }, 1000)
-}
-
 onMounted(() => {
   if (props.justSent) startCooldown()
 })
-onBeforeUnmount(() => clearInterval(timer))
 
 async function submit() {
   serverErrors.value = {}

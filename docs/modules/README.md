@@ -22,7 +22,7 @@
 | Search | [Search.md](Search.md) | 以關鍵字搜尋商品 | 後端＋前端（資料存取沿用 Products） |
 | Cart | [Cart.md](Cart.md) | 購物車與金額預覽 | 只有前端（Pinia＋localStorage） |
 | Orders | [Orders.md](Orders.md) | 下單、我的訂單、訂單明細 | 後端＋前端 |
-| Auth | [Auth.md](Auth.md) | 註冊、Email 驗證、登入、登出、目前使用者、修改密碼 | 後端＋前端（修改密碼沒有畫面） |
+| Auth | [Auth.md](Auth.md) | 註冊、Email 驗證、登入、忘記密碼、登出、目前使用者、修改密碼 | 後端＋前端（修改密碼沒有畫面） |
 | Addresses | [Addresses.md](Addresses.md) | 縣市與行政區代碼表 | 後端＋前端 api（結帳頁使用，沒有自己的畫面） |
 
 AppInfo（`GET /api/version`）只回傳版號與 commit，沒有業務規則，不寫模組文件；
@@ -67,6 +67,8 @@ flowchart TD
   R -- 註冊成功 --> E["收信，點驗證連結 /verify-email"]
   E -- 驗證完成 --> L
   L -- 登入成功，導向首頁 --> H
+  L -- 忘記密碼 --> FP["收信，點重設連結 /reset-password"]
+  FP -- 重設完成 --> L
   K -- 是 --> CO["結帳 /checkout"]
   CO -- 下單成功 --> OD["訂單明細 /orders/:id"]
   O["我的訂單 /orders"] -- 點訂單 --> OD
