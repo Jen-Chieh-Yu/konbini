@@ -82,7 +82,7 @@ Konbini/
 │   │   └── src/
 │   │       ├── assets/css/       # 全域樣式
 │   │       ├── features/         # 依模組分類：Products / Cart / Orders / Auth / Search / Addresses
-│   │       ├── shared/           # api/：axios 共用實例；constants/：分類與金額格式等共用常數
+│   │       ├── shared/           # api/：axios 共用實例；constants/：分類與金額格式等共用常數；utils/：時間格式等共用函式
 │   │       ├── router/
 │   │       ├── views/            # 首頁等不屬於特定 feature 的頁面
 │   │       └── main.ts
@@ -502,6 +502,7 @@ public class ProductEndpoints : IEndpoint
 | Products | `GET /api/products?type=&page=&pageSize=` | 商品列表（type=0 為全部），分頁 |
 | | `GET /api/products/{id}` | 商品明細 + 同類推薦 |
 | Orders | `GET /api/orders?page=&pageSize=` 🔒 | 訂單列表，分頁 |
+| | `GET /api/orders/{id}` 🔒 | 訂單明細；不是自己的訂單回 404 |
 | | `POST /api/orders` 🔒 | 建立訂單 |
 | Auth | `POST /api/auth/register` | 註冊 |
 | | `POST /api/auth/login` | 登入，回傳 JWT（未完成 Email 驗證回 403） |

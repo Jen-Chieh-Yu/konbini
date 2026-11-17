@@ -1,6 +1,6 @@
 # 業務模組總覽
 
-更新日期：2026-11-12。新增模組、模組之間多了呼叫關係時，同步更新本文件。
+更新日期：2026-11-16。新增模組、模組之間多了呼叫關係時，同步更新本文件。
 
 這組文件記錄**各模組現有程式的實際行為**：誰能做什麼、規則與錯誤訊息原文、流程、對應的 API 與畫面。
 
@@ -21,7 +21,7 @@
 | Products | [Products.md](Products.md) | 商品列表、分類、明細與相關商品 | 後端＋前端 |
 | Search | [Search.md](Search.md) | 以關鍵字搜尋商品 | 後端＋前端（資料存取沿用 Products） |
 | Cart | [Cart.md](Cart.md) | 購物車與金額預覽 | 只有前端（Pinia＋localStorage） |
-| Orders | [Orders.md](Orders.md) | 下單、我的訂單 | 後端＋前端 |
+| Orders | [Orders.md](Orders.md) | 下單、我的訂單、訂單明細 | 後端＋前端 |
 | Auth | [Auth.md](Auth.md) | 註冊、Email 驗證、登入、登出、目前使用者、修改密碼 | 後端＋前端（修改密碼沒有畫面） |
 | Addresses | [Addresses.md](Addresses.md) | 縣市與行政區代碼表 | 後端＋前端 api（結帳頁使用，沒有自己的畫面） |
 
@@ -68,7 +68,8 @@ flowchart TD
   E -- 驗證完成 --> L
   L -- 登入成功，導向首頁 --> H
   K -- 是 --> CO["結帳 /checkout"]
-  CO -- 下單成功 --> O["我的訂單 /orders"]
+  CO -- 下單成功 --> OD["訂單明細 /orders/:id"]
+  O["我的訂單 /orders"] -- 點訂單 --> OD
   CO -- 欄位錯誤 --> CO
 ```
 

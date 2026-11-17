@@ -82,8 +82,6 @@ Endpoint → Command/Query → Handler → Service → Repository
 
 可預期的失敗由錯誤類型決定狀態碼，見下一節。
 
-> 現況：`POST /api/orders` 的 Location 指向 `/api/orders/{id}`，但明細路由尚未實作（見 CLAUDE.md §6）。
-
 ## Handler 的結果表達
 
 - Handler 不丟例外來表示可預期的業務失敗（庫存不足、狀態不允許）。
