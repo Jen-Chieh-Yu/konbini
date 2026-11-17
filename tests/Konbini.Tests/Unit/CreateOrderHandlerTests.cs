@@ -232,6 +232,7 @@ public class CreateOrderHandlerTests
         public void Add(Order order) => Added = order;
 
         public Task<PagedResult<OrderDto>> GetByUserAsync(int userId, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
+        public Task<OrderDto?> GetByIdAsync(int id, int userId, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class FakeProductRepository : IProductRepository
