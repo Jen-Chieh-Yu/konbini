@@ -7,6 +7,7 @@ import type { PagedResult } from '@shared/api/interfaces/PagedResult'
 import AppPagination from '@shared/components/AppPagination.vue'
 import AppStatePanel from '@shared/components/AppStatePanel.vue'
 import { useRoutePage } from '@shared/composables/useRoutePage'
+import { formatDateTime } from '@shared/utils/formatDateTime'
 
 const route = useRoute()
 const { page, goToPage, redirectIfPastLastPage } = useRoutePage()
@@ -55,8 +56,10 @@ onMounted(load)
     <p v-if="!result?.items.length">還沒有任何訂單。</p>
     <div v-for="order in result?.items" :key="order.id" class="order">
       <header>
-        <strong>訂單 #{{ order.id }}</strong>
-        <span>{{ new Date(order.createdAt).toLocaleString() }}</span>
+        <RouterLink :to="`/orders/${order.id}`">
+          <strong>訂單 #{{ order.id }}</strong>
+        </RouterLink>
+        <span>{{ formatDateTime(order.createdAt) }}</span>
       </header>
       <ul>
         <li v-for="item in order.items" :key="item.productId">
@@ -65,7 +68,12 @@ onMounted(load)
       </ul>
       <footer>
         <span>寄送：{{ order.deliveryAddress }}</span>
-        <strong>合計 NT$ {{ order.total }}</strong>
+        <span class="order-actions">
+          <strong>合計 NT$ {{ order.total }}</strong>
+          <RouterLink :to="`/orders/${order.id}`">
+            <el-button class="order-detail-btn">查看明細</el-button>
+          </RouterLink>
+        </span>
       </footer>
     </div>
     <AppPagination v-if="result" :result="result" @change="goToPage" />
@@ -83,5 +91,20 @@ onMounted(load)
 .order footer {
   display: flex;
   justify-content: space-between;
+}
+.order footer {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.order-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+}
+/* 按鈕是觸控目標，高度至少 44px；el-button 的高度寫死 32px，只能直接指定（同 AppStatePanel） */
+.order-detail-btn {
+  height: var(--kb-tap);
+  padding-inline: 1.25rem;
 }
 </style>

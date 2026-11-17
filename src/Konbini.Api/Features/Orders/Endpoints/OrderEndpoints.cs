@@ -25,6 +25,20 @@ public class OrderEndpoints : IEndpoint
             .Produces<PagedResult<OrderDto>>()
             .Produces(StatusCodes.Status401Unauthorized);
 
+        group.MapGet("/{id:int}", async (
+                int id,
+                ICurrentUser currentUser,
+                IQueryHandler<GetOrderDetailQuery, Result<OrderDto>> handler,
+                CancellationToken ct)
+            =>
+            {
+                var result = await handler.Handle(new(currentUser.Id, id), ct);
+                return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem();
+            })
+            .Produces<OrderDto>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized);
+
         group.MapPost("/", async (
                 CreateOrderRequest request,
                 ICurrentUser currentUser,
@@ -33,7 +47,6 @@ public class OrderEndpoints : IEndpoint
             =>
             {
                 var result = await handler.Handle(new(currentUser.Id, request), ct);
-                // Location 指向的訂單明細路由尚未實作（CLAUDE.md §6）
                 return result.IsSuccess
                     ? Results.Created($"/api/orders/{result.Value.Id}", result.Value)
                     : result.Error.ToProblem();

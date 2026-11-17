@@ -1,6 +1,6 @@
 # Konbini UI 設計規範
 
-> 現況：目前只有 `App.vue`、`views/HomeView.vue` 與 Auth 的登入、註冊頁照本規範改版。`features/` 底下的其他頁面是改版前的寫法
+> 現況：目前只有 `App.vue`、`views/HomeView.vue`、Auth 的登入、註冊頁與 Orders 的訂單明細頁照本規範改版。`features/` 底下的其他頁面是改版前的寫法
 > （自刻 button／table／input、CSS grid、640px 斷點、金額沒用 `formatMoney`、只有「載入中…」文字），
 > 會隨各模組 CRUD 一起遷移（見 CLAUDE.md §6）。新寫的畫面一律照本規範。
 
@@ -71,6 +71,8 @@
 - 金額顯示格式統一：新台幣整數、無小數，千分位逗號、
   幣別符號位置一致（金額一律 int，見 database-design.md）。
   一律用 `shared/constants/catalog.ts` 的 `formatMoney`，不要在 template 裡自己拼。
+- 時間一律用 `shared/utils/formatDateTime.ts` 的 `formatDateTime`：固定台灣時間（Asia/Taipei）、
+  格式 `2026/11/16 14:05`，不跟著瀏覽器的時區與地區格式（資料庫存 UTC，見 database-design.md）。
 
 ## 雜貨電商特有考量
 
