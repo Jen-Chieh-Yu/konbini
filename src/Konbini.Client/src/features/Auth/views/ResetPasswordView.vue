@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/useAuthStore'
 import AuthCard from '../components/AuthCard.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import PasswordStrength from '../components/PasswordStrength.vue'
+import PhraseText from '../components/PhraseText.vue'
 import { unmetPasswordRules } from '../constants/passwordRules'
 import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
 import {
@@ -158,7 +159,10 @@ function reapply() {
       </el-form>
     </template>
 
-    <el-result v-else icon="error" title="這個連結不能使用" :sub-title="failure">
+    <el-result v-else icon="error" title="這個連結不能使用">
+      <template #sub-title
+        ><p><PhraseText :text="failure" /></p
+      ></template>
       <template #extra>
         <el-button type="primary" class="auth-submit" @click="reapply">{{
           auth.token ? '登出並重新申請' : '重新申請重設密碼'

@@ -1,6 +1,6 @@
 # Konbini UI 設計規範
 
-> 現況：目前只有 `App.vue`、`views/HomeView.vue` 與 Auth 的登入、註冊頁照本規範改版。`features/` 底下的其他頁面是改版前的寫法
+> 現況：目前只有 `App.vue`、`views/HomeView.vue`、Auth 的登入、註冊頁與 Orders 的訂單明細頁照本規範改版。`features/` 底下的其他頁面是改版前的寫法
 > （自刻 button／table／input、CSS grid、640px 斷點、金額沒用 `formatMoney`、只有「載入中…」文字），
 > 會隨各模組 CRUD 一起遷移（見 CLAUDE.md §6）。新寫的畫面一律照本規範。
 
@@ -54,6 +54,8 @@
 - 錯誤只在按送出時檢查（rules 的 trigger 用 `SUBMIT_ONLY`），理由見 CLAUDE.md §2「表單錯誤」：
   - 前端檢查（必填、格式、兩次密碼一致）沒過，或伺服器回了錯誤，都用 `useErrorDialog` 彈出 modal 列出，
     同時在欄位下方標示（伺服器的錯誤用 `el-form-item` 的 `:error`）。
+  - `el-form` 加 `novalidate`：`type="email"` 這類輸入框會觸發瀏覽器自己的檢查，
+    它會搶在 rules 之前跳出氣泡提示，modal 就不會出現。
   - 關掉 modal 後游標移到第一個出錯的欄位；修改某一欄時清掉那一欄的錯誤，下次送出再檢查（`useClearErrorOnEdit`）。
   - 連不到 API 時（沒有回應、502–504、代理回的空白 500）顯示「連線失敗」。
 - 註冊的密碼欄下方放 `PasswordStrength` 五格強度條：每符合一條亮一格，全部符合才是「強」；
@@ -68,9 +70,14 @@
 
 - 字型設定要涵蓋繁體中文，避免落到系統預設造成字重不一致。
 - 版面預留中英文長度差異，按鈕與標籤不要寫死寬度。
+- 置中的短句（結果頁的說明、提示）只在全形標點後換行，不讓一兩個字單獨掉到下一行：
+  用 `features/Auth/components/PhraseText.vue` 把句子切成以標點結尾的段落。
+  不用 `text-wrap: pretty`／`balance`：它們不認得中文詞語，實測會把「連結」拆開，或在「請」字後面斷開。
 - 金額顯示格式統一：新台幣整數、無小數，千分位逗號、
   幣別符號位置一致（金額一律 int，見 database-design.md）。
   一律用 `shared/constants/catalog.ts` 的 `formatMoney`，不要在 template 裡自己拼。
+- 時間一律用 `shared/utils/formatDateTime.ts` 的 `formatDateTime`：固定台灣時間（Asia/Taipei）、
+  格式 `2026/11/16 14:05`，不跟著瀏覽器的時區與地區格式（資料庫存 UTC，見 database-design.md）。
 
 ## 雜貨電商特有考量
 

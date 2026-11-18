@@ -21,7 +21,7 @@
 | Products | [Products.md](Products.md) | 商品列表、分類、明細與相關商品 | 後端＋前端 |
 | Search | [Search.md](Search.md) | 以關鍵字搜尋商品 | 後端＋前端（資料存取沿用 Products） |
 | Cart | [Cart.md](Cart.md) | 購物車與金額預覽 | 只有前端（Pinia＋localStorage） |
-| Orders | [Orders.md](Orders.md) | 下單、我的訂單 | 後端＋前端 |
+| Orders | [Orders.md](Orders.md) | 下單、我的訂單、訂單明細 | 後端＋前端 |
 | Auth | [Auth.md](Auth.md) | 註冊、Email 驗證、登入、忘記密碼、登出、目前使用者、修改密碼 | 後端＋前端（修改密碼沒有畫面） |
 | Addresses | [Addresses.md](Addresses.md) | 縣市與行政區代碼表 | 後端＋前端 api（結帳頁使用，沒有自己的畫面） |
 
@@ -70,7 +70,8 @@ flowchart TD
   L -- 忘記密碼 --> FP["收信，點重設連結 /reset-password"]
   FP -- 重設完成 --> L
   K -- 是 --> CO["結帳 /checkout"]
-  CO -- 下單成功 --> O["我的訂單 /orders"]
+  CO -- 下單成功 --> OD["訂單明細 /orders/:id"]
+  O["我的訂單 /orders"] -- 點訂單 --> OD
   CO -- 欄位錯誤 --> CO
 ```
 

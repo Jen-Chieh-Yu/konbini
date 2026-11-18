@@ -14,6 +14,11 @@ export interface CreateOrderRequestDTO {
   memo?: string
 }
 
+/** POST /api/orders 成功時的 body；明細由 Location 指向的 GET /api/orders/{id} 取得 */
+export interface CreateOrderResponseDTO {
+  id: number
+}
+
 export interface OrderItemDTO {
   productId: number
   productName: string
