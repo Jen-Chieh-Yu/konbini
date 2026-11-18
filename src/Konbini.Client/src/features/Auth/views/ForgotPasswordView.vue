@@ -9,6 +9,7 @@ import {
   RESET_LINK_MINUTES,
   RESET_NOTICE,
 } from '../constants/passwordReset'
+import { emailFormatRule } from '../constants/emailFormat'
 import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
 import { useCooldown } from '../composables/useCooldown'
 import {
@@ -38,10 +39,7 @@ const { remaining, start: startCooldown } = useCooldown(RESET_COOLDOWN_SECONDS)
 
 const FIELD_LABELS: Record<string, string> = { email: 'Email' }
 const rules: FormRules = {
-  email: [
-    { required: true, message: '請輸入 Email', trigger: SUBMIT_ONLY },
-    { type: 'email', message: 'Email 格式不正確', trigger: SUBMIT_ONLY },
-  ],
+  email: [{ required: true, message: '請輸入 Email', trigger: SUBMIT_ONLY }, emailFormatRule],
 }
 useClearErrorOnEdit(formRef, form, serverErrors)
 
@@ -100,6 +98,7 @@ async function submit() {
       :rules="rules"
       label-position="top"
       hide-required-asterisk
+      novalidate
       @submit.prevent="submit"
     >
       <el-form-item label="Email" prop="email" :error="serverErrors.email">

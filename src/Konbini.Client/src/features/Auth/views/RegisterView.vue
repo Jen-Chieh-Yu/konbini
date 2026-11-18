@@ -8,6 +8,7 @@ import AuthCard from '../components/AuthCard.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import PasswordStrength from '../components/PasswordStrength.vue'
 import { unmetPasswordRules } from '../constants/passwordRules'
+import { emailFormatRule } from '../constants/emailFormat'
 import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
 import { safeRedirect } from '@/router/redirect'
 import {
@@ -87,10 +88,7 @@ const picked = (message: string): FormItemRule => ({
 const rules: FormRules = {
   lastName: [required('請輸入姓氏')],
   firstName: [required('請輸入名字')],
-  email: [
-    required('請輸入 Email'),
-    { type: 'email', message: 'Email 格式不正確', trigger: SUBMIT_ONLY },
-  ],
+  email: [required('請輸入 Email'), emailFormatRule],
   password: [
     required('請輸入密碼'),
     {
@@ -172,6 +170,7 @@ async function submit() {
       :rules="rules"
       label-position="top"
       hide-required-asterisk
+      novalidate
       @submit.prevent="submit"
     >
       <el-form-item label="姓名" :error="serverErrors.name">

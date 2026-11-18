@@ -4,6 +4,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { Message } from '@element-plus/icons-vue'
 import { AuthService } from '../api/services/AuthService'
 import { RESEND_COOLDOWN_SECONDS, RESEND_NOTICE } from '../constants/emailVerification'
+import { emailFormatRule } from '../constants/emailFormat'
 import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
 import { useCooldown } from '../composables/useCooldown'
 import {
@@ -33,15 +34,13 @@ const formRef = ref<FormInstance>()
 const form = ref({ email: props.email ?? '' })
 const serverErrors = ref<ApiErrors>({})
 const submitting = ref(false)
-const sent = ref(false)
+/** 最近一次送出成功的 Email；null 表示還沒送出過 */
+const sentTo = ref<string | null>(null)
 const { remaining, start: startCooldown } = useCooldown(RESEND_COOLDOWN_SECONDS)
 
 const FIELD_LABELS: Record<string, string> = { email: 'Email' }
 const rules: FormRules = {
-  email: [
-    { required: true, message: '請輸入 Email', trigger: SUBMIT_ONLY },
-    { type: 'email', message: 'Email 格式不正確', trigger: SUBMIT_ONLY },
-  ],
+  email: [{ required: true, message: '請輸入 Email', trigger: SUBMIT_ONLY }, emailFormatRule],
 }
 useClearErrorOnEdit(formRef, form, serverErrors)
 
@@ -58,9 +57,11 @@ async function submit() {
     return
   }
   submitting.value = true
+  // 顯示的是後端比對用的形式（去頭尾空白、轉小寫），和信件寄到的地址一致（同忘記密碼頁）
+  const email = form.value.email.trim().toLowerCase()
   try {
-    await AuthService.resendVerificationEmail({ email: form.value.email })
-    sent.value = true
+    await AuthService.resendVerificationEmail({ email })
+    sentTo.value = email
     startCooldown()
   } catch (e) {
     const result = readApiErrors(e, '寄送失敗，請稍後再試')
@@ -84,16 +85,21 @@ async function submit() {
     :rules="rules"
     label-position="top"
     hide-required-asterisk
+    novalidate
     @submit.prevent="submit"
   >
     <el-alert
-      v-if="sent"
-      :title="RESEND_NOTICE"
+      v-if="sentTo"
       type="success"
+      :description="RESEND_NOTICE"
       :closable="false"
       show-icon
       class="resend-notice"
-    />
+    >
+      <template #title
+        >已送出申請：<b class="sent-to">{{ sentTo }}</b></template
+      >
+    </el-alert>
     <el-form-item label="Email" prop="email" :error="serverErrors.email">
       <el-input
         v-model="form.email"
@@ -121,5 +127,10 @@ async function submit() {
 .resend-notice {
   margin-bottom: 1.2rem;
   --el-alert-title-font-size: 0.85rem;
+  --el-alert-description-font-size: 0.8rem;
+}
+/* Email 可能很長，沒有空白可以斷行 */
+.sent-to {
+  overflow-wrap: anywhere;
 }
 </style>
