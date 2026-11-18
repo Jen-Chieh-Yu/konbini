@@ -578,7 +578,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 前端開發相依套件 minimatch 的弱點（GHSA-g3hv-75wg-m249，moderate，DoS）：ESLint 帶進的 minimatch 10.2.6 在受影響範圍（7.0.0–11.0.0）內，只有 11.x 修正。`eslint` 10.14.0、`@eslint/config-array` 0.23.5、`@typescript-eslint/typescript-estree` 8.72.2 都已是最新版，仍要求 `^10`，Dependabot 的安全性更新因此失敗（2026-11-13 記錄） | 上游接受 minimatch 11 之後，由 Dependabot 自動開 Pull Request；GitHub 上的 alert 不 dismiss，dismiss 之後就不會再開。現在不用 `overrides` 強制升級：跨主版本等於自己承擔上游還沒驗證過的組合，而且 11.0.0 在 2026-10-27 才發布。minimatch 只在 devDependencies，不會進打包成品；CI 的 `npm audit` 也只提醒、不阻擋。`npm audit fix --force` 會把 eslint 降回 9，不能用 |
 | E2E 測試（Playwright） | 練習題（2026-11-12 記錄）：接在 Testcontainers 整合測試與前端 Vitest 之後。CI 用 prod compose 起完整環境再跑（同冒煙測試），先涵蓋註冊 → 登入 → 加入購物車 → 下單這條主線。先決定測試資料怎麼準備、只在打包時跑還是每個 Pull Request 都跑 |
 | 購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄） | 與庫存欄位一起處理（同屬「購物車與後端不同步」，見 `docs/ui-guidelines.md`）：結帳頁載入時向後端取現價或試算金額，與購物車不同時提示。先決定要不要新增「依多個 Id 取商品」或試算端點 |
-| Email 格式前後端規則不同：前端 el-form 的 `type: 'email'` 比後端的 regex 嚴格，經 API 註冊的 `a@b.c` 這類帳號在登入頁送不出去（2026-11-12 記錄） | 做 Email 驗證時一起決定註冊的格式規則以哪邊為準；登入頁可改成只檢查必填（同「登入不檢查密碼規則」的理由） |
+| ~~Email 格式前後端規則不同：前端 el-form 的 `type: 'email'` 比後端的 regex 嚴格，經 API 註冊的 `a@b.c` 這類帳號在登入頁送不出去（2026-11-12 記錄）~~ | 已實施（2026-11-17）：登入頁只檢查必填（同「登入不檢查密碼規則」的理由）；註冊、重寄驗證信、忘記密碼改用 `features/Auth/constants/emailFormat.ts`，複製後端 `User.IsValidEmailFormat` 的規則，前後端接受的 Email 相同。放棄的東西：規則有兩份，改的時候兩邊一起改（同密碼規則） |
 | 縣市／行政區只有示範資料：`DataSeeder` 只有台北市、新北市、高雄市各 2 區（2026-11-12 記錄） | 結帳頁遷移到 UI 規範時，或要讓別人試用時；先決定資料來源，匯入要走 Migration 或種子資料更新 |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
