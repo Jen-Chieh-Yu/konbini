@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AuthService } from '../api/services/AuthService'
+import { useAuthStore } from '../stores/useAuthStore'
 import AuthCard from '../components/AuthCard.vue'
+import PhraseText from '../components/PhraseText.vue'
 import ResendVerificationForm from '../components/ResendVerificationForm.vue'
 import { readApiErrors } from '../composables/useErrorDialog'
 
@@ -12,6 +14,7 @@ import { readApiErrors } from '../composables/useErrorDialog'
  */
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 type State = 'loading' | 'verified' | 'alreadyVerified' | 'failed' | 'networkError'
 const state = ref<State>('loading')
@@ -45,6 +48,16 @@ onMounted(() => {
   if (route.query.token) router.replace({ path: route.path })
   verify()
 })
+
+/**
+ * /login 只給未登入的人（guestOnly），已登入時直接前往會被守衛導回首頁，所以先登出再前往；
+ * 文字寫明會登出（同重設密碼頁的「登出並重新申請」）
+ */
+const loginLabel = computed(() => (auth.token ? '登出並前往登入' : '前往登入'))
+function goLogin() {
+  if (auth.token) auth.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -63,9 +76,7 @@ onMounted(() => {
       sub-title="現在可以登入了。"
     >
       <template #extra>
-        <el-button type="primary" class="auth-submit" @click="router.push('/login')"
-          >前往登入</el-button
-        >
+        <el-button type="primary" class="auth-submit" @click="goLogin">{{ loginLabel }}</el-button>
       </template>
     </el-result>
 
@@ -76,9 +87,7 @@ onMounted(() => {
       sub-title="請直接登入。"
     >
       <template #extra>
-        <el-button type="primary" class="auth-submit" @click="router.push('/login')"
-          >前往登入</el-button
-        >
+        <el-button type="primary" class="auth-submit" @click="goLogin">{{ loginLabel }}</el-button>
       </template>
     </el-result>
 
@@ -94,13 +103,17 @@ onMounted(() => {
     </el-result>
 
     <template v-else>
-      <el-result icon="error" title="無法完成驗證" :sub-title="failure" class="verify-failed" />
+      <el-result icon="error" title="無法完成驗證" class="verify-failed">
+        <template #sub-title
+          ><p><PhraseText :text="failure" /></p
+        ></template>
+      </el-result>
       <p class="verify-hint">輸入註冊時填的 Email，重新寄一封驗證信：</p>
       <ResendVerificationForm />
     </template>
 
     <template v-if="state === 'failed'" #footer
-      >已經完成驗證了？<RouterLink to="/login">前往登入</RouterLink></template
+      >已經完成驗證了？<a href="/login" @click.prevent="goLogin">{{ loginLabel }}</a></template
     >
   </AuthCard>
 </template>

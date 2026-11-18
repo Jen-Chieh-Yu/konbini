@@ -33,12 +33,10 @@ const submitting = ref(false)
 /** modal 裡的欄位名稱 */
 const FIELD_LABELS: Record<string, string> = { email: 'Email', password: '密碼' }
 
-// 只檢查必填與 Email 格式。密碼規則不在登入檢查：先前註冊的帳號可能不符合現行規則
+// 只檢查必填。Email 格式與密碼規則都不在登入檢查：已經存在的帳號可能不符合現行規則
+// （例：經 API 註冊的 a@b.c），後端的登入也不檢查格式
 const rules: FormRules = {
-  email: [
-    { required: true, message: '請輸入 Email', trigger: SUBMIT_ONLY },
-    { type: 'email', message: 'Email 格式不正確', trigger: SUBMIT_ONLY },
-  ],
+  email: [{ required: true, message: '請輸入 Email', trigger: SUBMIT_ONLY }],
   password: [{ required: true, message: '請輸入密碼', trigger: SUBMIT_ONLY }],
 }
 useClearErrorOnEdit(formRef, form)
@@ -124,6 +122,7 @@ async function offerResend(message: string) {
       :rules="rules"
       label-position="top"
       hide-required-asterisk
+      novalidate
       @submit.prevent="submit"
     >
       <el-form-item label="Email" prop="email">
