@@ -21,6 +21,14 @@
 C# 照常用 PascalCase（UnitPrice → unit_price），不要在 Configuration 逐一 HasColumnName。
 PostgreSQL 會把未加引號的識別字轉成小寫，統一小寫底線，手寫 SQL 時就不必加雙引號。
 
+## 欄位說明
+
+- 每個資料表與欄位都用 `HasComment()` 寫中文說明，格式是「中文名稱」或「中文名稱（補充說明）」。
+  資料表寫成「中文名稱（一句話說明用途）」，寫在 `ToTable("users", t => t.HasComment("會員（註冊的帳號；Email 驗證完成才能登入）"))`；
+  共用欄位統一寫在 `AppDbContext`，各 Configuration 不重複寫。
+- 說明會寫進資料庫（`COMMENT ON`），也是[資料表文件](database/README.md)的中文名稱與說明來源；缺少說明時測試會失敗。
+- 說明是 schema 的一部分：改說明文字也要產生 Migration。
+
 ## 欄位型別
 
 | 用途                   | 型別（C# → PostgreSQL）                         |
@@ -82,6 +90,7 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 > 現況：只有 order_items.order_id、email_verification_tokens.user_id 與 password_reset_tokens.user_id 設了外鍵約束；orders.user_id、orders.city_code／district_code、
 > order_items.product_id、districts.city_code 是邏輯關聯（沒有 FK 約束），其中有索引的是
 > orders.user_id 與 districts.city_code。
+> 關聯圖見[資料表文件](database/README.md)；只存 Id 的欄位要列進 `LooseReferenceTests` 的允許清單並寫下原因。
 
 ## 庫存
 

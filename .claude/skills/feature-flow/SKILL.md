@@ -40,7 +40,7 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 | 層 | 位置 | 檢查 |
 |---|---|---|
 | 後端 | `src/Konbini.Api/Features/{Feature}/`：`Models`、`Repositories`、`Commands`、`Queries`、`Endpoints` | Command／Query、Handler、Response 同一個檔案；放進 `Common/` 要有 2 個以上的使用者 |
-| 資料庫 | Migration（`README.md`「修改資料表結構」） | 欄位長度用 Entity 常數；命名照 `docs/database-design.md` |
+| 資料庫 | Migration（`README.md`「修改資料表結構」） | 欄位長度用 Entity 常數；命名照 `docs/database-design.md`；每個資料表與欄位都寫 `HasComment` |
 | 設定 | `appsettings.json`、`.env.example`、compose 的 `environment:` | 機密不進設定檔；要進容器的鍵要在 `environment:` 明寫 |
 | 測試 | `tests/Konbini.Tests/Unit/{Handler}Tests.cs` | 依 §6，handler 單元測試隨用例一起寫 |
 | 前端 | `src/Konbini.Client/src/features/{Feature}/`：`api/{constants,interfaces,services}`、`views`、`stores`、`components` | view 透過 service 拿資料；畫面照 `docs/ui-guidelines.md` |
@@ -53,7 +53,7 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 |---|---|
 | 路由新增、修改 | `README.md`「API 路由總覽」 |
 | 驗證規則、錯誤格式、分頁 | `docs/api-conventions.md` |
-| 資料表、欄位 | `docs/database-design.md` |
+| 資料表、欄位 | `docs/database-design.md`；重新產生 `docs/database/`（`README.md`「修改資料表結構」），需要時補各表的「說明」 |
 | 畫面規範 | `docs/ui-guidelines.md` |
 | 業務規則、用例流程（現況） | `docs/modules/<模組>.md` |
 | 業務規則的決定與理由（① 定案的上限、錯誤訊息、流程） | `docs/modules/decisions/<模組>.md`，格式見 `docs/modules/README.md` |

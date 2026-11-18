@@ -349,6 +349,18 @@ dotnet ef migrations add <描述意圖的名稱> --project src/Konbini.Api --sta
 
 先讀產出的檔案，確認沒有意外的 DROP COLUMN，下次啟動 API 就會自動套用。需要先建好 `.env`（`dotnet ef` 也會讀）。
 
+改了 Entity 或 EF 設定（含 `HasComment`）後，重新產生資料表文件 `docs/database/`（每張表一個檔；下半部的「說明」是手寫的，重新產生不會蓋掉），和 Migration 一起 commit：
+
+```powershell
+$env:UPDATE_DIAGRAMS='1'; dotnet test tests/Konbini.Tests --filter FullyQualifiedName~DiagramTests; Remove-Item Env:UPDATE_DIAGRAMS
+```
+
+```bash
+UPDATE_DIAGRAMS=1 dotnet test tests/Konbini.Tests --filter FullyQualifiedName~DiagramTests
+```
+
+沒有重新產生時，後端測試會失敗（CI 與 pre-push 都會擋）。刪掉資料表後，測試會列出留下的舊檔：手寫的「說明」需要的話搬到別處，再刪掉檔案。
+
 > ⚠️ 以 `EnsureCreated` 建立的舊資料庫無法套用 Migration（2026-11-09 之前），要重置一次。
 
 ### 進 SQL 命令列 / 圖形介面

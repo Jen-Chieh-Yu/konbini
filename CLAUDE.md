@@ -312,6 +312,24 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 放棄的東西：`ExecuteUpdate` 不經過 `AuditInterceptor`，`modified_on`、`modified_by` 要在 Repository 自己設；
 多一層交易介面，所有 `IUnitOfWork` 的假物件都要實作；檢查約束的條件是 SQL 字串（EF 沒有 LINQ 寫法，唯一的例外）。
 
+### 資料表文件自動產生，中文說明寫在 HasComment（2026-11-18 定案）
+
+`docs/database/` 由測試從 `AppDbContext` 的設計時期模型產生（`tests/Konbini.Tests/Unit/Diagrams/`）：
+總表 `README.md`（各表一句話說明與連結、完整關聯圖），以及每張資料表一個檔（相鄰的關聯、欄位）。
+
+- **自動產生、由測試比對**：手畫的關聯圖改了 Entity 就會過時，而且沒有人會發現。產生結果和檔案不同時後端測試失敗，CI 與 pre-push 都會擋。
+  不另寫腳本：重新產生就是設 `UPDATE_DIAGRAMS=1` 跑同一個測試，失敗訊息直接印出 PowerShell 與 bash 的指令。
+- **一張表一個檔，手寫與自動產生用註解標記分開**：聚合邊界、沒有外鍵或存快照的理由寫在表旁邊才會有人看；
+  重新產生只換掉兩行標記之間的內容，下半部手寫的「說明」不會被蓋掉。資料表刪掉後，舊檔不會自動刪（裡面可能有手寫內容），測試會列出來由人處理。
+- **中文名稱用 `HasComment()`**：說明同時寫進資料庫，Rider、DBeaver 看到的是同一份。不用 XML 註解，因為資料庫看不到，產生器還要另外讀 XML 文件。
+  測試規定每個資料表與欄位都要有說明。
+- **只存 Id 的欄位要列進允許清單**（`LooseReferenceTests`）：忘了建外鍵時，建置與其他測試都不會發現；清單逼著寫下原因。
+- **`created_by`、`modified_by` 不畫線**：每張表都有，畫出來整張圖都會連到 users。
+- 比照另一專案的 `EntityDiagramGenerator`；這裡只有一個 DbContext，拿掉聚合分組與總覽。
+
+放棄的東西：多一個只加說明的 Migration；之後改說明文字也要產生 Migration；新增欄位一定要寫說明，否則測試失敗；
+測試建模型的命名規則和 `Program.cs` 各寫一份，改其中一邊時要一起改；資料表檔的兩行標記不能刪，刪了測試會失敗。
+
 ### 為什麼資料庫放進 Docker（2026-08-31 定案）
 
 沒有既有的外部資料庫，要的是「clone 下來 `docker compose up` 就有完整環境」
@@ -611,6 +629,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄） | 庫存已導入（2026-11-18），另開一支處理，可一併校正購物車數量與庫存（同屬「購物車與後端不同步」，見 `docs/ui-guidelines.md`）：結帳頁載入時向後端取現價或試算金額，與購物車不同時提示。先決定要不要新增「依多個 Id 取商品」或試算端點 |
 | ~~Email 格式前後端規則不同：前端 el-form 的 `type: 'email'` 比後端的 regex 嚴格，經 API 註冊的 `a@b.c` 這類帳號在登入頁送不出去（2026-11-12 記錄）~~ | 已實施（2026-11-17）：登入頁只檢查必填（同「登入不檢查密碼規則」的理由）；註冊、重寄驗證信、忘記密碼改用 `features/Auth/constants/emailFormat.ts`，複製後端 `User.IsValidEmailFormat` 的規則，前後端接受的 Email 相同。放棄的東西：規則有兩份，改的時候兩邊一起改（同密碼規則） |
 | 縣市／行政區只有示範資料：`DataSeeder` 只有台北市、新北市、高雄市各 2 區（2026-11-12 記錄） | 結帳頁遷移到 UI 規範時，或要讓別人試用時；先決定資料來源，匯入要走 Migration 或種子資料更新 |
+| `orders.user_id`、`districts.city_code` 只存 Id、沒有外鍵，原因沒有記錄（2026-11-18 記錄，`LooseReferenceTests` 標「待確認」） | 決定要建外鍵，或寫下只存 Id 的原因。建外鍵時 Migration 會檢查既有資料，對不上的資料要先處理；改完更新允許清單並重新產生 `docs/database/`；不建外鍵的話，原因寫在該表檔案的「說明」 |
 
 **明確不做（專案不正式上線，2026-08-31 定案）**：
 自動部署（registry + 環境核准）、登入速率限制、正式資料備份排程、
@@ -631,6 +650,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | `docs/api-conventions.md` | API 分層、路由、錯誤格式與驗證規範 |
 | `docs/configuration.md` | 設定鍵一覽：用途、來源、是否機密、必填與格式限制 |
 | `docs/database-design.md` | 資料表、欄位型別、共用欄位與 Migration 規範 |
+| `docs/database/` | 每張資料表的說明、關聯與欄位（上半部自動產生，下半部「說明」手寫）；總表是 `README.md` |
 | `docs/ui-guidelines.md` | 前端畫面、RWD 與中文排版規範 |
 | `docs/modules/` | 各模組的業務規則、用例流程與業務決策紀錄（索引：`docs/modules/README.md`） |
 | `docs/release.md` | 版號規則、發行步驟、測試打包 |
