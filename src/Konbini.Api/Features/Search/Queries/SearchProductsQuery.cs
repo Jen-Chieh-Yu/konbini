@@ -4,7 +4,7 @@ using Konbini.Api.Features.Products.Repositories;
 
 namespace Konbini.Api.Features.Search.Queries;
 
-/// <param name="Keyword">空白（含全形空白）分隔的多關鍵字，任一命中即符合。</param>
+/// <param name="Keyword">空白（含全形空白）或 NUL 分隔的多關鍵字，任一命中即符合。</param>
 public record SearchProductsQuery(string Keyword, PageRequest Paging);
 
 public class SearchProductsHandler(IProductRepository products)
@@ -25,6 +25,9 @@ public class SearchProductsHandler(IProductRepository products)
     /// </summary>
     private static string[] ParseKeywords(string keyword)
         => keyword
+            // NUL（\u0000）當成分隔字元：PostgreSQL 的文字參數不接受 NUL，原本會變成 500；
+            // 和超過上限就截斷一樣，搜尋是寬鬆的輸入，略過不回 400
+            .Replace('\0', ' ')
             // separator 傳 null 時以 char.IsWhiteSpace 判斷，涵蓋全形空白（U+3000）、Tab、換行
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
             .Select(Truncate)

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Auth.Services;
 using Konbini.Api.Features.Common.Auth;
@@ -76,11 +77,16 @@ builder.Services.AddHealthChecks()
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// --- JSON：數字欄位只收 JSON 數字 ---
+// --- JSON：數字欄位只收 JSON 數字；字串不可含 NUL ---
 // Web 預設 AllowReadingFromString 也收 "5"，OpenAPI 會因此把整數欄位標成 integer|string；
 // 前端一律送 number，改 Strict 讓契約與文件一致。
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+    // PostgreSQL 的文字欄位不接受 NUL（\u0000），反序列化時就擋成 400，不讓它到資料庫變成 500（見 JsonNulGuard）
+    options.SerializerOptions.TypeInfoResolver =
+        options.SerializerOptions.TypeInfoResolver!.WithAddedModifier(JsonNulGuard.RejectNulInStrings);
+});
 // 請求格式錯誤一律丟 BadHttpRequestException，交給 GlobalExceptionHandler 回 400
 // （預設只有開發環境會丟；正式環境由框架直接回沒有內容的 400，兩邊回應不一致）
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
