@@ -26,35 +26,43 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                 {
                     b.Property<int>("CityCode")
                         .HasColumnType("integer")
-                        .HasColumnName("city_code");
+                        .HasColumnName("city_code")
+                        .HasComment("縣市代碼");
 
                     b.Property<string>("CityName")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
-                        .HasColumnName("city_name");
+                        .HasColumnName("city_name")
+                        .HasComment("縣市名稱");
 
                     b.HasKey("CityCode")
                         .HasName("pk_cities");
 
-                    b.ToTable("cities", (string)null);
+                    b.ToTable("cities", null, t =>
+                        {
+                            t.HasComment("縣市（結帳頁的縣市選項；代碼表）");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Addresses.Models.District", b =>
                 {
                     b.Property<int>("DistrictCode")
                         .HasColumnType("integer")
-                        .HasColumnName("district_code");
+                        .HasColumnName("district_code")
+                        .HasComment("行政區代碼");
 
                     b.Property<int>("CityCode")
                         .HasColumnType("integer")
-                        .HasColumnName("city_code");
+                        .HasColumnName("city_code")
+                        .HasComment("縣市代碼");
 
                     b.Property<string>("DistrictName")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
-                        .HasColumnName("district_name");
+                        .HasColumnName("district_name")
+                        .HasComment("行政區名稱");
 
                     b.HasKey("DistrictCode")
                         .HasName("pk_districts");
@@ -62,7 +70,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.HasIndex("CityCode")
                         .HasDatabaseName("ix_districts_city_code");
 
-                    b.ToTable("districts", (string)null);
+                    b.ToTable("districts", null, t =>
+                        {
+                            t.HasComment("行政區（結帳頁的行政區選項，依縣市分組；代碼表）");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Auth.Models.EmailVerificationToken", b =>
@@ -70,48 +81,58 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasComment("編號");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by")
+                        .HasComment("建立者（會員編號；null 表示沒有登入身分，例：註冊、種子資料）");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_on");
+                        .HasColumnName("created_on")
+                        .HasComment("建立時間（UTC）");
 
                     b.Property<DateTime>("ExpiresOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_on");
+                        .HasColumnName("expires_on")
+                        .HasComment("到期時間（UTC，發出後 24 小時）");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("modified_by");
+                        .HasColumnName("modified_by")
+                        .HasComment("最後修改者（會員編號；null 表示沒有登入身分）");
 
                     b.Property<DateTime>("ModifiedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_on");
+                        .HasColumnName("modified_on")
+                        .HasComment("最後修改時間（UTC）");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasComment("狀態（1 正常、9 已刪除；兼作軟刪除）");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character(64)")
                         .HasColumnName("token_hash")
-                        .IsFixedLength();
+                        .IsFixedLength()
+                        .HasComment("token 雜湊值（SHA-256，原文只出現在信中）");
 
                     b.Property<DateTime?>("UsedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("used_on");
+                        .HasColumnName("used_on")
+                        .HasComment("使用時間（UTC；null 表示還沒用過）");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
-                        .HasColumnName("user_id");
+                        .HasColumnName("user_id")
+                        .HasComment("會員編號");
 
                     b.HasKey("Id")
                         .HasName("pk_email_verification_tokens");
@@ -123,7 +144,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_email_verification_tokens_user_id");
 
-                    b.ToTable("email_verification_tokens", (string)null);
+                    b.ToTable("email_verification_tokens", null, t =>
+                        {
+                            t.HasComment("Email 驗證 token（註冊與重寄驗證信時發出，效期 24 小時）");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Auth.Models.PasswordResetToken", b =>
@@ -131,48 +155,58 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasComment("編號");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by")
+                        .HasComment("建立者（會員編號；null 表示沒有登入身分，例：註冊、種子資料）");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_on");
+                        .HasColumnName("created_on")
+                        .HasComment("建立時間（UTC）");
 
                     b.Property<DateTime>("ExpiresOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_on");
+                        .HasColumnName("expires_on")
+                        .HasComment("到期時間（UTC，發出後 30 分鐘）");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("modified_by");
+                        .HasColumnName("modified_by")
+                        .HasComment("最後修改者（會員編號；null 表示沒有登入身分）");
 
                     b.Property<DateTime>("ModifiedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_on");
+                        .HasColumnName("modified_on")
+                        .HasComment("最後修改時間（UTC）");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasComment("狀態（1 正常、9 已刪除；兼作軟刪除）");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character(64)")
                         .HasColumnName("token_hash")
-                        .IsFixedLength();
+                        .IsFixedLength()
+                        .HasComment("token 雜湊值（SHA-256，原文只出現在信中）");
 
                     b.Property<DateTime?>("UsedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("used_on");
+                        .HasColumnName("used_on")
+                        .HasComment("使用時間（UTC；null 表示還沒用過，只能用一次）");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
-                        .HasColumnName("user_id");
+                        .HasColumnName("user_id")
+                        .HasComment("會員編號");
 
                     b.HasKey("Id")
                         .HasName("pk_password_reset_tokens");
@@ -184,7 +218,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_password_reset_tokens_user_id");
 
-                    b.ToTable("password_reset_tokens", (string)null);
+                    b.ToTable("password_reset_tokens", null, t =>
+                        {
+                            t.HasComment("重設密碼 token（忘記密碼時發出，效期 30 分鐘、只能用一次）");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Auth.Models.User", b =>
@@ -192,60 +229,72 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasComment("會員編號");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateOnly?>("Birthday")
                         .HasColumnType("date")
-                        .HasColumnName("birthday");
+                        .HasColumnName("birthday")
+                        .HasComment("生日");
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by")
+                        .HasComment("建立者（會員編號；null 表示沒有登入身分，例：註冊、種子資料）");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_on");
+                        .HasColumnName("created_on")
+                        .HasComment("建立時間（UTC）");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(254)
                         .HasColumnType("character varying(254)")
-                        .HasColumnName("email");
+                        .HasColumnName("email")
+                        .HasComment("Email（小寫正規化後儲存，不可重複）");
 
                     b.Property<DateTime?>("EmailVerifiedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("email_verified_on");
+                        .HasColumnName("email_verified_on")
+                        .HasComment("Email 驗證完成時間（UTC；null 表示尚未驗證，不能登入）");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("modified_by");
+                        .HasColumnName("modified_by")
+                        .HasComment("最後修改者（會員編號；null 表示沒有登入身分）");
 
                     b.Property<DateTime>("ModifiedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_on");
+                        .HasColumnName("modified_on")
+                        .HasComment("最後修改時間（UTC）");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
+                        .HasColumnName("name")
+                        .HasComment("姓名");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
-                        .HasColumnName("password_hash");
+                        .HasColumnName("password_hash")
+                        .HasComment("密碼雜湊值（不存明碼）");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("phone");
+                        .HasColumnName("phone")
+                        .HasComment("電話");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasComment("狀態（1 正常、9 已刪除；兼作軟刪除）");
 
                     b.HasKey("Id")
                         .HasName("pk_users");
@@ -254,7 +303,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_users_email");
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users", null, t =>
+                        {
+                            t.HasComment("會員（註冊的帳號；Email 驗證完成才能登入）");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Orders.Models.Order", b =>
@@ -262,86 +314,104 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasComment("訂單編號");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CityCode")
                         .HasColumnType("integer")
-                        .HasColumnName("city_code");
+                        .HasColumnName("city_code")
+                        .HasComment("縣市代碼");
 
                     b.Property<string>("ContactName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
-                        .HasColumnName("contact_name");
+                        .HasColumnName("contact_name")
+                        .HasComment("聯絡人姓名");
 
                     b.Property<string>("ContactPhone")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("contact_phone");
+                        .HasColumnName("contact_phone")
+                        .HasComment("聯絡電話");
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by")
+                        .HasComment("建立者（會員編號；null 表示沒有登入身分，例：註冊、種子資料）");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_on");
+                        .HasColumnName("created_on")
+                        .HasComment("建立時間（UTC）");
 
                     b.Property<string>("DeliveryAddress")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
-                        .HasColumnName("delivery_address");
+                        .HasColumnName("delivery_address")
+                        .HasComment("寄送地址（縣市＋行政區＋地址，下單當時的快照）");
 
                     b.Property<int>("DeliveryFee")
                         .HasColumnType("integer")
-                        .HasColumnName("delivery_fee");
+                        .HasColumnName("delivery_fee")
+                        .HasComment("運費（小計滿 500 為 0，未滿為 60）");
 
                     b.Property<int>("DeliveryMethod")
                         .HasColumnType("integer")
-                        .HasColumnName("delivery_method");
+                        .HasColumnName("delivery_method")
+                        .HasComment("配送方式（尚未定義選項，前端固定送 1）");
 
                     b.Property<int>("DistrictCode")
                         .HasColumnType("integer")
-                        .HasColumnName("district_code");
+                        .HasColumnName("district_code")
+                        .HasComment("行政區代碼");
 
                     b.Property<string>("Memo")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
-                        .HasColumnName("memo");
+                        .HasColumnName("memo")
+                        .HasComment("備註");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("modified_by");
+                        .HasColumnName("modified_by")
+                        .HasComment("最後修改者（會員編號；null 表示沒有登入身分）");
 
                     b.Property<DateTime>("ModifiedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_on");
+                        .HasColumnName("modified_on")
+                        .HasComment("最後修改時間（UTC）");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasComment("狀態（1 正常、9 已刪除；兼作軟刪除）");
 
                     b.Property<string>("StreetAddress")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("street_address");
+                        .HasColumnName("street_address")
+                        .HasComment("地址（不含縣市、行政區）");
 
                     b.Property<int>("Subtotal")
                         .HasColumnType("integer")
-                        .HasColumnName("subtotal");
+                        .HasColumnName("subtotal")
+                        .HasComment("小計（明細小計加總）");
 
                     b.Property<int>("Total")
                         .HasColumnType("integer")
-                        .HasColumnName("total");
+                        .HasColumnName("total")
+                        .HasComment("合計（小計＋運費）");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
-                        .HasColumnName("user_id");
+                        .HasColumnName("user_id")
+                        .HasComment("下單會員編號");
 
                     b.HasKey("Id")
                         .HasName("pk_orders");
@@ -352,7 +422,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_orders_user_id");
 
-                    b.ToTable("orders", (string)null);
+                    b.ToTable("orders", null, t =>
+                        {
+                            t.HasComment("訂單（會員送出的訂單，金額由後端重算；寄送地址是下單當時的快照）");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Orders.Models.OrderItem", b =>
@@ -360,60 +433,73 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasComment("明細編號");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by")
+                        .HasComment("建立者（會員編號；null 表示沒有登入身分，例：註冊、種子資料）");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_on");
+                        .HasColumnName("created_on")
+                        .HasComment("建立時間（UTC）");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
-                        .HasColumnName("image_url");
+                        .HasColumnName("image_url")
+                        .HasComment("圖片網址（下單當時的快照）");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("modified_by");
+                        .HasColumnName("modified_by")
+                        .HasComment("最後修改者（會員編號；null 表示沒有登入身分）");
 
                     b.Property<DateTime>("ModifiedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_on");
+                        .HasColumnName("modified_on")
+                        .HasComment("最後修改時間（UTC）");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("integer")
-                        .HasColumnName("order_id");
+                        .HasColumnName("order_id")
+                        .HasComment("訂單編號");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("integer")
-                        .HasColumnName("product_id");
+                        .HasColumnName("product_id")
+                        .HasComment("商品編號");
 
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("product_name");
+                        .HasColumnName("product_name")
+                        .HasComment("品名（下單當時的快照）");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
-                        .HasColumnName("quantity");
+                        .HasColumnName("quantity")
+                        .HasComment("數量（1–99）");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasComment("狀態（1 正常、9 已刪除；兼作軟刪除）");
 
                     b.Property<int>("Subtotal")
                         .HasColumnType("integer")
-                        .HasColumnName("subtotal");
+                        .HasColumnName("subtotal")
+                        .HasComment("小計（單價 × 數量）");
 
                     b.Property<int>("UnitPrice")
                         .HasColumnType("integer")
-                        .HasColumnName("unit_price");
+                        .HasColumnName("unit_price")
+                        .HasComment("單價（下單當時的快照）");
 
                     b.HasKey("Id")
                         .HasName("pk_order_items");
@@ -421,7 +507,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.HasIndex("OrderId")
                         .HasDatabaseName("ix_order_items_order_id");
 
-                    b.ToTable("order_items", (string)null);
+                    b.ToTable("order_items", null, t =>
+                        {
+                            t.HasComment("訂單明細（一筆訂單的每項商品；品名、單價、圖片是下單當時的快照）");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Products.Models.Product", b =>
@@ -429,52 +518,63 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasComment("商品編號");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by")
+                        .HasComment("建立者（會員編號；null 表示沒有登入身分，例：註冊、種子資料）");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_on");
+                        .HasColumnName("created_on")
+                        .HasComment("建立時間（UTC）");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
-                        .HasColumnName("image_url");
+                        .HasColumnName("image_url")
+                        .HasComment("圖片網址");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("integer")
-                        .HasColumnName("modified_by");
+                        .HasColumnName("modified_by")
+                        .HasComment("最後修改者（會員編號；null 表示沒有登入身分）");
 
                     b.Property<DateTime>("ModifiedOn")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_on");
+                        .HasColumnName("modified_on")
+                        .HasComment("最後修改時間（UTC）");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
+                        .HasColumnName("name")
+                        .HasComment("品名");
 
                     b.Property<int>("Price")
                         .HasColumnType("integer")
-                        .HasColumnName("price");
+                        .HasColumnName("price")
+                        .HasComment("單價（新台幣整數）");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasComment("狀態（1 正常、9 已刪除；兼作軟刪除）");
 
                     b.Property<int>("Stock")
                         .HasColumnType("integer")
-                        .HasColumnName("stock");
+                        .HasColumnName("stock")
+                        .HasComment("庫存（下單時扣除，不可小於 0）");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer")
-                        .HasColumnName("type");
+                        .HasColumnName("type")
+                        .HasComment("類別（1 零食、2 泡麵、3 飲品）");
 
                     b.HasKey("Id")
                         .HasName("pk_products");
@@ -487,6 +587,8 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
 
                     b.ToTable("products", null, t =>
                         {
+                            t.HasComment("商品（前台販售的零食、泡麵、飲品）");
+
                             t.HasCheckConstraint("ck_products_stock", "stock >= 0");
                         });
                 });
