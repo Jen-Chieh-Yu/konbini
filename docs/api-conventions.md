@@ -183,6 +183,9 @@ Endpoint → Command/Query → Handler → Service → Repository
     介接外部系統時對方以字串傳數字。OpenAPI 只會在這些欄位顯示 `integer | string`。
   - 看起來像數字的代碼（電話、郵遞區號、身分證字號、條碼）一律定義成 `string`，
     開頭的 0 才不會被吃掉；不拿來加減的值不是數字。
+- JSON 請求的字串不可含 NUL（`\u0000`）（全域 `JsonNulGuard`）：PostgreSQL 的文字欄位不接受，
+  含 NUL 時回 400「請求格式錯誤。」，不會進到 Handler。查詢字串不經過 JSON，由 Handler 自己處理
+  （例：搜尋把 NUL 當成分隔字元）。
 - 輸入格式驗證（必填、長度、範圍）寫在 Handler 開頭，
   彙整進 Result 的 errors 一次回傳
   （不引入 FluentValidation；引入新套件前先討論）。
