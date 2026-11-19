@@ -294,6 +294,24 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
 放棄的東西：`EnsureCreated` 建的資料庫要重建一次；軟刪除的 Email 仍佔著唯一索引；
 `Remove()` 不會自動轉成軟刪除，要等第一個刪除功能再決定。
 
+### 扣庫存用條件式 UPDATE（2026-11-18 定案）
+
+下單時以 `ExecuteUpdateAsync` 執行 `UPDATE products SET stock = stock - @q WHERE id = @id AND stock >= @q`，影響 0 筆就是庫存不足，
+和建立訂單包在 `IUnitOfWork.BeginTransactionAsync` 開的交易裡。寫法見 `docs/database-design.md`「交易」，業務規則見 DD-ORD-002。
+
+- **不用 xmin 樂觀鎖**：同一列被別人改過就算衝突，即使庫存其實還夠也一樣，要另外寫重試。
+  條件式 UPDATE 由資料庫在一個陳述式裡判斷「夠不夠」和「扣掉」，不用重試。
+- **不用 `SELECT … FOR UPDATE`**：EF 沒有對應的 LINQ，要用 `FromSql` 手寫 SQL；查詢與更新一律用 EF 語法撰寫（使用者決定）。
+- **`IUnitOfWork` 加 `BeginTransactionAsync`**：`ExecuteUpdate` 立即執行、不等 SaveChanges，要和訂單一起成立或一起取消，得明確開交易。
+  回傳自己的 `IUnitOfWorkTransaction`，Handler 與測試不依賴 EF 的 `IDbContextTransaction`。
+- **依商品 Id 由小到大扣**：兩筆訂單同時扣多項商品時，才不會各自鎖住一項、等待對方而死結。
+- **先用讀出的庫存檢查一次**：大部分的庫存不足不必開交易就能回 409，條件式 UPDATE 只負責擋同時下單。
+- **不抽 Service**：只有下單一個使用者；取消訂單回補庫存時，再依「2 個以上使用者共用」的門檻抽出。
+- **資料庫加檢查約束 `stock >= 0`**：程式寫錯時的最後一道防線。
+
+放棄的東西：`ExecuteUpdate` 不經過 `AuditInterceptor`，`modified_on`、`modified_by` 要在 Repository 自己設；
+多一層交易介面，所有 `IUnitOfWork` 的假物件都要實作；檢查約束的條件是 SQL 字串（EF 沒有 LINQ 寫法，唯一的例外）。
+
 ### 為什麼資料庫放進 Docker（2026-08-31 定案）
 
 沒有既有的外部資料庫，要的是「clone 下來 `docker compose up` 就有完整環境」
@@ -553,12 +571,12 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~Repository 全面導入（2026-09-01 定案，見 §2）~~ | 已實施（2026-09-01）：4 個 feature Repository＋IUnitOfWork（交易由 Handler 統一提交），11 個 handler 全數改造 |
 | ~~列表查詢分頁（docs/api-conventions.md「分頁」格式）~~ | 已實施（2026-11-09）：商品、搜尋、訂單列表；代碼表資料量固定不分頁，相關商品固定最多 8 筆。頁碼放網址（與分類、關鍵字一致），API 回傳格式改變，前後端同一個 Pull Request 上線 |
 | ~~稽核欄位 CreatedOn/CreatedBy/ModifiedOn/ModifiedBy/Status（Status 兼軟刪除）~~ | 已實施（2026-11-09）：`AuditableEntity`＋`AuditInterceptor`，見 §3 |
-| 庫存欄位與扣庫存交易 | 尚未實作；導入時依 docs/database-design.md「交易」節 |
+| ~~庫存欄位與扣庫存交易~~ | 已實施（2026-11-18）：`products.stock`＋檢查約束，下單以條件式 UPDATE 扣庫存、和建立訂單同一個交易，庫存不足回 409；前端顯示售完與剩餘件數。理由見 §3「扣庫存用條件式 UPDATE」，業務規則見 `docs/modules/decisions/Orders.md` DD-ORD-002 |
 | ~~CI 強化（build 步驟 pipefail、觸發分支補 refactor/docs/chore、v* 成品 amd64+arm64 matrix）~~ | 已實施（2026-09-01）：另含 PR 移除 paths-ignore、前端 npm audit（僅提醒）、測試失敗上傳 trx 報告 |
 | ~~「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等）~~ | 已實施（2026-11-06）：`UnitOfWork` 把唯一索引違反翻譯成 `UniqueConstraintViolationException`，Handler 接住後回欄位錯誤；目前只有 `users.email` 一個唯一索引 |
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
-| DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄） |
+| DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄）。2026-11-18 導入扣庫存時評估：規則只有一個條件式 UPDATE，判斷依據還不夠，留到訂單狀態轉換時再決定 |
 | Endpoint 改經 ISender ＋ pipeline behavior（理由與前置工作見 §2「為什麼 Endpoint 直接注入 handler」） | 出現第一個要套用到所有用例的橫切需求（例：稽核欄位導入後記錄操作者），且 endpoint filter 不夠用。會改到全部 Endpoints 檔，不與分頁、長度驗證等同批檔案的分支並行（2026-11-04 記錄）。前置工作完成一半（2026-11-12）：Result 已收斂成泛型；command 帶出結果型別的 `ICommand<TResult>` 尚未做 |
 | ~~輸入長度驗證：超過資料庫欄位長度的輸入目前回 500~~ | 已實施（2026-11-06）：註冊與下單的 Handler 檢查長度、回欄位錯誤；上限定義成 Entity 常數，`HasMaxLength` 與 Handler 共用同一來源 |
 | ~~下單數量上限：沒有上限時單價 × 數量可能溢位，算出錯誤的訂單金額~~ | 已實施（2026-11-06）：每項商品最多 99 件（`OrderItem.MaxQuantity`），同商品分多筆時看合計；前端購物車同步限制 |
@@ -569,7 +587,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | refresh token（短效 access token ＋ 可撤銷的 refresh token） | 目前不導入（2026-11-06 評估）：不正式上線，8 小時重新登入可接受；導入要多資料表、旋轉與重用偵測、撤銷，以及前端的 401 重試與同時刷新處理。條件：想當練習題、要讓舊 token 能提早作廢（改密碼、重設密碼、登出），或定位改為正式上線。導入時不放 localStorage（效期長，XSS 的風險比現行 8 小時 token 大），要搭配旋轉或 `HttpOnly` cookie；前置工作是前端 401 統一處理 |
 | ~~前端統一處理 401：頁面開著時 token 過期，畫面仍顯示已登入，也不會導回登入頁；`fetchMe` 遇到任何錯誤（含網路中斷、500）都會登出~~ | 已實施（2026-11-06）：axios 攔截器收到 401 時統一登出，`meta.requiresAuth` 的頁面才導回登入頁；`fetchMe` 只有 404 才自行登出，暫時性錯誤保留 token |
 | ~~API 回應與 `docs/api-conventions.md` 的落差：下單 201 回整個 Result、400 帶 `null` 欄位、Location 指向尚無的 `GET /api/orders/{id}`~~ | 已實施：泛型 Result＋ProblemDetails（2026-11-12，見 §2「用例結果」）；訂單明細 `GET /api/orders/{id}`（2026-11-16，業務規則見 `docs/modules/decisions/Orders.md` DD-ORD-001） |
-| 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView、Auth 的登入、註冊頁（2026-11-11）與訂單明細頁（2026-11-16）照規範（見 `docs/ui-guidelines.md`）。遷移時一併處理（2026-11-12 全站掃描）：商品、搜尋列表的錯誤與空資料狀態；加入購物車的回饋，明細頁數量輸入用 min／max 限制，不默默截斷；結帳頁縣市／行政區載入失敗的處理、快速切換縣市時舊回應蓋掉新選項、~~送出成功的回饋~~（已實施（2026-11-16）：提示「訂單已送出」並導向明細頁）；header 搜尋列改用 Element Plus 並達 44px、搜尋頁不重複放搜尋框；header 的「我的訂單」與「登入／登出」統一依同一個狀態顯示；~~訂單時間轉 Asia/Taipei 顯示~~（已實施（2026-11-16）：`shared/utils/formatDateTime.ts`，列表與明細共用） |
+| 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView、Auth 的登入、註冊頁（2026-11-11）與訂單明細頁（2026-11-16）照規範（見 `docs/ui-guidelines.md`）。遷移時一併處理（2026-11-12 全站掃描）：商品、搜尋列表的錯誤與空資料狀態；~~加入購物車的回饋，明細頁數量輸入用 min／max 限制，不默默截斷~~（已實施（2026-11-18）：`useAddToCart` 提示結果，明細頁改用 `el-input-number`，上限是庫存與 99 取小的）；結帳頁縣市／行政區載入失敗的處理、快速切換縣市時舊回應蓋掉新選項、~~送出成功的回饋~~（已實施（2026-11-16）：提示「訂單已送出」並導向明細頁）；header 搜尋列改用 Element Plus 並達 44px、搜尋頁不重複放搜尋框；header 的「我的訂單」與「登入／登出」統一依同一個狀態顯示；~~訂單時間轉 Asia/Taipei 顯示~~（已實施（2026-11-16）：`shared/utils/formatDateTime.ts`，列表與明細共用） |
 | ~~Email 驗證（可延伸到忘記密碼）~~ | 已實施（2026-11-12）：註冊後寄驗證信，未完成驗證的帳號登入回 403；寄信用 MailKit，抽成 `Common/Email` 的 `IEmailSender`（之後與忘記密碼共用），寄信設定在啟動時檢查（`EmailOptions`、`AppOptions`）。token 效期 24 小時、只存 SHA-256 雜湊值，重寄冷卻 60 秒，既有帳號視為已驗證；業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-001，設定鍵見 `docs/configuration.md`。忘記密碼見下一列 |
 | ~~忘記密碼~~ | 已實施（2026-11-16）：申請 `POST /api/auth/password-reset-emails`、重設 `POST /api/auth/password-resets`；token 另開 `password_reset_tokens`，效期 30 分鐘、只能用一次，產生與雜湊抽成和 Email 驗證共用的 `SecureToken`。回應一致（帳號不存在、冷卻 60 秒內都回 204），畫面列出剛送出的 Email 讓使用者自己核對；重設後不自動登入、寄通知信，已發出的 JWT 不作廢（見上方 refresh token）。業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-002 |
 | 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
@@ -577,7 +595,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步）~~ | 已實施（2026-11-12）：`flat/recommended`＋typescript-eslint `recommended`＋Prettier，錯誤與警告 0，CI 與 pre-push 一起阻擋；前端檔案強制 LF。理由見上方「為什麼前端 ESLint＋Prettier 的門檻也是 0」。原本預期要開的 unplugin-auto-import `eslintrc` 選項，實測不需要 |
 | 前端開發相依套件 minimatch 的弱點（GHSA-g3hv-75wg-m249，moderate，DoS）：ESLint 帶進的 minimatch 10.2.6 在受影響範圍（7.0.0–11.0.0）內，只有 11.x 修正。`eslint` 10.14.0、`@eslint/config-array` 0.23.5、`@typescript-eslint/typescript-estree` 8.72.2 都已是最新版，仍要求 `^10`，Dependabot 的安全性更新因此失敗（2026-11-13 記錄） | 上游接受 minimatch 11 之後，由 Dependabot 自動開 Pull Request；GitHub 上的 alert 不 dismiss，dismiss 之後就不會再開。現在不用 `overrides` 強制升級：跨主版本等於自己承擔上游還沒驗證過的組合，而且 11.0.0 在 2026-10-27 才發布。minimatch 只在 devDependencies，不會進打包成品；CI 的 `npm audit` 也只提醒、不阻擋。`npm audit fix --force` 會把 eslint 降回 9，不能用 |
 | E2E 測試（Playwright） | 練習題（2026-11-12 記錄）：接在 Testcontainers 整合測試與前端 Vitest 之後。CI 用 prod compose 起完整環境再跑（同冒煙測試），先涵蓋註冊 → 登入 → 加入購物車 → 下單這條主線。先決定測試資料怎麼準備、只在打包時跑還是每個 Pull Request 都跑 |
-| 購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄） | 與庫存欄位一起處理（同屬「購物車與後端不同步」，見 `docs/ui-guidelines.md`）：結帳頁載入時向後端取現價或試算金額，與購物車不同時提示。先決定要不要新增「依多個 Id 取商品」或試算端點 |
+| 購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄） | 庫存已導入（2026-11-18），另開一支處理，可一併校正購物車數量與庫存（同屬「購物車與後端不同步」，見 `docs/ui-guidelines.md`）：結帳頁載入時向後端取現價或試算金額，與購物車不同時提示。先決定要不要新增「依多個 Id 取商品」或試算端點 |
 | ~~Email 格式前後端規則不同：前端 el-form 的 `type: 'email'` 比後端的 regex 嚴格，經 API 註冊的 `a@b.c` 這類帳號在登入頁送不出去（2026-11-12 記錄）~~ | 已實施（2026-11-17）：登入頁只檢查必填（同「登入不檢查密碼規則」的理由）；註冊、重寄驗證信、忘記密碼改用 `features/Auth/constants/emailFormat.ts`，複製後端 `User.IsValidEmailFormat` 的規則，前後端接受的 Email 相同。放棄的東西：規則有兩份，改的時候兩邊一起改（同密碼規則） |
 | 縣市／行政區只有示範資料：`DataSeeder` 只有台北市、新北市、高雄市各 2 區（2026-11-12 記錄） | 結帳頁遷移到 UI 規範時，或要讓別人試用時；先決定資料來源，匯入要走 Migration 或種子資料更新 |
 

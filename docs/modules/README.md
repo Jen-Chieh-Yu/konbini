@@ -1,6 +1,6 @@
 # 業務模組總覽
 
-更新日期：2026-11-16。新增模組、模組之間多了呼叫關係時，同步更新本文件。
+更新日期：2026-11-18。新增模組、模組之間多了呼叫關係時，同步更新本文件。
 
 這組文件記錄**各模組現有程式的實際行為**：誰能做什麼、規則與錯誤訊息原文、流程、對應的 API 與畫面。
 
@@ -32,7 +32,7 @@ AppInfo（`GET /api/version`）只回傳版號與 commit，沒有業務規則，
 
 | 使用方 → 被使用方 | 做法 |
 |---|---|
-| Orders → Products | 下單時以 `IProductRepository.GetSnapshotsAsync` 取商品名稱、現價、圖片，寫進訂單明細當快照 |
+| Orders → Products | 下單時以 `IProductRepository.GetSnapshotsAsync` 取商品名稱、現價、圖片、庫存，寫進訂單明細當快照；再以 `TryDeductStockAsync` 扣庫存（條件式更新） |
 | Orders → Addresses | 下單時以 `IAddressRepository` 檢查縣市與行政區代碼，並組出寄送地址文字 |
 | Search → Products | 搜尋沒有自己的資料表，查詢寫在 `ProductRepository.SearchAsync`，回傳 Products 的 `ProductDto` |
 | Cart → Orders | 前端結帳頁把購物車的商品 Id 與數量送進 `POST /api/orders`；價格不送 |
@@ -73,6 +73,7 @@ flowchart TD
   CO -- 下單成功 --> OD["訂單明細 /orders/:id"]
   O["我的訂單 /orders"] -- 點訂單 --> OD
   CO -- 欄位錯誤 --> CO
+  CO -- 庫存不足 --> C
 ```
 
 - 虛線：加入購物車後停在原頁，從 header 的購物車圖示進入購物車。

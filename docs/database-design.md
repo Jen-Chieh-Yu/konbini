@@ -15,6 +15,7 @@
 - 主鍵：id（代碼表用自然鍵：cities.city_code、districts.district_code）
 - 外鍵：<單數表名>\_id。product_id、order_id
 - 索引：`ix_<表名>_<欄位>`，唯一索引也一樣（EF Core 預設命名，例：`ix_users_email`），不另外 HasDatabaseName
+- 檢查約束：`ck_<表名>_<欄位>`（例：`ck_products_stock`），由 `HasCheckConstraint` 指定名稱
 
 由 `EFCore.NamingConventions` 的 `UseSnakeCaseNamingConvention()` 自動轉換，
 C# 照常用 PascalCase（UnitPrice → unit_price），不要在 Configuration 逐一 HasColumnName。
@@ -82,6 +83,13 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 > order_items.product_id、districts.city_code 是邏輯關聯（沒有 FK 約束），其中有索引的是
 > orders.user_id 與 districts.city_code。
 
+## 庫存
+
+- products.stock（integer NOT NULL）：庫存件數，0 表示售完。檢查約束 `ck_products_stock`（`stock >= 0`），
+  程式寫錯時資料庫也存不進負數。
+- 加欄位的 Migration 把既有商品填成 100；新資料庫由種子資料（`products.csv` 的 `Stock` 欄）給值。
+- 扣庫存的寫法見下方「交易」；規則與理由見 docs/modules/decisions/Orders.md DD-ORD-002。
+
 ## Email 驗證
 
 - users.email_verified_on（timestamptz，可為 null）：完成 Email 驗證的時間，null 表示還沒驗證、不能登入。
@@ -117,11 +125,16 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 - 注意會 fallback 成 client-side evaluation 的寫法
   （例如在 Where 裡呼叫 C# 方法），那會把整張表撈進記憶體。
 - 迴圈裡查詢是 N+1，改用 Include 或一次撈完再組。
+- 查詢與更新一律用 EF 語法撰寫（LINQ、`ExecuteUpdateAsync`／`ExecuteDeleteAsync`），不用 `FromSql`、`ExecuteSql` 手寫 SQL。
+  EF 沒有對應寫法的只有檢查約束的條件（`HasCheckConstraint` 的字串）。（2026-11-18 使用者決定）
 
 ## 交易
 
-> 庫存欄位尚未實作；導入庫存時本節規則生效。
-
-- 下單流程（扣庫存、建訂單、建明細）必須在同一個交易內。
-- 庫存扣減要處理併發，避免超賣（樂觀鎖的版本欄位或
-  資料庫層的條件更新）。
+- 只呼叫 `SaveChangesAsync` 的用例不必開交易：一次 SaveChanges 本身就是一個交易。
+- 立即執行的寫入（`ExecuteUpdateAsync`／`ExecuteDeleteAsync`）要和 SaveChanges 一起成立時，用 `IUnitOfWork.BeginTransactionAsync`
+  開交易，最後 `CommitAsync`；沒有 Commit 就離開範圍（`await using`）時回滾。
+- 下單（扣庫存、建訂單、建明細）在同一個交易內，任何一項庫存扣不到，整筆回滾。
+- 扣庫存用條件式更新：`Where(p => p.Id == id && p.Stock >= 數量).ExecuteUpdateAsync(...)`，影響 0 筆就是庫存不足。
+  不要讀出庫存在 C# 裡減完再存回去：兩筆訂單同時讀到同一個數字就會超賣。
+- 一筆訂單扣多項商品時，依商品 Id 由小到大扣：兩筆訂單才不會各自鎖住一項、等待對方而死結。
+- `ExecuteUpdate`／`ExecuteDelete` 不經過 `AuditInterceptor`，`modified_on`、`modified_by` 要在同一個 `SetProperty` 裡自己設。
