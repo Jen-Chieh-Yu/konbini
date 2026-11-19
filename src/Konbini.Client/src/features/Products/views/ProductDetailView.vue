@@ -1,17 +1,26 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ProductService } from '../api/services/ProductService'
 import type { ProductDetailDTO } from '../api/interfaces/ProductDTO'
-import { MAX_ITEM_QUANTITY, useCartStore } from '@features/Cart/stores/useCartStore'
+import { MAX_ITEM_QUANTITY } from '@features/Cart/stores/useCartStore'
+import { useAddToCart } from '@features/Cart/composables/useAddToCart'
 import AppStatePanel from '@shared/components/AppStatePanel.vue'
 
+/** 庫存在這個數字以下才顯示剩幾件；平常不顯示數字 */
+const LOW_STOCK_THRESHOLD = 5
+
 const route = useRoute()
-const cart = useCartStore()
+const addToCart = useAddToCart()
 const detail = ref<ProductDetailDTO | null>(null)
 const qty = ref(1)
 /** not-found：商品不存在（下架或網址打錯）；error：連線或伺服器問題，可以重試 */
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
+
+const stock = computed(() => detail.value?.product.stock ?? 0)
+const soldOut = computed(() => stock.value === 0)
+// 數量上限＝庫存與每項上限取小的；售完時輸入框停用，上限仍給 1，避免 max 小於 min
+const maxQty = computed(() => Math.max(Math.min(stock.value, MAX_ITEM_QUANTITY), 1))
 
 async function load() {
   const raw = String(route.params.id)
@@ -62,23 +71,37 @@ onMounted(load)
     <div>
       <h2>{{ detail.product.name }}</h2>
       <p class="price">NT$ {{ detail.product.price }}</p>
+      <p v-if="soldOut" class="stock stock--out">已售完</p>
+      <p v-else-if="stock <= LOW_STOCK_THRESHOLD" class="stock">僅剩 {{ stock }} 件</p>
       <div class="buy">
-        <input v-model.number="qty" type="number" min="1" :max="MAX_ITEM_QUANTITY" />
-        <button
+        <el-input-number
+          v-model="qty"
+          :min="1"
+          :max="maxQty"
+          :disabled="soldOut"
+          value-on-clear="min"
+          size="large"
+          aria-label="數量"
+        />
+        <el-button
+          type="primary"
+          size="large"
+          :disabled="soldOut"
           @click="
-            cart.add(
+            addToCart(
               {
                 productId: detail.product.id,
                 name: detail.product.name,
                 price: detail.product.price,
                 imageUrl: detail.product.imageUrl,
+                stock: detail.product.stock,
               },
               qty,
             )
           "
         >
           加入購物車
-        </button>
+        </el-button>
       </div>
       <h3>相關商品</h3>
       <ul>
@@ -112,8 +135,12 @@ onMounted(load)
   display: flex;
   gap: 0.5rem;
 }
-.buy input {
-  width: 4rem;
+.stock {
+  color: var(--kb-warn);
+  font-weight: 700;
+}
+.stock--out {
+  color: var(--kb-muted);
 }
 @media (max-width: 640px) {
   .detail {

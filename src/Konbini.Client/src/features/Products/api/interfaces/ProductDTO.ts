@@ -4,6 +4,8 @@ export interface ProductDTO {
   name: string
   price: number
   imageUrl?: string
+  /** 庫存件數，0 表示售完 */
+  stock: number
 }
 
 export interface ProductDetailDTO {

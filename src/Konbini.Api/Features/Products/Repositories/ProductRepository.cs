@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Persistence;
 using Konbini.Api.Features.Products.Models;
@@ -5,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Konbini.Api.Features.Products.Repositories;
 
-/// <summary>下單計價用的商品快照投影，不把 entity 外洩到其他 feature。</summary>
-public record ProductSnapshot(int Id, string Name, int Price, string? ImageUrl);
+/// <summary>下單計價與檢查庫存用的商品快照投影，不把 entity 外洩到其他 feature。</summary>
+public record ProductSnapshot(int Id, string Name, int Price, string? ImageUrl, int Stock);
 
 public interface IProductRepository : IRepository
 {
@@ -21,25 +22,35 @@ public interface IProductRepository : IRepository
     /// <summary>多關鍵字 OR 搜尋，任一命中即符合。</summary>
     Task<PagedResult<ProductDto>> SearchAsync(string[] keywords, PageRequest paging, CancellationToken ct);
 
-    /// <summary>依 Id 取商品快照（下單計價用）；查無的 Id 不在結果內。</summary>
+    /// <summary>依 Id 取商品快照（下單計價、檢查庫存用）；查無的 Id 不在結果內。</summary>
     Task<Dictionary<int, ProductSnapshot>> GetSnapshotsAsync(IReadOnlyCollection<int> ids, CancellationToken ct);
+
+    /// <summary>
+    /// 庫存足夠時扣掉並回 true；不夠、商品不存在或已軟刪除時不改資料，回 false。
+    /// 立即執行（ExecuteUpdate），不等 SaveChanges：要和訂單一起成立時，呼叫端先開 IUnitOfWork 的交易。
+    /// </summary>
+    /// <param name="modifiedBy">異動者的使用者 Id；ExecuteUpdate 不經過 AuditInterceptor，要自己傳。</param>
+    Task<bool> TryDeductStockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct);
 }
 
 public sealed class ProductRepository(AppDbContext db) : IProductRepository
 {
     private const int RelatedLimit = 8;
 
+    private static readonly Expression<Func<Product, ProductDto>> ToDto =
+        p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl, p.Stock);
+
     public async Task<PagedResult<ProductDto>> GetListAsync(int type, PageRequest paging, CancellationToken ct)
         => await db.Products.AsNoTracking()
             .Where(p => type == 0 || p.Type == type)
             .OrderBy(p => p.Id)
-            .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
+            .Select(ToDto)
             .ToPagedResultAsync(paging, ct);
 
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct)
         => await db.Products.AsNoTracking()
             .Where(p => p.Id == id)
-            .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
+            .Select(ToDto)
             .FirstOrDefaultAsync(ct);
 
     public async Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct)
@@ -48,7 +59,7 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
             // PostgreSQL 不保證未排序查詢的順序（MySQL InnoDB 依主鍵叢集，過去「剛好」有序）
             .OrderBy(p => p.Id)
             .Take(RelatedLimit)
-            .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
+            .Select(ToDto)
             .ToListAsync(ct);
 
     public async Task<PagedResult<ProductDto>> SearchAsync(string[] keywords, PageRequest paging, CancellationToken ct)
@@ -66,7 +77,7 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
         return await db.Products.AsNoTracking()
             .Where(p => patterns.Any(pattern => EF.Functions.ILike(p.Name, pattern, LikeEscape)))
             .OrderBy(p => p.Id)
-            .Select(p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl))
+            .Select(ToDto)
             .ToPagedResultAsync(paging, ct);
     }
 
@@ -80,6 +91,20 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
     public async Task<Dictionary<int, ProductSnapshot>> GetSnapshotsAsync(IReadOnlyCollection<int> ids, CancellationToken ct)
         => await db.Products.AsNoTracking()
             .Where(p => ids.Contains(p.Id))
-            .Select(p => new ProductSnapshot(p.Id, p.Name, p.Price, p.ImageUrl))
+            .Select(p => new ProductSnapshot(p.Id, p.Name, p.Price, p.ImageUrl, p.Stock))
             .ToDictionaryAsync(p => p.Id, ct);
+
+    // 條件式 UPDATE：「夠不夠」和「扣掉」在同一個陳述式裡由資料庫判斷（UPDATE … WHERE stock >= @quantity），
+    // 兩筆訂單同時扣同一項商品也不會超賣。HasQueryFilter 對 ExecuteUpdate 一樣生效，軟刪除的商品扣不到
+    public async Task<bool> TryDeductStockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var affected = await db.Products
+            .Where(p => p.Id == id && p.Stock >= quantity)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.Stock, p => p.Stock - quantity)
+                .SetProperty(p => p.ModifiedOn, now)
+                .SetProperty(p => p.ModifiedBy, modifiedBy), ct);
+        return affected == 1;
+    }
 }

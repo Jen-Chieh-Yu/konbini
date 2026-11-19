@@ -101,7 +101,7 @@ Endpoint → Command/Query → Handler → Service → Repository
   | Unauthorized | 401    | 身分驗證失敗（登入的帳號或密碼錯誤）。已登入的操作不要用：前端收到 401 會當成 token 失效而登出，所以改密碼的「目前密碼錯誤」回 400 |
   | Forbidden    | 403    | 已確認身分，但不允許這個操作（登入時密碼正確、但帳號尚未完成 Email 驗證） |
   | NotFound     | 404    | 網址指到的資源不存在，或不屬於目前使用者 |
-  | Conflict     | 409    | 與目前的資料狀態衝突，例如重複下單、庫存不足（目前沒有用例） |
+  | Conflict     | 409    | 與目前的資料狀態衝突，例如重複下單、庫存不足（目前的用例：下單的庫存不足） |
 
 - Endpoint 失敗時一律 `result.Error.ToProblem()`（`Common/Web/ErrorResults.cs`），
   成功分支各自明寫（`Results.Ok`、`Results.Created`、`Results.NoContent`），OpenAPI 用 `.ProducesProblem(狀態碼)` 標註。
