@@ -8,6 +8,7 @@ import AppPagination from '@shared/components/AppPagination.vue'
 import AppStatePanel from '@shared/components/AppStatePanel.vue'
 import { useRoutePage } from '@shared/composables/useRoutePage'
 import { formatDateTime } from '@shared/utils/formatDateTime'
+import OrderStatusTag from '../components/OrderStatusTag.vue'
 
 const route = useRoute()
 const { page, goToPage, redirectIfPastLastPage } = useRoutePage()
@@ -56,9 +57,12 @@ onMounted(load)
     <p v-if="!result?.items.length">還沒有任何訂單。</p>
     <div v-for="order in result?.items" :key="order.id" class="order">
       <header>
-        <RouterLink :to="`/orders/${order.id}`">
-          <strong>訂單 #{{ order.id }}</strong>
-        </RouterLink>
+        <span class="order-title">
+          <RouterLink :to="`/orders/${order.id}`">
+            <strong>訂單 #{{ order.id }}</strong>
+          </RouterLink>
+          <OrderStatusTag :status="order.status" />
+        </span>
         <span>{{ formatDateTime(order.createdAt) }}</span>
       </header>
       <ul>
@@ -91,6 +95,12 @@ onMounted(load)
 .order footer {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+.order-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 .order footer {
   flex-wrap: wrap;
