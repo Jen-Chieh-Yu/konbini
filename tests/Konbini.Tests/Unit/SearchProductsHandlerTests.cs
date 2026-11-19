@@ -105,5 +105,8 @@ public class SearchProductsHandlerTests
 
         public Task<Dictionary<int, ProductSnapshot>> GetSnapshotsAsync(IReadOnlyCollection<int> ids, CancellationToken ct)
             => throw new NotSupportedException();
+
+        public Task<bool> TryDeductStockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct)
+            => throw new NotSupportedException();
     }
 }

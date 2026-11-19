@@ -468,6 +468,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("status");
 
+                    b.Property<int>("Stock")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock");
+
                     b.Property<int>("Type")
                         .HasColumnType("integer")
                         .HasColumnName("type");
@@ -481,7 +485,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.HasIndex("Type")
                         .HasDatabaseName("ix_products_type");
 
-                    b.ToTable("products", (string)null);
+                    b.ToTable("products", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_products_stock", "stock >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Konbini.Api.Features.Auth.Models.EmailVerificationToken", b =>

@@ -16,6 +16,7 @@ public record CreateOrderResponse(int Id);
 /// <summary>
 /// 建立訂單。購物車狀態在前端（Pinia），這裡收到的是商品 Id 與數量；
 /// 單價、小計、運費一律以資料庫現價重新計算——金額裁決權在後端。
+/// 庫存也由後端判斷：扣庫存與建立訂單在同一個交易內，任何一項扣不到，整筆訂單不成立。
 /// </summary>
 public class CreateOrderHandler(
     IOrderRepository orders,
@@ -110,21 +111,28 @@ public class CreateOrderHandler(
             return OrderErrors.ProductsNotFound(missing);
         }
 
-        var items = request.Items!
+        // 同一個商品分多筆送來時合併；保持送來的順序，明細 Id 也依這個順序
+        var lines = request.Items!
             .GroupBy(i => i.ProductId)
-            .Select(g =>
+            .Select(g => (Product: snapshots[g.Key], Quantity: g.Sum(i => i.Quantity)))
+            .ToList();
+
+        // 先用剛讀出的庫存檢查：大部分的庫存不足在這裡就回 409，不必開交易
+        var shortages = lines.Where(l => l.Product.Stock < l.Quantity).Select(l => l.Product).ToList();
+        if (shortages.Count > 0)
+        {
+            return OrderErrors.InsufficientStock(shortages);
+        }
+
+        var items = lines
+            .Select(l => new OrderItem
             {
-                var product = snapshots[g.Key];
-                var quantity = g.Sum(i => i.Quantity);
-                return new OrderItem
-                {
-                    ProductId = product.Id,
-                    ProductName = product.Name,
-                    UnitPrice = product.Price,
-                    Quantity = quantity,
-                    Subtotal = product.Price * quantity,
-                    ImageUrl = product.ImageUrl,
-                };
+                ProductId = l.Product.Id,
+                ProductName = l.Product.Name,
+                UnitPrice = l.Product.Price,
+                Quantity = l.Quantity,
+                Subtotal = l.Product.Price * l.Quantity,
+                ImageUrl = l.Product.ImageUrl,
             })
             .ToList();
 
@@ -148,8 +156,33 @@ public class CreateOrderHandler(
             Items = items,
         };
 
+        // 扣庫存與建立訂單在同一個交易：任何一項扣不到，已經扣掉的也一起回滾
+        await using var transaction = await unitOfWork.BeginTransactionAsync(ct);
+
+        // 讀出庫存之後被別人買走時，條件式 UPDATE 會扣不到。依商品 Id 由小到大扣：
+        // 兩筆訂單同時扣多項商品時，才不會各自鎖住一項、等待對方而死結
+        var failedIds = new List<int>();
+        foreach (var (product, quantity) in lines.OrderBy(l => l.Product.Id))
+        {
+            if (!await products.TryDeductStockAsync(product.Id, quantity, command.UserId, ct))
+            {
+                failedIds.Add(product.Id);
+            }
+        }
+
+        if (failedIds.Count > 0)
+        {
+            // 不 Commit，離開時回滾。重新讀一次，訊息才是現在剩下的件數；這段時間被刪除的商品回「不存在」
+            var latest = await products.GetSnapshotsAsync(failedIds, ct);
+            var deleted = failedIds.Where(id => !latest.ContainsKey(id)).ToList();
+            return deleted.Count > 0
+                ? OrderErrors.ProductsNotFound(deleted)
+                : OrderErrors.InsufficientStock(failedIds.Select(id => latest[id]));
+        }
+
         orders.Add(order);
         await unitOfWork.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         return new CreateOrderResponse(order.Id);
     }

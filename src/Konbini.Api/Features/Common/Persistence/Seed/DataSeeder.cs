@@ -23,13 +23,14 @@ public static class DataSeeder
                 var products = (await File.ReadAllLinesAsync(csvPath))
                     .Skip(1)
                     .Select(line => line.Split(','))
-                    .Where(cols => cols.Length >= 4)
+                    .Where(cols => cols.Length >= 5)
                     .Select(cols => new Product
                     {
                         Type = int.Parse(cols[0]),
                         Name = cols[1],
                         Price = int.Parse(cols[2]),
                         ImageUrl = cols[3],
+                        Stock = int.Parse(cols[4]),
                     });
                 db.Products.AddRange(products);
             }

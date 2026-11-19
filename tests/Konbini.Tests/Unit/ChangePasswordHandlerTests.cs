@@ -108,6 +108,10 @@ public class ChangePasswordHandlerTests
             SaveCount++;
             return Task.CompletedTask;
         }
+
+        // 這個用例不開明確的交易
+        public Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakePasswordHasher(bool verifyResult) : IPasswordHasher
