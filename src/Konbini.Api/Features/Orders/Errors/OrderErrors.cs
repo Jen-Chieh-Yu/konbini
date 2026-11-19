@@ -20,4 +20,10 @@ public static class OrderErrors
     public static Error InsufficientStock(IEnumerable<ProductSnapshot> products) =>
         Error.Conflict("items", "下列商品庫存不足：" + string.Join("、", products.Select(p =>
             p.Stock > 0 ? $"{p.Name}（剩 {p.Stock} 件）" : $"{p.Name}（已售完）")));
+
+    /// <summary>
+    /// 訂單已經不是處理中，和資料狀態衝突，回 409。目前只有「已取消」會走到這裡；
+    /// 之後有「已出貨」時，依狀態回不同的訊息。
+    /// </summary>
+    public static readonly Error AlreadyCancelled = Error.Conflict(Error.GeneralKey, "這筆訂單已經取消");
 }

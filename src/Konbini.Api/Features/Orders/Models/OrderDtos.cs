@@ -25,4 +25,6 @@ public record OrderDto(
     string DeliveryAddress,
     string? Memo,
     DateTime CreatedAt,
+    OrderStatus Status,
+    DateTime? CancelledAt,
     List<OrderItemDto> Items);

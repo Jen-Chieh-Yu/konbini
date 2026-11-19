@@ -30,5 +30,11 @@ public class Order : AuditableEntity
     public string DeliveryAddress { get; set; } = string.Empty;
     public string? Memo { get; set; }
 
+    /// <summary>新訂單一律是處理中；只能經由取消訂單改成已取消（條件式 UPDATE）。</summary>
+    public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
+
+    /// <summary>取消的時間（UTC），沒有取消時是 null。modified_on 之後有其他異動會被覆蓋，所以另外記錄。</summary>
+    public DateTime? CancelledOn { get; set; }
+
     public List<OrderItem> Items { get; set; } = [];
 }
