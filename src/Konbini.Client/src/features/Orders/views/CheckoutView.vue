@@ -22,6 +22,8 @@ const form = ref({
   memo: '',
 })
 const errors = ref<Record<string, string>>({})
+/** 409 庫存不足：錯誤清單下方多一個回購物車的連結，購物車本身不自動調整 */
+const stockConflict = ref(false)
 const submitting = ref(false)
 
 watch(
@@ -34,6 +36,7 @@ watch(
 
 async function submit() {
   errors.value = {}
+  stockConflict.value = false
   submitting.value = true
   try {
     const { id } = await OrderService.createOrder({
@@ -44,11 +47,12 @@ async function submit() {
     ElMessage.success('訂單已送出')
     router.push(`/orders/${id}`)
   } catch (e) {
-    // 400 帶欄位錯誤；網路中斷、500 或非 axios 的錯誤都顯示通用訊息
+    // 400 帶欄位錯誤、409 帶庫存不足的商品；網路中斷、500 或非 axios 的錯誤都顯示通用訊息
     const fieldErrors = isAxiosError<{ errors?: Record<string, string> }>(e)
       ? e.response?.data?.errors
       : undefined
     errors.value = fieldErrors ?? { general: '訂單送出失敗，請稍後再試' }
+    stockConflict.value = isAxiosError(e) && e.response?.status === 409
   } finally {
     submitting.value = false
   }
@@ -88,6 +92,7 @@ onMounted(async () => {
     <ul v-if="Object.keys(errors).length" class="errors">
       <li v-for="(message, key) in errors" :key="key">{{ message }}</li>
     </ul>
+    <p v-if="stockConflict"><RouterLink to="/cart">回購物車調整數量</RouterLink></p>
     <button type="submit" :disabled="submitting">送出訂單</button>
   </form>
 </template>

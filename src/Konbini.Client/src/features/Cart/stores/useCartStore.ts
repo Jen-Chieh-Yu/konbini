@@ -37,16 +37,23 @@ export const useCartStore = defineStore('cart', () => {
   const deliveryFee = computed(() => (subtotal.value >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE))
   const total = computed(() => (items.value.length ? subtotal.value + deliveryFee.value : 0))
 
-  function add(item: Omit<CartItem, 'quantity'>, qty = 1) {
+  /**
+   * 加入購物車。limit 是這項商品在購物車裡的上限（庫存與 MAX_ITEM_QUANTITY 取小的），超過時調整成上限。
+   * 回傳加入後的數量與是否被調整；沒有加入（數量不是正整數、上限是 0）時回傳 null。
+   */
+  function add(item: Omit<CartItem, 'quantity'>, qty = 1, limit = MAX_ITEM_QUANTITY) {
     // 輸入框清空時 v-model.number 會給空字串，也可能輸入小數，這裡統一成正整數
     const amount = Math.trunc(Number(qty))
-    if (!(amount > 0)) return
+    if (!(amount > 0) || limit <= 0) return null
     const existing = items.value.find((i) => i.productId === item.productId)
+    const wanted = (existing?.quantity ?? 0) + amount
+    const quantity = Math.min(wanted, limit)
     if (existing) {
-      existing.quantity = Math.min(existing.quantity + amount, MAX_ITEM_QUANTITY)
+      existing.quantity = quantity
     } else {
-      items.value.push({ ...item, quantity: Math.min(amount, MAX_ITEM_QUANTITY) })
+      items.value.push({ ...item, quantity })
     }
+    return { quantity, capped: quantity < wanted }
   }
 
   function updateQuantity(productId: number, qty: number) {

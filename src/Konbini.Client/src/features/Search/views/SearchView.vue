@@ -3,14 +3,14 @@ import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { SearchService } from '../api/services/SearchService'
 import type { ProductDTO } from '@features/Products/api/interfaces/ProductDTO'
-import { useCartStore } from '@features/Cart/stores/useCartStore'
+import { useAddToCart } from '@features/Cart/composables/useAddToCart'
 import type { PagedResult } from '@shared/api/interfaces/PagedResult'
 import AppPagination from '@shared/components/AppPagination.vue'
 import { useRoutePage } from '@shared/composables/useRoutePage'
 
 const route = useRoute()
 const router = useRouter()
-const cart = useCartStore()
+const addToCart = useAddToCart()
 // 關鍵字由網址決定，header 的搜尋列才能導到這裡，結果也才能分享網址
 const keyword = ref(String(route.query.q ?? ''))
 const { page, goToPage, redirectIfPastLastPage } = useRoutePage()
@@ -54,9 +54,18 @@ onMounted(() => search(keyword.value))
       <RouterLink :to="`/products/${p.id}`">{{ p.name }}</RouterLink>
       <span>NT$ {{ p.price }}</span>
       <button
-        @click="cart.add({ productId: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl })"
+        :disabled="p.stock === 0"
+        @click="
+          addToCart({
+            productId: p.id,
+            name: p.name,
+            price: p.price,
+            imageUrl: p.imageUrl,
+            stock: p.stock,
+          })
+        "
       >
-        ＋
+        {{ p.stock === 0 ? '已售完' : '＋' }}
       </button>
     </li>
   </ul>

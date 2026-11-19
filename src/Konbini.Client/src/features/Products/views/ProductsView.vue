@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProductService } from '../api/services/ProductService'
 import type { ProductDTO } from '../api/interfaces/ProductDTO'
-import { useCartStore } from '@features/Cart/stores/useCartStore'
+import { useAddToCart } from '@features/Cart/composables/useAddToCart'
 import { CATEGORIES } from '@shared/constants/catalog'
 import type { PagedResult } from '@shared/api/interfaces/PagedResult'
 import AppPagination from '@shared/components/AppPagination.vue'
@@ -11,7 +11,7 @@ import { useRoutePage } from '@shared/composables/useRoutePage'
 
 const route = useRoute()
 const router = useRouter()
-const cart = useCartStore()
+const addToCart = useAddToCart()
 const { page, goToPage, redirectIfPastLastPage } = useRoutePage()
 const result = ref<PagedResult<ProductDTO> | null>(null)
 // 分類由網址決定，header 與首頁的分類連結才能直接進到對應清單
@@ -66,11 +66,18 @@ onMounted(loadProducts)
         <div class="row">
           <span class="price">NT$ {{ p.price }}</span>
           <button
+            :disabled="p.stock === 0"
             @click="
-              cart.add({ productId: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl })
+              addToCart({
+                productId: p.id,
+                name: p.name,
+                price: p.price,
+                imageUrl: p.imageUrl,
+                stock: p.stock,
+              })
             "
           >
-            加入購物車
+            {{ p.stock === 0 ? '已售完' : '加入購物車' }}
           </button>
         </div>
       </div>
