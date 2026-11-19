@@ -19,6 +19,7 @@
 
 - `keyword` 是必要參數，沒有帶時回 400。
 - 關鍵字以任何空白字元（半形空白、全形空白「　」、Tab、換行）拆成多個關鍵字；任一個命中就算符合（OR）。
+  NUL 字元（`\u0000`）也當成分隔字元：PostgreSQL 不接受 NUL，略過而不回錯誤。
 - 重複的關鍵字不分大小寫只算一次。去重後最多取前 10 個（`SearchProductsHandler.MaxKeywords`），
   每個最多 50 字元（`MaxKeywordLength`）；超過的截斷，不回錯誤。
 - 比對商品名稱，部分符合即可，不分大小寫（PostgreSQL `ILIKE`）。

@@ -576,7 +576,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~輸入長度驗證：超過資料庫欄位長度的輸入目前回 500~~ | 已實施（2026-11-06）：註冊與下單的 Handler 檢查長度、回欄位錯誤；上限定義成 Entity 常數，`HasMaxLength` 與 Handler 共用同一來源 |
 | ~~下單數量上限：沒有上限時單價 × 數量可能溢位，算出錯誤的訂單金額~~ | 已實施（2026-11-06）：每項商品最多 99 件（`OrderItem.MaxQuantity`），同商品分多筆時看合計；前端購物車同步限制 |
 | ~~OpenAPI 整數欄位顯示為 `integer`（Web 預設 `AllowReadingFromString` 讓它顯示成 integer/string）~~ | 已實施（2026-11-05）：`NumberHandling = Strict`，執行時與文件都只收 JSON 數字；請求格式錯誤一律由 `GlobalExceptionHandler` 回 400（原本開發環境會變成 500） |
-| 字串含 NUL 字元（`\u0000`）：PostgreSQL 的文字欄位不接受，推論會回 500（尚未重現） | fix 分支，先重現再修 |
+| ~~字串含 NUL 字元（`\u0000`）：PostgreSQL 的文字欄位不接受，推論會回 500（尚未重現）~~ | 已實施（2026-11-17）：重現確認註冊、登入、重寄驗證信、忘記密碼、下單與搜尋都回 500（`PostgresException` 22021）。JSON 請求的字串含 NUL 一律回 400「請求格式錯誤。」（`JsonNulGuard`，掛在 TypeInfoResolver 的 modifier；不用自訂 converter，OpenAPI 的字串型別才不會消失）；搜尋的查詢字串不經過 JSON，把 NUL 當成分隔字元、不回錯誤 |
 | ~~密碼長度上限：目前只有下限~~ | 已實施（2026-11-10）：8–20 字元，需含大寫、小寫英文字母、數字與半形符號，不可有空白（`PasswordPolicy`），比照常見線上服務；註冊與改密碼共用，登入不檢查（舊帳號可能不符）。放棄的東西：NIST SP 800-63B 建議至少允許 64 字元、不規定字元種類，密碼管理工具產生的長密碼與密碼片語會被擋 |
 | ~~JWT 只放必要識別資訊：目前多放了 `email`、`name` claim（前端沒有解 token，可直接移除）~~ | 已實施（2026-11-06）：token 只留 `sub`；JWT 只簽章不加密，內容任何人都讀得到 |
 | refresh token（短效 access token ＋ 可撤銷的 refresh token） | 目前不導入（2026-11-06 評估）：不正式上線，8 小時重新登入可接受；導入要多資料表、旋轉與重用偵測、撤銷，以及前端的 401 重試與同時刷新處理。條件：想當練習題、要讓舊 token 能提早作廢（改密碼、重設密碼、登出），或定位改為正式上線。導入時不放 localStorage（效期長，XSS 的風險比現行 8 小時 token 大），要搭配旋轉或 `HttpOnly` cookie；前置工作是前端 401 統一處理 |
