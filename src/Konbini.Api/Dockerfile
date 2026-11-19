@@ -22,7 +22,16 @@ ARG BUILD_CONFIGURATION=Release
 # 寫進組件的 InformationalVersion（版號+commit），由 GET /api/version 讀出
 ARG APP_VERSION=0.0.0-dev
 ARG GIT_SHA=local
-RUN dotnet publish "Konbini.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false \
+# 只帶目標架構的原生檔（SkiaSharp）：不指定 RID 時，各平台的原生檔與除錯符號都會放進映像，多出約 480 MB。
+# TARGETARCH 由 BuildKit 依建置平台帶入（amd64／arm64）
+ARG TARGETARCH
+RUN case "$TARGETARCH" in \
+      amd64) rid=linux-x64 ;; \
+      arm64) rid=linux-arm64 ;; \
+      *) echo "不支援的架構：'$TARGETARCH'（需要 BuildKit，只支援 amd64、arm64）" >&2; exit 1 ;; \
+    esac \
+    && dotnet publish "Konbini.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false \
+    -r "$rid" --self-contained false \
     /p:Version=$APP_VERSION /p:InformationalVersion=$APP_VERSION+$GIT_SHA
 
 FROM base AS final

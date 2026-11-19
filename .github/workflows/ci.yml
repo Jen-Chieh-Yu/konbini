@@ -231,7 +231,8 @@ jobs:
             --build-arg APP_VERSION="$APP_VERSION" --build-arg GIT_SHA="${GITHUB_SHA::7}" \
             -t "konbini-client:$APP_VERSION" src/Konbini.Client
       # 用剛建好的映像跑部署佈局（prod compose，--no-build），確認成品真的能動：
-      # 四個容器都起得來（api、postgres、mailpit 健康，client 執行中）、首頁 200、/api 反代通、版號正確、種子資料已建立
+      # 四個容器都起得來（api、postgres、mailpit 健康，client 執行中）、首頁 200、/api 反代通、版號正確、種子資料已建立、
+      # 驗證碼圖片產生得出來（SkiaSharp 的原生檔有帶進這個架構的映像）
       - name: ③ 冒煙測試（部署佈局）
         run: |
           printf '%s\n' \
@@ -243,13 +244,18 @@ jobs:
           api_version=$(curl -fsS http://localhost:8080/api/version | jq -r .version)
           web_version=$(curl -fsS http://localhost:8080/version.json | jq -r .version)
           products=$(curl -fsS http://localhost:8080/api/products | jq .totalCount)
-          echo "後端版號：$api_version，前端版號：$web_version，商品數：$products"
+          captcha=$(curl -fsS -X POST http://localhost:8080/api/captchas | jq -r '.image | startswith("data:image/png;base64,")')
+          echo "後端版號：$api_version，前端版號：$web_version，商品數：$products，驗證碼圖片：$captcha"
           if [ "$api_version" != "$APP_VERSION" ] || [ "$web_version" != "$APP_VERSION" ]; then
             echo "::error::版號不符：預期 $APP_VERSION，後端 $api_version、前端 $web_version"
             exit 1
           fi
           if [ "$products" -le 0 ]; then
             echo "::error::/api/products 沒有資料，種子資料可能沒有建立"
+            exit 1
+          fi
+          if [ "$captcha" != "true" ]; then
+            echo "::error::POST /api/captchas 沒有回傳 PNG，SkiaSharp 的原生檔可能沒有帶進映像"
             exit 1
           fi
       - name: ③-1 印出容器日誌（僅冒煙測試失敗時）
