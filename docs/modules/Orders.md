@@ -10,10 +10,12 @@
 | 下單 | 已登入會員 | `POST /api/orders` 🔒 | `CheckoutView.vue`（`/checkout`） |
 | 查看我的訂單 | 已登入會員 | `GET /api/orders?page=&pageSize=` 🔒 | `OrdersView.vue`（`/orders`） |
 | 查看訂單明細 | 已登入會員 | `GET /api/orders/{id}` 🔒 | `OrderDetailView.vue`（`/orders/:id`） |
+| 取消訂單 | 已登入會員 | `POST /api/orders/{id}/cancel` 🔒 | `OrderDetailView.vue`（`/orders/:id`） |
 
 🔒 = 需要 JWT，沒有或失效時回 401。
 後端：[OrderEndpoints.cs](../../src/Konbini.Api/Features/Orders/Endpoints/OrderEndpoints.cs)、
 [CreateOrderCommand.cs](../../src/Konbini.Api/Features/Orders/Commands/CreateOrderCommand.cs)、
+[CancelOrderCommand.cs](../../src/Konbini.Api/Features/Orders/Commands/CancelOrderCommand.cs)、
 [OrderRepository.cs](../../src/Konbini.Api/Features/Orders/Repositories/OrderRepository.cs)。
 前端：[features/Orders/](../../src/Konbini.Client/src/features/Orders/)。
 
@@ -111,7 +113,7 @@ errors 的 key 是欄位名稱；同一個 key 只回一則，依表格順序取
 
 - 只列出自己的訂單，依建立時間新到舊（時間相同再依 Id），含明細，明細依下單時送來的順序排列；分頁規則見 [模組總覽「共同規則」](README.md#2-模組關係)。
 - 每筆訂單回傳 `id`、`subtotal`、`deliveryFee`、`total`、`contactName`、`contactPhone`、`deliveryAddress`、
-  `memo`、`createdAt`、`items`；沒有配送方式、縣市與行政區代碼。
+  `memo`、`createdAt`、`status`、`cancelledAt`、`items`；沒有配送方式、縣市與行政區代碼。
 
 ### 訂單明細
 
@@ -119,6 +121,42 @@ errors 的 key 是欄位名稱；同一個 key 只回一則，依表格順序取
   （不回 403，不讓人分辨訂單是否存在）。
 - 回傳內容與「我的訂單」中的一筆相同。
 - 決策與理由見 [DD-ORD-001](decisions/Orders.md#dd-ord-001訂單明細2026-11-16使用者決定claudemd-6api-回應與-docsapi-conventionsmd-的落差)。
+
+### 訂單狀態
+
+```mermaid
+stateDiagram-v2
+  [*] --> Pending: 下單成功
+  Pending --> Cancelled: 會員取消（歸還庫存）
+  Cancelled --> [*]
+```
+
+| 狀態 | API 的 `status` | 畫面 | 可以取消 |
+|---|---|---|---|
+| 處理中 | `pending` | 處理中 | ✅ |
+| 已取消 | `cancelled` | 已取消 | ❌（409） |
+
+- 新訂單一律是處理中；既有訂單在導入時設成處理中。
+- 已取消是終止狀態，不能改回處理中。
+- `cancelledAt` 是取消的時間，沒有取消時是 `null`。
+- 目前沒有出貨、完成等其他狀態，也沒有能改狀態的後台。
+
+### 取消訂單
+
+- 只有下單的本人能取消；只有處理中的訂單能取消；沒有時間限制。
+- 不存在、不是自己的、已軟刪除的訂單回 404 ProblemDetails，`general`：找不到訂單（同訂單明細）。
+- 已經取消過的訂單回 409 ProblemDetails，`general`：這筆訂單已經取消（不是冪等，重複取消不回 204）。
+- 取消時每項商品的件數加回庫存；商品已軟刪除也照樣加回。改狀態與歸還庫存在同一個交易內。
+- 同時送出兩次取消時，只有一次成功（204），另一次回 409，庫存只歸還一次。
+- 決策與理由見 [DD-ORD-003](decisions/Orders.md#dd-ord-003訂單狀態與取消訂單2026-11-19使用者決定訂單與履約第三支)；
+  交易的寫法見 [database-design「交易」](../database-design.md#交易)。
+
+| 情況 | 狀態碼 | 內容 |
+|---|---|---|
+| 成功 | 204 | 沒有內容 |
+| 不存在、不是自己的 | 404 | ProblemDetails，`general`：找不到訂單 |
+| 已經取消 | 409 | ProblemDetails，`general`：這筆訂單已經取消 |
+| 沒有登入或 token 失效 | 401 | 沒有內容 |
 
 ## 前端行為
 
@@ -136,14 +174,20 @@ errors 的 key 是欄位名稱；同一個 key 只回一則，依表格順序取
 - **我的訂單**：載入中顯示「載入中…」；載入失敗顯示「暫時看不到訂單」與「重新載入」；沒有訂單時顯示「還沒有任何訂單。」。
   每張訂單顯示「訂單 #Id」（連到明細頁）、建立時間（台灣時間，格式 `2026/11/16 14:05`）、每項明細「品名 × 數量　NT$ 小計」、
   寄送地址、合計與「查看明細」按鈕；頁碼放在網址的 `?page=`。
+  「訂單 #Id」旁邊顯示狀態標籤（白底，處理中是綠字、已取消是灰字）。列表沒有取消按鈕。
 - **訂單明細**：
   - 依序顯示：
     - 「‹ 我的訂單」返回連結
-    - 「訂單 #Id」與建立時間
+    - 「訂單 #Id」、狀態標籤與建立時間
+    - 已取消時：「已於 {時間} 取消」
     - 商品明細：圖片、品名（連到商品頁）、單價 × 數量、小計
     - 小計、運費、合計
     - 收件資訊：聯絡人、電話、寄送地址；有備註才顯示備註
   - 寬螢幕時，商品明細在左，金額與收件資訊在右；手機上由上往下排列。
+  - 處理中的訂單在收件資訊下方有「取消訂單」按鈕。按下後先確認：
+    「確定要取消訂單 #N 嗎？取消後無法復原。」，按鈕是「取消訂單」與「保留訂單」。
+    - 成功時提示「訂單已取消」，重新載入明細（不換成轉圈）：標籤變成「已取消」，按鈕消失。
+    - 失敗時提示後端的訊息（例：「這筆訂單已經取消」），並重新載入；連不到伺服器時提示「訂單取消失敗，請稍後再試」。
   - 載入中顯示轉圈。
   - 找不到（含網址的 Id 不是正整數）時顯示「找不到這筆訂單」與「回我的訂單」按鈕。
   - 載入失敗時顯示「暫時看不到這筆訂單」與「重新載入」按鈕。
@@ -152,5 +196,5 @@ errors 的 key 是欄位名稱；同一個 key 只回一則，依表格順序取
 ## 尚未實作
 
 - 結帳頁、我的訂單的 UI 規範（Element Plus、四種畫面狀態、`formatMoney`）：見 CLAUDE.md §6「前端 feature 頁面遷移到 UI 規範」。
-- 訂單狀態、取消訂單（含回補庫存）：訂單與履約的下一支 Pull Request。
+- 出貨、完成等其他訂單狀態，以及改狀態的後台：CLAUDE.md §6「DDD 分層拆成多專案」的觸發條件。
 - 付款、配送方式的選項：§6 沒有列。

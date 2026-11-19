@@ -101,7 +101,7 @@ Endpoint → Command/Query → Handler → Service → Repository
   | Unauthorized | 401    | 身分驗證失敗（登入的帳號或密碼錯誤）。已登入的操作不要用：前端收到 401 會當成 token 失效而登出，所以改密碼的「目前密碼錯誤」回 400 |
   | Forbidden    | 403    | 已確認身分，但不允許這個操作（登入時密碼正確、但帳號尚未完成 Email 驗證） |
   | NotFound     | 404    | 網址指到的資源不存在，或不屬於目前使用者 |
-  | Conflict     | 409    | 與目前的資料狀態衝突，例如重複下單、庫存不足（目前的用例：下單的庫存不足） |
+  | Conflict     | 409    | 與目前的資料狀態衝突，例如重複下單、庫存不足（目前的用例：下單的庫存不足、取消已經取消的訂單） |
 
 - Endpoint 失敗時一律 `result.Error.ToProblem()`（`Common/Web/ErrorResults.cs`），
   成功分支各自明寫（`Results.Ok`、`Results.Created`、`Results.NoContent`），OpenAPI 用 `.ProducesProblem(狀態碼)` 標註。
@@ -167,6 +167,7 @@ Endpoint → Command/Query → Handler → Service → Repository
 
 - 對外只傳 Request / Response 型別，絕對不要回傳 EF Core 的 Entity。
 - 輸入輸出分開：CreateOrderRequest / OrderDto（回應型別以 Dto 結尾）。
+- 狀態列舉在 API 回傳小寫字串（例：訂單的 `status`：`pending`、`cancelled`），在 enum 上掛 `JsonStringEnumConverter<T>`、每個值用 `JsonStringEnumMemberName` 指定名稱；資料庫照樣存整數（見 `docs/database-design.md`「欄位型別」）。不設全域的 converter：其他整數欄位維持 `NumberHandling = Strict`。
 - Response 型別與使用案例放在同一個功能資料夾內，
   不要建一個全專案共用的巨大 DTO 資料夾。
 - Query 端可以直接在 Repository 內用 Select 投影成 Response，

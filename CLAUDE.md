@@ -306,7 +306,7 @@ Rider 2024.3 以上、.NET SDK 9.0.200 以上（本專案 `global.json` 為 10.0
   回傳自己的 `IUnitOfWorkTransaction`，Handler 與測試不依賴 EF 的 `IDbContextTransaction`。
 - **依商品 Id 由小到大扣**：兩筆訂單同時扣多項商品時，才不會各自鎖住一項、等待對方而死結。
 - **先用讀出的庫存檢查一次**：大部分的庫存不足不必開交易就能回 409，條件式 UPDATE 只負責擋同時下單。
-- **不抽 Service**：只有下單一個使用者；取消訂單回補庫存時，再依「2 個以上使用者共用」的門檻抽出。
+- **不抽 Service**：扣庫存（下單）與還庫存（取消訂單，2026-11-19）是兩個操作，各只有一個使用者，共用的只有「依商品 Id 由小到大」的排序，沒有達到「2 個以上使用者共用」的門檻（2026-11-19 評估）。
 - **資料庫加檢查約束 `stock >= 0`**：程式寫錯時的最後一道防線。
 
 放棄的東西：`ExecuteUpdate` 不經過 `AuditInterceptor`，`modified_on`、`modified_by` 要在 Repository 自己設；
@@ -589,7 +589,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~「先查再寫」的唯一索引競態改回友善 400（Register 重複 email 等）~~ | 已實施（2026-11-06）：`UnitOfWork` 把唯一索引違反翻譯成 `UniqueConstraintViolationException`，Handler 接住後回欄位錯誤；目前只有 `users.email` 一個唯一索引 |
 | 套件弱點掃描改 `on: schedule` 定期執行 | 若開始在意弱點的時效性——手動觸發依賴「想起來」，排程不會忘 |
 | ~~`v*` 標籤產出部署成品~~ | 已實施（2026-08-31）：package job 於 `v*` 標籤建映像、`docker save` 上傳 artifact。警告統計與套件弱點掃描亦已加入（`::warning` 註解 + Step Summary，僅提醒不阻擋）。2026-11-02 擴充為半自動發行（見上方） |
-| DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現實質領域規則時（扣庫存、訂單狀態轉換）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄）。2026-11-18 導入扣庫存時評估：規則只有一個條件式 UPDATE，判斷依據還不夠，留到訂單狀態轉換時再決定 |
+| DDD 分層拆成多專案（Domain／Application／Infrastructure／Api，同一個 `.slnx`；測試專案對應拆分） | 出現兩種以上的狀態轉換，而且有不同的操作者時（例：會員取消、後台出貨）（2026-11-19 改寫）。現在不拆的理由見 §2「為什麼是單一專案」；feature 切片讓搬遷是機械性工作（2026-11-03 記錄）。2026-11-18 導入扣庫存時評估：規則只有一個條件式 UPDATE，判斷依據還不夠。2026-11-19 導入訂單狀態時評估：只有「處理中 → 已取消」一種轉換，判斷必須寫在條件式 UPDATE 的 Where 才擋得住同時取消，放進 Entity 方法會有兩份規則；搬資料夾也會和進行中的分支衝突，要拆時獨立一支 `refactor` Pull Request（見 `docs/modules/decisions/Orders.md` DD-ORD-003） |
 | Endpoint 改經 ISender ＋ pipeline behavior（理由與前置工作見 §2「為什麼 Endpoint 直接注入 handler」） | 出現第一個要套用到所有用例的橫切需求（例：稽核欄位導入後記錄操作者），且 endpoint filter 不夠用。會改到全部 Endpoints 檔，不與分頁、長度驗證等同批檔案的分支並行（2026-11-04 記錄）。前置工作完成一半（2026-11-12）：Result 已收斂成泛型；command 帶出結果型別的 `ICommand<TResult>` 尚未做 |
 | ~~輸入長度驗證：超過資料庫欄位長度的輸入目前回 500~~ | 已實施（2026-11-06）：註冊與下單的 Handler 檢查長度、回欄位錯誤；上限定義成 Entity 常數，`HasMaxLength` 與 Handler 共用同一來源 |
 | ~~下單數量上限：沒有上限時單價 × 數量可能溢位，算出錯誤的訂單金額~~ | 已實施（2026-11-06）：每項商品最多 99 件（`OrderItem.MaxQuantity`），同商品分多筆時看合計；前端購物車同步限制 |

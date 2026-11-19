@@ -504,6 +504,7 @@ public class ProductEndpoints : IEndpoint
 | Orders | `GET /api/orders?page=&pageSize=` 🔒 | 訂單列表，分頁 |
 | | `GET /api/orders/{id}` 🔒 | 訂單明細；不是自己的訂單回 404 |
 | | `POST /api/orders` 🔒 | 建立訂單 |
+| | `POST /api/orders/{id}/cancel` 🔒 | 取消訂單；只有處理中的訂單能取消，會歸還庫存；已取消回 409 |
 | Auth | `POST /api/auth/register` | 註冊 |
 | | `POST /api/auth/login` | 登入，回傳 JWT（要帶驗證碼；未完成 Email 驗證回 403） |
 | | `POST /api/auth/email-verifications` | 以驗證信中的 token 完成 Email 驗證 |
