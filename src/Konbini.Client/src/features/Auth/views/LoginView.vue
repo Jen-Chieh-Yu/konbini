@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Message } from '@element-plus/icons-vue'
@@ -7,7 +7,8 @@ import { AuthService } from '../api/services/AuthService'
 import { useAuthStore } from '../stores/useAuthStore'
 import AuthCard from '../components/AuthCard.vue'
 import PasswordInput from '../components/PasswordInput.vue'
-import { readApiErrors, useErrorDialog } from '../composables/useErrorDialog'
+import CaptchaInput from '@features/Captcha/components/CaptchaInput.vue'
+import { readApiErrors, useErrorDialog, type ApiErrors } from '../composables/useErrorDialog'
 import { safeRedirect } from '@/router/redirect'
 import {
   SUBMIT_ONLY,
@@ -26,20 +27,23 @@ const redirect = safeRedirect(route.query.redirect)
 
 // 註冊成功後導過來時，Email 由 history state 帶入（不放網址，以免留在瀏覽紀錄與伺服器 log）
 const prefilledEmail: string = typeof history.state?.email === 'string' ? history.state.email : ''
-const form = ref({ email: prefilledEmail, password: '' })
+const form = ref({ email: prefilledEmail, password: '', captcha: '' })
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
+const serverErrors = ref<ApiErrors>({})
+const captchaRef = ref<InstanceType<typeof CaptchaInput>>()
 
 /** modal 裡的欄位名稱 */
-const FIELD_LABELS: Record<string, string> = { email: 'Email', password: '密碼' }
+const FIELD_LABELS: Record<string, string> = { email: 'Email', password: '密碼', captcha: '驗證碼' }
 
 // 只檢查必填。Email 格式與密碼規則都不在登入檢查：已經存在的帳號可能不符合現行規則
 // （例：經 API 註冊的 a@b.c），後端的登入也不檢查格式
 const rules: FormRules = {
   email: [{ required: true, message: '請輸入 Email', trigger: SUBMIT_ONLY }],
   password: [{ required: true, message: '請輸入密碼', trigger: SUBMIT_ONLY }],
+  captcha: [{ required: true, message: '請輸入驗證碼', trigger: SUBMIT_ONLY }],
 }
-useClearErrorOnEdit(formRef, form)
+useClearErrorOnEdit(formRef, form, serverErrors)
 
 async function submit() {
   const invalid = await validateForm(formRef)
@@ -48,14 +52,23 @@ async function submit() {
     focusFirstError(formRef)
     return
   }
+  serverErrors.value = {}
   submitting.value = true
   try {
-    await auth.login(form.value.email, form.value.password)
+    await auth.login(form.value.email, form.value.password, {
+      id: captchaRef.value?.captchaId ?? null,
+      answer: form.value.captcha,
+    })
     ElMessage.success('登入成功')
     // replace：按上一頁不會回到登入頁
     router.replace(redirect ?? '/')
   } catch (e) {
     const result = readApiErrors(e, '登入失敗，請稍後再試')
+    // 驗證碼送出一次就作廢（答錯、密碼錯都一樣），換一張再讓使用者重試。
+    // 換圖會清空輸入，觸發「修改時清掉錯誤」，所以等清完再標上驗證碼的錯誤
+    await captchaRef.value?.refresh()
+    await nextTick()
+    if (result?.errors.captcha) serverErrors.value = { captcha: result.errors.captcha }
     if (!result) {
       await alertNetworkError()
     } else if (result.status === 403) {
@@ -147,6 +160,9 @@ async function offerResend(message: string) {
           >忘記密碼？</RouterLink
         >
       </p>
+      <el-form-item label="驗證碼" prop="captcha" :error="serverErrors.captcha">
+        <CaptchaInput ref="captchaRef" v-model="form.captcha" />
+      </el-form-item>
       <el-button type="primary" native-type="submit" :loading="submitting" class="auth-submit">
         {{ submitting ? '登入中' : '登入' }}
       </el-button>

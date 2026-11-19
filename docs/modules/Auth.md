@@ -13,6 +13,7 @@
 | 申請重設密碼 | 訪客 | `POST /api/auth/password-reset-emails` | `ForgotPasswordView.vue`（`/forgot-password`，登入頁的「忘記密碼？」） |
 | 重設密碼 | 訪客 | `POST /api/auth/password-resets` | `ResetPasswordView.vue`（`/reset-password?token=`，重設密碼信中的連結） |
 | 登入 | 訪客 | `POST /api/auth/login` | `LoginView.vue`（`/login`） |
+| 取得驗證碼 | 訪客 | `POST /api/captchas` | 登入頁的驗證碼欄位（`CaptchaInput.vue`） |
 | 登出 | 會員 | 沒有（前端清除 token） | header 的「登出」（`App.vue`） |
 | 取得目前使用者 | 會員 | `GET /api/auth/me` 🔒 | 沒有畫面；`App.vue` 啟動時呼叫 |
 | 修改密碼 | 會員 | `PUT /api/auth/password` 🔒 | 沒有畫面（前端 `AuthService.changePassword` 已寫好，但沒有地方呼叫） |
@@ -22,9 +23,10 @@
 [Commands/](../../src/Konbini.Api/Features/Auth/Commands/)、
 [PasswordPolicy.cs](../../src/Konbini.Api/Features/Auth/Models/PasswordPolicy.cs)、
 [EmailVerificationToken.cs](../../src/Konbini.Api/Features/Auth/Models/EmailVerificationToken.cs)、
-[PasswordResetToken.cs](../../src/Konbini.Api/Features/Auth/Models/PasswordResetToken.cs)。
+[PasswordResetToken.cs](../../src/Konbini.Api/Features/Auth/Models/PasswordResetToken.cs)、
+驗證碼 [Features/Captcha/](../../src/Konbini.Api/Features/Captcha/)。
 業務決策：[decisions/Auth.md](decisions/Auth.md)。
-前端：[features/Auth/](../../src/Konbini.Client/src/features/Auth/)。
+前端：[features/Auth/](../../src/Konbini.Client/src/features/Auth/)、[features/Captcha/](../../src/Konbini.Client/src/features/Captcha/)。
 
 ## 流程：註冊與 Email 驗證
 
@@ -46,10 +48,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  L["登入頁按「登入」"] --> V{"前端檢查<br>必填"}
+  L["登入頁按「登入」"] --> V{"前端檢查<br>必填（含驗證碼）"}
   V -- 沒過 --> M1["modal「無法登入」"]
-  V -- 通過 --> API["POST /api/auth/login"]
+  V -- 通過 --> API["POST /api/auth/login<br>header 帶驗證碼"]
   API -- 200 --> OK["存 token，提示「登入成功」<br>導向首頁"]
+  API -- "400 驗證碼" --> M5["modal「登入失敗」<br>驗證碼欄位標出錯誤"]
+  API -. 不論結果 .-> NC["換一張新的驗證碼"]
   API -- 401 --> M2["modal「登入失敗」"]
   API -- 403 --> M4["modal「尚未完成 Email 驗證」<br>（見上方的流程）"]
   API -- 連不到 --> M3["modal「連線失敗」"]
@@ -132,17 +136,23 @@ flowchart TD
 
 | 情況 | 狀態碼 | 回應 |
 |---|---|---|
+| 沒有帶驗證碼（`X-Captcha-Answer` 空白） | 400 | `captcha`：請輸入驗證碼 |
+| 驗證碼錯誤、過期、用過或找不到 | 400 | `captcha`：驗證碼錯誤或已過期，請輸入新的驗證碼 |
 | Email 或密碼是空的 | 400 | `general`：請輸入帳號與密碼 |
 | 帳號不存在（含已軟刪除），或密碼錯誤 | 401 | `general`：帳號或密碼錯誤 |
 | 密碼正確，但還沒完成 Email 驗證 | 403 | `general`：此帳號尚未完成 Email 驗證，請到信箱點驗證連結 |
 | 成功 | 200 | `{ "token": "…", "user": { "id", "name", "email", "phone" } }` |
 
+- 先檢查驗證碼，通過才檢查帳號密碼：驗證碼沒過時，看不出密碼對不對、帳號驗證了沒有。
+- 驗證碼由 `POST /api/captchas` 產生，回 `{ id, image, expiresIn }`；送出時放在 `X-Captcha-Id`、`X-Captcha-Answer` header。
+  答案 5 個字元（不含 0 O 1 I L），不分大小寫；2 分鐘內有效，只能送出一次，答錯也作廢。
+  開發環境的 `X-Captcha-Answer` 填 `KONBI` 一律通過（[DD-AUT-003](decisions/Auth.md)）。
 - 帳號不存在與密碼錯誤回同一則訊息，避免從回應判斷哪些 Email 註冊過。
 - 密碼正確才檢查驗證狀態：密碼錯誤的未驗證帳號照樣回 401，不知道密碼的人看不出帳號驗證了沒有。
 - 2026-11-12 Email 驗證上線前就存在的帳號視為已驗證（Migration 填入當時的時間）。
 - Email 轉小寫、去前後空白後比對，所以大小寫不同也能登入。
 - 登入不檢查密碼規則：以前註冊、不符合現行規則的帳號仍然登得進去。
-- 沒有登入次數限制（CLAUDE.md §6「明確不做」的登入速率限制）。
+- 沒有登入次數限制（CLAUDE.md §6「明確不做」的登入速率限制）；驗證碼擋的是自動化程式，換一張就能再試。
 - token 是 JWT，效期 8 小時，內容只有使用者 Id（`sub`）。
 
 ### Email 驗證
@@ -243,6 +253,9 @@ flowchart TD
   「請確認 Email 與密碼後再試一次。」。403 時 modal 標題「尚未完成 Email 驗證」，主按鈕「重寄驗證信」、次按鈕「關閉」；
   按重寄後寄出驗證信並導向 `/verify-email/sent`。成功時提示「登入成功」，一律導向首頁。
   密碼欄下方有「忘記密碼？」，已經輸入的 Email 以 history state 帶到 `/forgot-password`。
+  「忘記密碼？」下方是驗證碼：圖片、「換一張」與輸入框（提示「不分大小寫；看不清楚可以按「換一張」」）。
+  每次送出後都換一張新的；驗證碼錯誤時 modal 標題「登入失敗」，訊息同時標在驗證碼欄位下方。
+  效期到前 5 秒自動換一張，提示改成「驗證碼已過期，已換成新的一張」；圖片載入失敗時顯示「圖片載入失敗」。
 - **忘記密碼（`/forgot-password`）**：只給訪客（已登入時導回首頁）。送出後在表單上方顯示「已送出申請：{Email}」
   （去頭尾空白、轉小寫後的形式）與「如果這個 Email 已註冊，我們已寄出重設密碼信，請在 30 分鐘內點信中的連結。
   沒有收到的話，請確認上方的 Email 是否正確，或查看垃圾郵件匣。」，按鈕倒數 60 秒，倒數完變成「再寄一次」。
@@ -273,6 +286,7 @@ flowchart TD
 都在 [CLAUDE.md §6](../../CLAUDE.md#6-分支與-cicd)：
 
 - 清除長期未驗證的帳號、改 Email 後重新驗證（[DD-AUT-001](decisions/Auth.md) 的「未做」）。
-- 「圖形驗證碼」、「第三方登入（Google、LINE）」。
+- 「第三方登入（Google、LINE）」。
+- 註冊、重寄驗證信、忘記密碼的圖形驗證碼（[DD-AUT-003](decisions/Auth.md) 的「未做」；目前只有登入有驗證碼）。
 - 「refresh token」：登出、改密碼、重設密碼後讓舊 token 提早作廢。
 - 修改密碼的畫面：§6 沒有列；[CLAUDE.md §2](../../CLAUDE.md#2-架構決策)「表單錯誤」提到有改密碼表單時要再檢視一次錯誤呈現方式。

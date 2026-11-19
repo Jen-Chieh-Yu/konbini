@@ -25,6 +25,10 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
     <!-- 寄信（MIT）；Email 驗證與之後的忘記密碼共用 -->
     <PackageReference Include="MailKit" Version="4.*" />
+    <!-- 圖形驗證碼（MIT）。主套件只帶 Windows／macOS 原生檔，Linux 容器要另加 NativeAssets.Linux；
+         兩者版號必須相同（受管理層與原生層一一對應），所以釘死、不用萬用字元，升級時一起改 -->
+    <PackageReference Include="SkiaSharp" Version="4.157.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.157.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.*" />
   </ItemGroup>
 

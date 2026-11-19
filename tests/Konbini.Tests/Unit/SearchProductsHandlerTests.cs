@@ -76,6 +76,19 @@ public class SearchProductsHandlerTests
         Assert.Empty(await KeywordsPassedFor("　 "));
     }
 
+    [Fact]
+    public async Task NulCharacter_SplitsKeywords()
+    {
+        // PostgreSQL 的文字參數不接受 NUL，原本會變成 500
+        Assert.Equal(["pocky", "辛拉麵"], await KeywordsPassedFor("pocky\0辛拉麵"));
+    }
+
+    [Fact]
+    public async Task NulOnly_PassesNoKeywords()
+    {
+        Assert.Empty(await KeywordsPassedFor("\0\0"));
+    }
+
     private static async Task<string[]> KeywordsPassedFor(string keyword)
     {
         var repository = new FakeProductRepository();
