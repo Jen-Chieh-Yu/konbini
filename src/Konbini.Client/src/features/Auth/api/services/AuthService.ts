@@ -1,4 +1,6 @@
 import instance from '@shared/api/axios'
+import type { CaptchaAnswer } from '@features/Captcha/api/interfaces/CaptchaDTO'
+import { CaptchaService } from '@features/Captcha/api/services/CaptchaService'
 
 import { AuthApi } from '../constants/ApiEndpoints'
 import type {
@@ -15,8 +17,11 @@ import type {
 } from '../interfaces/AuthDTO'
 
 export const AuthService = {
-  login: async (data: LoginRequestDTO): Promise<LoginResponseDTO> => {
-    const res = await instance.post<LoginResponseDTO>(AuthApi.login, data)
+  /** 驗證碼沒過時回 400，errors 的 key 是 captcha */
+  login: async (data: LoginRequestDTO, captcha: CaptchaAnswer): Promise<LoginResponseDTO> => {
+    const res = await instance.post<LoginResponseDTO>(AuthApi.login, data, {
+      headers: CaptchaService.toHeaders(captcha),
+    })
     return res.data
   },
 

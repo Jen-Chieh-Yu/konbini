@@ -3,7 +3,7 @@
 API 的設定來自四個地方，**後面的蓋過前面的**：
 
 1. `appsettings.json`：所有環境共用、非機密的預設值（進版控）
-2. `appsettings.{Environment}.json`：依環境調整（目前只有 Development 的 log 等級）
+2. `appsettings.{Environment}.json`：依環境調整（目前只有 Development 的 log 等級與驗證碼的固定答案）
 3. 根目錄的 `.env`：**只在本機 `dotnet run`／`dotnet watch`（Development）**，由 `LocalDotEnv` 讀取並對應成 .NET 設定鍵
 4. 環境變數、命令列參數：容器由 compose 的 `environment:` 注入；本機在 Rider 或終端機設定的也算
 
@@ -41,6 +41,7 @@ API 的設定來自四個地方，**後面的蓋過前面的**：
 | `Email:Smtp:Host` | SMTP 主機 | `appsettings.json` | compose：`mailpit` | 否 | 是 | — | `127.0.0.1`（空值時啟動失敗）。不寫 `localhost`：Windows 會先試 `::1`，mailpit 只綁 IPv4，每封信多等 2 秒 |
 | `Email:Smtp:Port` | SMTP 埠 | `appsettings.json` | compose：`1025` | 否 | 是 | 1–65535 的整數 | `1025`（格式錯誤時啟動失敗） |
 | `App:ClientBaseUrl` | 前端的網址，驗證信中的連結指向這裡 | `appsettings.json` | override：`http://localhost:5173`；prod：`.env` 的 `APP_CLIENT_BASE_URL` | 否 | 是 | 完整的 http(s) 網址 | `http://localhost:5173`（不是完整網址時啟動失敗） |
+| `Captcha:DevelopmentAnswer` | 開發環境的驗證碼固定答案，這個答案一律通過（Scalar、PowerShell 測試登入用） | `appsettings.Development.json`：`KONBI` | override：同左（Development）；prod：不設 | 否 | 否 | 不分大小寫；用驗證碼不會出現的字元（`O`、`I`），才不會和真的答案混在一起 | 不設。只在 Development 讀；其他環境設了就啟動失敗 |
 | `Logging:LogLevel:*` | log 等級 | `appsettings.json`、`appsettings.Development.json` | 同左 | 否 | 否 | — | `Default`：Information；`Microsoft.AspNetCore`：Warning（Development 為 Information） |
 | `AllowedHosts` | 允許的 Host 標頭 | `appsettings.json` | 同左 | 否 | 否 | — | `*` |
 | `ASPNETCORE_ENVIRONMENT` | 環境名稱，決定是否讀 `.env`、是否開 Scalar | `launchSettings.json`：Development | override：Development；prod：Production | 否 | — | — | Production |

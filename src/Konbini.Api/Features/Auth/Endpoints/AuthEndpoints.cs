@@ -1,3 +1,4 @@
+using Konbini.Api.Features.Captcha.Endpoints;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Web;
@@ -26,7 +27,7 @@ public class AuthEndpoints : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         // 未實作登入速率限制：本專案為學習用途、不正式上線（CLAUDE.md §6）。
-        // 若日後對外開放，這是上線前必補項（暴力破解防護）。
+        // 若日後對外開放，這是上線前必補項（暴力破解防護）。圖形驗證碼擋的是自動化程式，不限制次數。
         group.MapPost("/login", async (
                 LoginRequest request,
                 ICommandHandler<LoginCommand, Result<LoginResponse>> handler,
@@ -39,7 +40,8 @@ public class AuthEndpoints : IEndpoint
             .Produces<LoginResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .RequireCaptcha();
 
         // 信中的連結指向前端頁面，由頁面送這個 POST：信箱的連結掃描器會先開啟 GET 連結，不能讓 GET 改狀態
         group.MapPost("/email-verifications", async (

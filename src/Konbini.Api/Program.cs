@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Konbini.Api.Features.Captcha.Models;
+using Konbini.Api.Features.Captcha.Services;
 using Konbini.Api.Features.Common.Abstractions;
 using Konbini.Api.Features.Auth.Services;
 using Konbini.Api.Features.Common.Auth;
@@ -59,6 +61,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton(EmailOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddSingleton(AppOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddSingleton<IEmailSender, MailKitEmailSender>();
+
+// --- 圖形驗證碼（登入）：開發環境以外設定了固定答案就啟動失敗 ---
+builder.Services.AddSingleton(CaptchaOptions.FromConfiguration(builder.Configuration, builder.Environment));
+builder.Services.AddSingleton<ICaptchaStore, MemoryCaptchaStore>();
+builder.Services.AddSingleton<ICaptchaImageRenderer, SkiaCaptchaImageRenderer>();
 
 // --- 應用服務與 endpoint/handler 註冊 ---
 builder.Services.AddHttpContextAccessor();
