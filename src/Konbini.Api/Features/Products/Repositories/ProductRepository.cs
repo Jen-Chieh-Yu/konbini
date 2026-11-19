@@ -31,6 +31,13 @@ public interface IProductRepository : IRepository
     /// </summary>
     /// <param name="modifiedBy">異動者的使用者 Id；ExecuteUpdate 不經過 AuditInterceptor，要自己傳。</param>
     Task<bool> TryDeductStockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct);
+
+    /// <summary>
+    /// 把件數加回庫存（取消訂單）。已軟刪除的商品也加回去：庫存是實際收回的貨，商品之後恢復上架時件數才正確。
+    /// 立即執行（ExecuteUpdate）：要和訂單狀態一起成立時，呼叫端先開 IUnitOfWork 的交易。
+    /// </summary>
+    /// <param name="modifiedBy">異動者的使用者 Id；ExecuteUpdate 不經過 AuditInterceptor，要自己傳。</param>
+    Task RestockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct);
 }
 
 public sealed class ProductRepository(AppDbContext db) : IProductRepository
@@ -106,5 +113,16 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
                 .SetProperty(p => p.ModifiedOn, now)
                 .SetProperty(p => p.ModifiedBy, modifiedBy), ct);
         return affected == 1;
+    }
+
+    public async Task RestockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        await db.Products.IgnoreQueryFilters()
+            .Where(p => p.Id == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.Stock, p => p.Stock + quantity)
+                .SetProperty(p => p.ModifiedOn, now)
+                .SetProperty(p => p.ModifiedBy, modifiedBy), ct);
     }
 }

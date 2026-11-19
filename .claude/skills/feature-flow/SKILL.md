@@ -131,6 +131,7 @@ description: 從業務需求到可送審的分支：釐清需求與待決定的�
 | 文件 | `docs/`、`README.md`、`CLAUDE.md`、`.claude/skills/` | `docs` |
 
 - **測試跟著它測的程式碼放在同一段**，不要另開「測試」commit。
+- **彼此獨立、能各自運作的用例拆成不同的 Pull Request**；共用 Migration 或 DTO 的用例留在同一支，維持「後端 → 前端 → 文件」分段，不先依用例分（先依用例分的話，後端的改動散在好幾個 commit，共用的 Migration 只能放進第一個用例）。
 - **CI、Dockerfile、compose 跟著它服務的那一層**，例如 API 回傳格式變了，冒煙測試的 `jq` 就放在後端那段；
   跟功能無關的獨立成一段（`ci:`、`chore:`），放在文件之前。
 - 每一段用 `git add <路徑>` 加入，commit 前用 `git status --short` 確認沒有漏掉或多加的檔案；

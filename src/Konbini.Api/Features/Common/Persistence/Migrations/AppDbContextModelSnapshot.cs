@@ -266,6 +266,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CancelledOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_on");
+
                     b.Property<int>("CityCode")
                         .HasColumnType("integer")
                         .HasColumnName("city_code");
@@ -320,6 +324,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                     b.Property<DateTime>("ModifiedOn")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_on");
+
+                    b.Property<short>("OrderStatus")
+                        .HasColumnType("smallint")
+                        .HasColumnName("order_status");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint")

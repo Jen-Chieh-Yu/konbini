@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAxiosError } from 'axios'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { OrderService } from '../api/services/OrderService'
@@ -6,26 +7,59 @@ import type { OrderDTO } from '../api/interfaces/OrderDTO'
 import AppStatePanel from '@shared/components/AppStatePanel.vue'
 import { formatMoney } from '@shared/constants/catalog'
 import { formatDateTime } from '@shared/utils/formatDateTime'
+import OrderStatusTag from '../components/OrderStatusTag.vue'
 
 const route = useRoute()
 const order = ref<OrderDTO | null>(null)
 /** not-found：不存在、不是自己的訂單或網址打錯；error：連線或伺服器問題，可以重試 */
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
+const cancelling = ref(false)
 
-async function load() {
+/** showLoading=false：取消後重新載入時不換成轉圈，畫面不閃動 */
+async function load(showLoading = true) {
   const raw = String(route.params.id)
   // 不是正整數的網址（/orders/abc）後端也對不到，不必送請求
   if (!/^[1-9]\d*$/.test(raw)) {
     status.value = 'not-found'
     return
   }
-  status.value = 'loading'
+  if (showLoading) status.value = 'loading'
   try {
     order.value = await OrderService.getOrder(Number(raw))
     status.value = order.value ? 'ready' : 'not-found'
   } catch {
     status.value = 'error'
   }
+}
+
+async function cancelOrder() {
+  if (!order.value) return
+  const id = order.value.id
+  // 按鈕寫明「取消訂單」「保留訂單」：預設的「確定」「取消」會讓人分不清哪一個是取消訂單
+  const confirmed = await ElMessageBox.confirm(
+    `確定要取消訂單 #${id} 嗎？取消後無法復原。`,
+    '取消訂單',
+    { type: 'warning', confirmButtonText: '取消訂單', cancelButtonText: '保留訂單' },
+  )
+    .then(() => true)
+    .catch(() => false)
+  if (!confirmed) return
+
+  cancelling.value = true
+  try {
+    await OrderService.cancelOrder(id)
+    ElMessage.success('訂單已取消')
+  } catch (e) {
+    // 409（已經取消）、404 顯示後端的訊息；連不到伺服器時請使用者稍後再試
+    const message = isAxiosError<{ errors?: Record<string, string> }>(e)
+      ? e.response?.data?.errors?.general
+      : undefined
+    ElMessage.error(message ?? '訂單取消失敗，請稍後再試')
+  } finally {
+    cancelling.value = false
+  }
+  // 成功或 409 都重新載入，畫面才是伺服器上的狀態
+  await load(false)
 }
 
 // 離開本頁時 params 也會變（id 變成 undefined），要擋掉，否則會多發一次請求
@@ -53,14 +87,23 @@ onMounted(load)
     title="暫時看不到這筆訂單"
     description="連線好像出了點問題，稍等一下再重新載入。"
   >
-    <el-button type="primary" plain @click="load">重新載入</el-button>
+    <el-button type="primary" plain @click="load()">重新載入</el-button>
   </AppStatePanel>
   <article v-else-if="order" class="order-detail">
     <RouterLink to="/orders" class="back-link">‹ 我的訂單</RouterLink>
     <header class="detail-head">
       <h2>訂單 #{{ order.id }}</h2>
+      <OrderStatusTag :status="order.status" />
       <time :datetime="order.createdAt">{{ formatDateTime(order.createdAt) }}</time>
     </header>
+    <el-alert
+      v-if="order.cancelledAt"
+      type="info"
+      :closable="false"
+      show-icon
+      :title="`已於 ${formatDateTime(order.cancelledAt)} 取消`"
+      class="cancelled-note"
+    />
 
     <el-row :gutter="20">
       <el-col :xs="24" :md="15">
@@ -120,6 +163,14 @@ onMounted(load)
             }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
+        <el-button
+          v-if="order.status === 'pending'"
+          class="cancel-btn"
+          :loading="cancelling"
+          @click="cancelOrder"
+        >
+          取消訂單
+        </el-button>
       </el-col>
     </el-row>
   </article>
@@ -150,6 +201,18 @@ onMounted(load)
 }
 .panel {
   margin-bottom: 1rem;
+}
+.cancelled-note {
+  margin-bottom: 1rem;
+  /* info 的灰字對比只有約 2.9:1，改用內文色 */
+  --el-color-info: var(--kb-ink);
+}
+/* 觸控目標至少 44px；el-button 的高度寫死 32px，只能直接指定（同 AppStatePanel） */
+.cancel-btn {
+  width: 100%;
+  height: var(--kb-tap);
+  /* Element 的 danger 沒有接上主題色、對比不足；用一般按鈕加深紅字，確認對話框才用主色按鈕 */
+  color: var(--kb-brand-dark);
 }
 .items {
   list-style: none;

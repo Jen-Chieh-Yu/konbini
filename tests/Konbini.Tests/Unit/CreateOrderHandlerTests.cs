@@ -111,6 +111,18 @@ public class CreateOrderHandlerTests
     }
 
     [Fact]
+    public async Task NewOrder_IsPending()
+    {
+        var orders = new FakeOrderRepository();
+
+        var result = await Handle(ValidRequest(), new FakeUnitOfWork(), orders);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(OrderStatus.Pending, orders.Added!.OrderStatus);
+        Assert.Null(orders.Added.CancelledOn);
+    }
+
+    [Fact]
     public async Task NullItem_ReturnsItemsError_WithoutSaving()
     {
         var uow = new FakeUnitOfWork();
@@ -363,6 +375,8 @@ public class CreateOrderHandlerTests
 
         public Task<PagedResult<OrderDto>> GetByUserAsync(int userId, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
         public Task<OrderDto?> GetByIdAsync(int id, int userId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<OrderCancelSnapshot?> GetCancelSnapshotAsync(int id, int userId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> TryCancelAsync(int id, int userId, CancellationToken ct) => throw new NotSupportedException();
     }
 
     /// <param name="stocks">商品 Id → 庫存；沒給時只有 ProductId 一項、庫存充足。</param>
@@ -399,6 +413,7 @@ public class CreateOrderHandlerTests
         public Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct) => throw new NotSupportedException();
         public Task<PagedResult<ProductDto>> SearchAsync(string[] keywords, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
+        public Task RestockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class FakeAddressRepository : IAddressRepository

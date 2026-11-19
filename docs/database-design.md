@@ -90,6 +90,14 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 - 加欄位的 Migration 把既有商品填成 100；新資料庫由種子資料（`products.csv` 的 `Stock` 欄）給值。
 - 扣庫存的寫法見下方「交易」；規則與理由見 docs/modules/decisions/Orders.md DD-ORD-002。
 
+## 訂單狀態
+
+- orders.order_status（smallint NOT NULL）：訂單狀態，C# 是 `OrderStatus : short`（1 = 處理中、9 = 已取消）。數值留間隔，之後的已出貨、已完成插在中間，不必改既有資料。和共用欄位的 status（稽核與軟刪除）是兩件事。
+- orders.cancelled_on（timestamptz，可為 null）：取消的時間；modified_on 之後有其他異動會被覆蓋，所以另外記錄。
+- 加欄位的 Migration 把既有訂單填成 1（處理中）；工具產生的預設值是 0，要手動改。
+- 不加檢查約束：值只由程式寫入，不會被算術更新（和 `ck_products_stock` 的情況不同）。
+- 規則與理由見 docs/modules/decisions/Orders.md DD-ORD-003。
+
 ## Email 驗證
 
 - users.email_verified_on（timestamptz，可為 null）：完成 Email 驗證的時間，null 表示還沒驗證、不能登入。
@@ -137,4 +145,5 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 - 扣庫存用條件式更新：`Where(p => p.Id == id && p.Stock >= 數量).ExecuteUpdateAsync(...)`，影響 0 筆就是庫存不足。
   不要讀出庫存在 C# 裡減完再存回去：兩筆訂單同時讀到同一個數字就會超賣。
 - 一筆訂單扣多項商品時，依商品 Id 由小到大扣：兩筆訂單才不會各自鎖住一項、等待對方而死結。
+- 取消訂單（改狀態、歸還庫存）在同一個交易內：先用條件式更新改狀態（`Where(o => … && o.OrderStatus == OrderStatus.Pending).ExecuteUpdateAsync(...)`），影響 0 筆就是已經取消，不歸還庫存；改到了才依商品 Id 由小到大 `stock = stock + 數量`。已軟刪除的商品也歸還（`IgnoreQueryFilters`）。
 - `ExecuteUpdate`／`ExecuteDelete` 不經過 `AuditInterceptor`，`modified_on`、`modified_by` 要在同一個 `SetProperty` 裡自己設。

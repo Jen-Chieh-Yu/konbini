@@ -32,4 +32,9 @@ export const OrderService = {
       throw e
     }
   },
+
+  // 取消訂單；成功時沒有內容（204）。失敗（404、409）照樣丟出，由畫面顯示後端的訊息
+  cancelOrder: async (id: number): Promise<void> => {
+    await instance.post(OrderApi.cancel(id))
+  },
 }

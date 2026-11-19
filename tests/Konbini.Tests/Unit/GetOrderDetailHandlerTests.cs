@@ -15,7 +15,7 @@ public class GetOrderDetailHandlerTests
 
     private static readonly OrderDto OwnOrder = new(
         OrderId, 100, 60, 160, "王小明", "0912345678", "臺北市中正區中正路 1 號", null,
-        new DateTime(2026, 11, 16, 6, 5, 0, DateTimeKind.Utc),
+        new DateTime(2026, 11, 16, 6, 5, 0, DateTimeKind.Utc), OrderStatus.Pending, null,
         [new OrderItemDto(1, "商品", 100, 1, 100, null)]);
 
     private static Task<Result<OrderDto>> Handle(int userId, int orderId) =>
@@ -54,5 +54,7 @@ public class GetOrderDetailHandlerTests
 
         public Task<PagedResult<OrderDto>> GetByUserAsync(int userId, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
         public void Add(Order order) => throw new NotSupportedException();
+        public Task<OrderCancelSnapshot?> GetCancelSnapshotAsync(int id, int userId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> TryCancelAsync(int id, int userId, CancellationToken ct) => throw new NotSupportedException();
     }
 }

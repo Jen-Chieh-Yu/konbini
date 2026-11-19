@@ -28,6 +28,9 @@ export interface OrderItemDTO {
   imageUrl?: string
 }
 
+/** 訂單狀態；後端的 OrderStatus 以小寫字串回傳 */
+export type OrderStatus = 'pending' | 'cancelled'
+
 export interface OrderDTO {
   id: number
   subtotal: number
@@ -38,5 +41,8 @@ export interface OrderDTO {
   deliveryAddress: string
   memo?: string
   createdAt: string
+  status: OrderStatus
+  /** 取消的時間；沒有取消時是 null */
+  cancelledAt: string | null
   items: OrderItemDTO[]
 }

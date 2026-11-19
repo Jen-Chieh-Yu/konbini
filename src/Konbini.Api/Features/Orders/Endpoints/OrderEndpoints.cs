@@ -55,5 +55,20 @@ public class OrderEndpoints : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .Produces(StatusCodes.Status401Unauthorized);
+
+        group.MapPost("/{id:int}/cancel", async (
+                int id,
+                ICurrentUser currentUser,
+                ICommandHandler<CancelOrderCommand, Result> handler,
+                CancellationToken ct)
+            =>
+            {
+                var result = await handler.Handle(new(currentUser.Id, id), ct);
+                return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
+            })
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .Produces(StatusCodes.Status401Unauthorized);
     }
 }
