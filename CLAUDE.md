@@ -328,6 +328,19 @@ compose 檔本身與部署流程完全跨平台。
 Dockerfile 為此加了 `base` 階段（VS 與 Rider 的 Fast mode 偵錯都只建 base 層、原始碼用掛載），
 對 prod 建置行為無影響。
 
+### API 映像只帶目標架構的原生檔（2026-11-18 定案）
+
+圖形驗證碼用的 SkiaSharp 帶有原生檔。Dockerfile 的 publish 原本不指定 RID，所有平台的原生檔都會放進映像，
+Windows 版還附帶各約 96 MB 的除錯符號：發佈輸出從 19 MB 變成 498 MB。改成依 `TARGETARCH` 指定
+`linux-x64`／`linux-arm64`（framework-dependent，`--self-contained false`）後是 31 MB。
+
+- **用 `TARGETARCH`，不用 `uname -m`**：BuildKit 依建置平台帶入，跨平台建置（`--platform`）時也正確；CI 的 matrix 本來就各在原生機器上建置。
+- **只改 publish**：本機建置、測試與 CI 的後端 job 不指定 RID，各平台的原生檔都在，Windows、macOS、Linux 都能直接跑。
+- **SkiaSharp 兩個套件的版號釘死、一起升級**：受管理層與原生層一一對應，版號不同時執行期才會出錯。
+  Linux 用 `NativeAssets.Linux.NoDependencies`：不依賴 fontconfig，`aspnet:10.0` 不用多裝套件（驗證碼的字形是自己畫的，不需要字型）。
+
+放棄的東西：需要 BuildKit（Docker 23 起預設），舊的 builder 建置時會失敗並提示；只支援 amd64、arm64。
+
 ### 對外入口是 nginx（2026-08-31 定案）
 
 nginx（client 容器）是唯一入口：SPA 靜態檔 + `/api` 反代。
@@ -572,7 +585,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | 前端 feature 頁面遷移到 UI 規範（Element Plus 元件、el-row／el-col、`formatMoney`、四種畫面狀態） | 隨各模組 CRUD 改版；目前 App.vue、HomeView、Auth 的登入、註冊頁（2026-11-11）與訂單明細頁（2026-11-16）照規範（見 `docs/ui-guidelines.md`）。遷移時一併處理（2026-11-12 全站掃描）：商品、搜尋列表的錯誤與空資料狀態；加入購物車的回饋，明細頁數量輸入用 min／max 限制，不默默截斷；結帳頁縣市／行政區載入失敗的處理、快速切換縣市時舊回應蓋掉新選項、~~送出成功的回饋~~（已實施（2026-11-16）：提示「訂單已送出」並導向明細頁）；header 搜尋列改用 Element Plus 並達 44px、搜尋頁不重複放搜尋框；header 的「我的訂單」與「登入／登出」統一依同一個狀態顯示；~~訂單時間轉 Asia/Taipei 顯示~~（已實施（2026-11-16）：`shared/utils/formatDateTime.ts`，列表與明細共用） |
 | ~~Email 驗證（可延伸到忘記密碼）~~ | 已實施（2026-11-12）：註冊後寄驗證信，未完成驗證的帳號登入回 403；寄信用 MailKit，抽成 `Common/Email` 的 `IEmailSender`（之後與忘記密碼共用），寄信設定在啟動時檢查（`EmailOptions`、`AppOptions`）。token 效期 24 小時、只存 SHA-256 雜湊值，重寄冷卻 60 秒，既有帳號視為已驗證；業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-001，設定鍵見 `docs/configuration.md`。忘記密碼見下一列 |
 | ~~忘記密碼~~ | 已實施（2026-11-16）：申請 `POST /api/auth/password-reset-emails`、重設 `POST /api/auth/password-resets`；token 另開 `password_reset_tokens`，效期 30 分鐘、只能用一次，產生與雜湊抽成和 Email 驗證共用的 `SecureToken`。回應一致（帳號不存在、冷卻 60 秒內都回 204），畫面列出剛送出的 Email 讓使用者自己核對；重設後不自動登入、寄通知信，已發出的 JWT 不作廢（見上方 refresh token）。業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-002 |
-| 圖形驗證碼 | 練習題，不是防護需求（同「明確不做」的登入速率限制，2026-11-10 記錄）；接在 Email 驗證之後，先保護會寄信的端點（重寄驗證信、忘記密碼），再加到註冊與登入。檢查放 endpoint filter、不進 Handler（見 §2）。自己產生圖片用 SkiaSharp（MIT），或用 Cloudflare Turnstile（有一定通過的測試金鑰，CI 與本機可用） |
+| ~~圖形驗證碼~~ | 已實施（2026-11-18）：只保護登入（開工時使用者決定，原本計畫先保護會寄信的端點）。SkiaSharp 自己產生圖片，字形用線段自己畫、不嵌入字型；答案存在記憶體，2 分鐘內有效、只能送出一次；檢查放 `CaptchaEndpointFilter`（§2 提到的 endpoint filter 的第一個使用者）。開發環境的固定答案 `KONBI`（`Captcha:DevelopmentAnswer`，其他環境設了就啟動失敗）。映像只帶目標架構的原生檔（§4）。業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-003。註冊、重寄驗證信、忘記密碼仍然沒有驗證碼，要加時端點加 `.RequireCaptcha()`、畫面加 `CaptchaInput` |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
 | ~~前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步）~~ | 已實施（2026-11-12）：`flat/recommended`＋typescript-eslint `recommended`＋Prettier，錯誤與警告 0，CI 與 pre-push 一起阻擋；前端檔案強制 LF。理由見上方「為什麼前端 ESLint＋Prettier 的門檻也是 0」。原本預期要開的 unplugin-auto-import `eslintrc` 選項，實測不需要 |
 | 前端開發相依套件 minimatch 的弱點（GHSA-g3hv-75wg-m249，moderate，DoS）：ESLint 帶進的 minimatch 10.2.6 在受影響範圍（7.0.0–11.0.0）內，只有 11.x 修正。`eslint` 10.14.0、`@eslint/config-array` 0.23.5、`@typescript-eslint/typescript-estree` 8.72.2 都已是最新版，仍要求 `^10`，Dependabot 的安全性更新因此失敗（2026-11-13 記錄） | 上游接受 minimatch 11 之後，由 Dependabot 自動開 Pull Request；GitHub 上的 alert 不 dismiss，dismiss 之後就不會再開。現在不用 `overrides` 強制升級：跨主版本等於自己承擔上游還沒驗證過的組合，而且 11.0.0 在 2026-10-27 才發布。minimatch 只在 devDependencies，不會進打包成品；CI 的 `npm audit` 也只提醒、不阻擋。`npm audit fix --force` 會把 eslint 降回 9，不能用 |

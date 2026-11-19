@@ -113,6 +113,7 @@ Endpoint → Command/Query → Handler → Service → Repository
 
 成功時直接回傳資料本身，不要多包一層 wrapper（不用 `{ isSuccess, data }` 這類信封）。
 建立成功回 201＋Location，body 只放新資源的 id（例：`{ "id": 123 }`）。
+例外：`POST /api/captchas` 回 200 加整個內容（id、圖片、效期）：沒有讀取驗證碼的端點，圖片只在建立時給一次。
 
 失敗一律是 ProblemDetails（RFC 9457，`Content-Type: application/problem+json`），
 可預期的失敗（Result）與例外（GlobalExceptionHandler）同一種格式：
@@ -197,6 +198,9 @@ Endpoint → Command/Query → Handler → Service → Repository
   前端 `features/Auth/constants/passwordRules.ts` 有同一份規則，用來顯示強度、在送出時列出不符合的條件；
   改規則時兩邊要一起改。
   改密碼時，新密碼不可與目前密碼相同。
+- 圖形驗證碼放在 HTTP 層：端點加 `.RequireCaptcha()`（`CaptchaEndpointFilter`），檢查
+  `X-Captcha-Id`／`X-Captcha-Answer` header，沒過回 400、key `captcha`，不進 Handler，request DTO 也不用加欄位。
+  目前只有登入使用（DD-AUT-003）。
 - 業務規則驗證（庫存、金額、狀態轉換）在 Handler 或 Service，
   不要放在 Endpoint。
 - 唯一性檢查分兩段：先查，回友善訊息；提交時再接 `UniqueConstraintViolationException`，
