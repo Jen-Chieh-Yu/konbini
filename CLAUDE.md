@@ -408,6 +408,12 @@ Why：匿名訪客的購物車不值得佔資料庫或伺服器記憶體；而�
 前端送來的數字，是下單當下後端算了才算數——狀態放前端、裁決權放後端，
 兩者不衝突。
 
+**購物車校正用商品列表的 `ids` 篩選，不做試算端點（2026-11-20）**：購物車頁與結帳頁載入時以
+`GET /api/products?ids=` 取現價與庫存，前端自己重算預覽金額。後端只回價格與庫存，計價仍然只有下單一處；
+試算端點（`POST /api/orders/quotes`）要把 `CreateOrderHandler` 的合併與計價抽成共用，換來的只是運費規則少一份。
+放棄的東西：運費規則前後端各一份（同 `Pricing.cs` 與 `useCartStore` 的常數），之後有折扣、優惠券時要重新評估試算端點。
+業務規則見 `docs/modules/decisions/Cart.md` DD-CRT-001。
+
 ### 密碼（2026-08-31 定案）
 
 以 `Common/Auth` 的 PasswordHasher 雜湊儲存（PBKDF2 或 BCrypt），
@@ -608,7 +614,7 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步）~~ | 已實施（2026-11-12）：`flat/recommended`＋typescript-eslint `recommended`＋Prettier，錯誤與警告 0，CI 與 pre-push 一起阻擋；前端檔案強制 LF。理由見上方「為什麼前端 ESLint＋Prettier 的門檻也是 0」。原本預期要開的 unplugin-auto-import `eslintrc` 選項，實測不需要 |
 | 前端開發相依套件 minimatch 的弱點（GHSA-g3hv-75wg-m249，moderate，DoS）：ESLint 帶進的 minimatch 10.2.6 在受影響範圍（7.0.0–11.0.0）內，只有 11.x 修正。`eslint` 10.14.0、`@eslint/config-array` 0.23.5、`@typescript-eslint/typescript-estree` 8.72.2 都已是最新版，仍要求 `^10`，Dependabot 的安全性更新因此失敗（2026-11-13 記錄） | 上游接受 minimatch 11 之後，由 Dependabot 自動開 Pull Request；GitHub 上的 alert 不 dismiss，dismiss 之後就不會再開。現在不用 `overrides` 強制升級：跨主版本等於自己承擔上游還沒驗證過的組合，而且 11.0.0 在 2026-10-27 才發布。minimatch 只在 devDependencies，不會進打包成品；CI 的 `npm audit` 也只提醒、不阻擋。`npm audit fix --force` 會把 eslint 降回 9，不能用 |
 | E2E 測試（Playwright） | 練習題（2026-11-12 記錄）：接在 Testcontainers 整合測試與前端 Vitest 之後。CI 用 prod compose 起完整環境再跑（同冒煙測試），先涵蓋註冊 → 登入 → 加入購物車 → 下單這條主線。先決定測試資料怎麼準備、只在打包時跑還是每個 Pull Request 都跑 |
-| 購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄） | 庫存已導入（2026-11-18），另開一支處理，可一併校正購物車數量與庫存（同屬「購物車與後端不同步」，見 `docs/ui-guidelines.md`）：結帳頁載入時向後端取現價或試算金額，與購物車不同時提示。先決定要不要新增「依多個 Id 取商品」或試算端點 |
+| ~~購物車價格與現價不同步：加入購物車時存的價格與名稱不會更新，商品改價或下架後，結帳頁顯示的金額與實際成立的訂單不同，使用者送出前看不到實際金額（2026-11-12 記錄）~~ | 已實施（2026-11-20）：購物車頁與結帳頁載入時以 `GET /api/products?ids=` 校正，價格改成現價並提示、數量降到庫存並提示，售完與已下架（含已刪除）的列標示出來、不算進金額，移除後才能結帳；結帳送出被拒（400／409 的 `items`）時重新校正。理由見 §5「購物車放前端」，業務規則見 `docs/modules/decisions/Cart.md` DD-CRT-001。結帳 400「下列商品不存在」仍列 Id，留給權限管理的下架（停售回 409） |
 | ~~Email 格式前後端規則不同：前端 el-form 的 `type: 'email'` 比後端的 regex 嚴格，經 API 註冊的 `a@b.c` 這類帳號在登入頁送不出去（2026-11-12 記錄）~~ | 已實施（2026-11-17）：登入頁只檢查必填（同「登入不檢查密碼規則」的理由）；註冊、重寄驗證信、忘記密碼改用 `features/Auth/constants/emailFormat.ts`，複製後端 `User.IsValidEmailFormat` 的規則，前後端接受的 Email 相同。放棄的東西：規則有兩份，改的時候兩邊一起改（同密碼規則） |
 | 縣市／行政區只有示範資料：`DataSeeder` 只有台北市、新北市、高雄市各 2 區（2026-11-12 記錄） | 結帳頁遷移到 UI 規範時，或要讓別人試用時；先決定資料來源，匯入要走 Migration 或種子資料更新 |
 

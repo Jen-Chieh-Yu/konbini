@@ -1,6 +1,6 @@
 # 業務模組總覽
 
-更新日期：2026-11-18。新增模組、模組之間多了呼叫關係時，同步更新本文件。
+更新日期：2026-11-20。新增模組、模組之間多了呼叫關係時，同步更新本文件。
 
 這組文件記錄**各模組現有程式的實際行為**：誰能做什麼、規則與錯誤訊息原文、流程、對應的 API 與畫面。
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | Products | [Products.md](Products.md) | 商品列表、分類、明細與相關商品 | 後端＋前端 |
 | Search | [Search.md](Search.md) | 以關鍵字搜尋商品 | 後端＋前端（資料存取沿用 Products） |
-| Cart | [Cart.md](Cart.md) | 購物車與金額預覽 | 只有前端（Pinia＋localStorage） |
+| Cart | [Cart.md](Cart.md) | 購物車、金額預覽，以及與現價、庫存的校正 | 只有前端（Pinia＋localStorage） |
 | Orders | [Orders.md](Orders.md) | 下單、我的訂單、訂單明細 | 後端＋前端 |
 | Auth | [Auth.md](Auth.md) | 註冊、Email 驗證、登入、忘記密碼、登出、目前使用者、修改密碼 | 後端＋前端（修改密碼沒有畫面） |
 | Addresses | [Addresses.md](Addresses.md) | 縣市與行政區代碼表 | 後端＋前端 api（結帳頁使用，沒有自己的畫面） |
@@ -36,6 +36,7 @@ AppInfo（`GET /api/version`）只回傳版號與 commit，沒有業務規則，
 | Orders → Addresses | 下單時以 `IAddressRepository` 檢查縣市與行政區代碼，並組出寄送地址文字 |
 | Search → Products | 搜尋沒有自己的資料表，查詢寫在 `ProductRepository.SearchAsync`，回傳 Products 的 `ProductDto` |
 | Cart → Orders | 前端結帳頁把購物車的商品 Id 與數量送進 `POST /api/orders`；價格不送 |
+| Cart → Products | 前端購物車頁、結帳頁以 `GET /api/products?ids=` 取現價與庫存，校正購物車 |
 | Products、Search → Cart | 前端列表、明細、搜尋結果的「加入購物車」寫進 Cart 的 store |
 | Auth → Orders | 訂單 API 需要 JWT；使用者身分從 token 取得（`ICurrentUser`），不接受前端傳來的 userId |
 
