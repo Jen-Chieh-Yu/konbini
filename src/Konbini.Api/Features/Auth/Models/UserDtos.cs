@@ -15,7 +15,8 @@ public record LoginRequest(string Email, string Password);
 
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
-public record UserDto(int Id, string Name, string Email, string? Phone);
+/// <param name="Role">前端用來顯示後台入口；後台的防護在後端（Admin policy），不靠畫面隱藏。</param>
+public record UserDto(int Id, string Name, string Email, string? Phone, UserRole Role);
 
 public record LoginResponse(string Token, UserDto User);
 

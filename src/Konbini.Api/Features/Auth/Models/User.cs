@@ -19,6 +19,9 @@ public partial class User : AuditableEntity
     /// <summary>完成 Email 驗證的時間；null 表示還沒驗證，不能登入。</summary>
     public DateTime? EmailVerifiedOn { get; set; }
 
+    /// <summary>角色。註冊的帳號都是顧客；管理員只能由啟動時的 Admin:Email 設定產生（DataSeeder）。</summary>
+    public UserRole Role { get; set; } = UserRole.Customer;
+
     /// <summary>
     /// Email 以正規化後的小寫儲存與比對：主流信箱帳號都不分大小寫，
     /// 不正規化的話 Abc@x.com 與 abc@x.com 會變成兩個帳號（PostgreSQL 預設區分大小寫）。

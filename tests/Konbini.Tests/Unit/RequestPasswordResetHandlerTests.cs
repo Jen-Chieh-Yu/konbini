@@ -199,5 +199,6 @@ public class RequestPasswordResetHandlerTests
         public void Add(User user) => throw new NotSupportedException();
         public Task<User?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
         public Task<UserDto?> GetProfileAsync(int id, CancellationToken ct) => throw new NotSupportedException();
+        public Task<UserRole?> GetRoleAsync(int id, CancellationToken ct) => throw new NotSupportedException();
     }
 }
