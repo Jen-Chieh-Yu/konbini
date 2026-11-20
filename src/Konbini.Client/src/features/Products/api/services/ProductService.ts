@@ -6,6 +6,9 @@ import { ProductApi } from '../constants/ApiEndpoints'
 import type { ProductDTO, ProductDetailDTO } from '../interfaces/ProductDTO'
 import type { PagedResult } from '@shared/api/interfaces/PagedResult'
 
+// 與後端 PageRequest.MaxPageSize 對齊：依 Id 取商品時一次取完，不翻頁
+const MAX_PAGE_SIZE = 100
+
 // API 服務封裝
 export const ProductService = {
   // 商品列表（type = 0 為全部）；pageSize 不給時用後端預設
@@ -14,6 +17,16 @@ export const ProductService = {
       params: { type, page, pageSize },
     })
     return res.data
+  },
+
+  // 依 Id 取商品（購物車校正現價與庫存）；查不到的 Id（已下架、已刪除）不在結果內
+  getProductsByIds: async (ids: number[]): Promise<ProductDTO[]> => {
+    const res = await instance.get<PagedResult<ProductDTO>>(ProductApi.list, {
+      params: { ids, pageSize: MAX_PAGE_SIZE },
+      // 後端的 int[] 綁定要重複的參數（ids=1&ids=2），axios 預設會送 ids[]=1
+      paramsSerializer: { indexes: null },
+    })
+    return res.data.items
   },
 
   // 商品明細 + 同類推薦；商品不存在（404）時回 null，其他錯誤照樣丟出，由畫面顯示可重試

@@ -6,9 +6,12 @@ import { OrderService } from '../api/services/OrderService'
 import { AddressService } from '@features/Addresses/api/services/AddressService'
 import type { CityDTO, DistrictDTO } from '@features/Addresses/api/interfaces/AddressDTO'
 import { useCartStore } from '@features/Cart/stores/useCartStore'
+import { useCartSync } from '@features/Cart/composables/useCartSync'
+import CartSyncNotice from '@features/Cart/components/CartSyncNotice.vue'
 
 const router = useRouter()
 const cart = useCartStore()
+const { notices, failed, sync } = useCartSync()
 
 const cities = ref<CityDTO[]>([])
 const districts = ref<DistrictDTO[]>([])
@@ -22,8 +25,8 @@ const form = ref({
   memo: '',
 })
 const errors = ref<Record<string, string>>({})
-/** 409 庫存不足：錯誤清單下方多一個回購物車的連結，購物車本身不自動調整 */
-const stockConflict = ref(false)
+/** 商品有問題（400 不存在、409 庫存不足）：錯誤清單下方多一個回購物車的連結 */
+const itemsRejected = ref(false)
 const submitting = ref(false)
 
 watch(
@@ -36,7 +39,7 @@ watch(
 
 async function submit() {
   errors.value = {}
-  stockConflict.value = false
+  itemsRejected.value = false
   submitting.value = true
   try {
     const { id } = await OrderService.createOrder({
@@ -52,14 +55,19 @@ async function submit() {
       ? e.response?.data?.errors
       : undefined
     errors.value = fieldErrors ?? { general: '訂單送出失敗，請稍後再試' }
-    stockConflict.value = isAxiosError(e) && e.response?.status === 409
+    // 商品被拒絕時重新校正：數量降到庫存、售完與下架的列標示出來，金額也換成現價
+    if (fieldErrors?.items) {
+      itemsRejected.value = true
+      await sync()
+    }
   } finally {
     submitting.value = false
   }
 }
 
-// 未登入的人進不來（路由守衛），這裡直接載入
+// 未登入的人進不來（路由守衛），這裡直接載入；校正與縣市清單互不相依，一起送出
 onMounted(async () => {
+  void sync()
   cities.value = await AddressService.getCities()
 })
 </script>
@@ -88,12 +96,18 @@ onMounted(async () => {
     </label>
     <label>地址<input v-model="form.streetAddress" /></label>
     <label>備註<textarea v-model="form.memo" rows="2"></textarea></label>
+    <CartSyncNotice :notices="notices" :failed="failed" />
     <p class="amount">合計 NT$ {{ cart.total }}（實際金額以後端計算為準）</p>
     <ul v-if="Object.keys(errors).length" class="errors">
       <li v-for="(message, key) in errors" :key="key">{{ message }}</li>
     </ul>
-    <p v-if="stockConflict"><RouterLink to="/cart">回購物車調整數量</RouterLink></p>
-    <button type="submit" :disabled="submitting">送出訂單</button>
+    <p v-if="cart.hasUnpurchasable" class="errors">
+      購物車裡有已售完或已下架的商品，請先移除才能送出。
+    </p>
+    <p v-if="itemsRejected || cart.hasUnpurchasable">
+      <RouterLink to="/cart">回購物車調整</RouterLink>
+    </p>
+    <button type="submit" :disabled="submitting || cart.hasUnpurchasable">送出訂單</button>
   </form>
 </template>
 
