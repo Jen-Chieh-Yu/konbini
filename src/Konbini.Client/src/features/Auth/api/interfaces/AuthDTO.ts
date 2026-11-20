@@ -20,11 +20,16 @@ export interface ChangePasswordRequestDTO {
   newPassword: string
 }
 
+/** 與後端 Auth/Models/UserRole.cs 對齊 */
+export type UserRole = 'customer' | 'admin'
+
 export interface UserDTO {
   id: number
   name: string
   email: string
   phone?: string
+  /** 只用來決定要不要顯示後台入口；後台的防護在後端（不是管理員回 403） */
+  role: UserRole
 }
 
 export interface LoginResponseDTO {
