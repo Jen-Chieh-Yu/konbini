@@ -108,7 +108,7 @@ public class SearchProductsHandlerTests
             return Task.FromResult(new PagedResult<ProductDto>([], paging.Page, paging.PageSize, 0));
         }
 
-        public Task<PagedResult<ProductDto>> GetListAsync(int type, PageRequest paging, CancellationToken ct)
+        public Task<PagedResult<ProductDto>> GetListAsync(int type, IReadOnlyCollection<int> ids, PageRequest paging, CancellationToken ct)
             => throw new NotSupportedException();
 
         public Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
