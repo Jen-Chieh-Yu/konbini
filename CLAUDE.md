@@ -159,6 +159,8 @@ feature 用 PascalCase；內部分 `api/{constants,interfaces,services}`、
 Why：view 永遠透過 service 拿資料（axios 細節不外洩到元件）、DTO 型別集中一處
 與後端契約對齊、API 路由常數化避免字串散落。資料夾一樣按需建立——
 Cart 沒有 api/、目前多數 feature 沒有 components/，有第一個檔案才出現。
+整個 app 共用的版面（後台的 `AdminLayout`）放 `src/layouts/`：它會用到 Auth 的 store 與 router，
+不能放 `shared/`（`shared/` 不依賴 feature）；後台的頁面照樣放在各 feature 的 `views/`（例：`AdminProductsView`）。
 
 UI 元件庫用 **Element Plus**，走 unplugin 按需自動引入：template 直接寫
 `<el-xxx>`、程式碼直接用 `ElMessage`，不需手動 import，打包只含用到的元件。
@@ -414,6 +416,26 @@ Why：匿名訪客的購物車不值得佔資料庫或伺服器記憶體；而�
 明碼與可逆加密都不允許。JWT 簽章金鑰走 `.env` 的 `JWT__Secret`，空值時
 API 啟動即失敗（fail fast，不要帶病上線）。
 
+### 角色與後台權限（2026-11-19 定案）
+
+`users.role`（顧客、管理員）＋一個 `Admin` policy，掛在 `/api/admin` 的 route group。業務規則見 `docs/modules/decisions/Auth.md` DD-AUT-004。
+
+- **角色每次從資料庫查，不放 JWT**：JWT 發出後收不回來，角色放進 token，撤銷管理員要等 8 小時才生效。
+  `docs/api-conventions.md` 原本寫「token 放使用者 id、角色」，一併改掉。
+- **用 policy 的 `AuthorizationHandler`，不用 `IClaimsTransformation`**：後者對每個帶 token 的請求都會執行（下單、我的訂單也多查一次），
+  同一個請求還可能執行多次；policy handler 只在掛了 Admin policy 的端點執行。
+- **一個 policy，不依能力拆**：角色只有兩種，「管理庫存」「管理訂單」都對到 Admin，沒有過「2 個以上使用者共用」的門檻。
+  出現第二種後台角色時再拆，只改 route group 上的 policy 名稱。
+- **`MapAdminGroup` 加上掃描測試**：前綴與 policy 一次掛好，漏掛的話任何登入的人都能用後台；
+  `AdminEndpointPolicyTests` 用 `MapEndpoints` 掃描實際註冊的路由，不啟動伺服器、不連資料庫。
+- **403 用 ProblemDetails**：預設的 403 沒有內容，換掉 `IAuthorizationMiddlewareResultHandler`，和 Handler 回的錯誤同一種格式。
+- **第一個管理員由 `Admin:Email` 在啟動時設定**：密碼不進設定檔；只升已完成 Email 驗證的帳號，只升不降。
+  寫在 `DataSeeder`：已經是每次啟動都會執行、處理初始資料的地方。
+- **後台和前台同一個網站**：另開網站要重新設定 axios、登入、Element Plus 主題與部署；後台頁面 lazy load，前台不會下載。
+
+放棄的東西：每個後台請求多一次查詢；前台端點不查帳號是否還在，軟刪除的帳號拿著未過期的 token 仍然能下單；
+撤銷管理員只能改資料庫。
+
 ---
 
 ## 6. 分支與 CI/CD
@@ -604,6 +626,9 @@ Squash 後本機 `git branch -d` 認不出已合併，要確認無差異後改�
 | ~~Email 驗證（可延伸到忘記密碼）~~ | 已實施（2026-11-12）：註冊後寄驗證信，未完成驗證的帳號登入回 403；寄信用 MailKit，抽成 `Common/Email` 的 `IEmailSender`（之後與忘記密碼共用），寄信設定在啟動時檢查（`EmailOptions`、`AppOptions`）。token 效期 24 小時、只存 SHA-256 雜湊值，重寄冷卻 60 秒，既有帳號視為已驗證；業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-001，設定鍵見 `docs/configuration.md`。忘記密碼見下一列 |
 | ~~忘記密碼~~ | 已實施（2026-11-16）：申請 `POST /api/auth/password-reset-emails`、重設 `POST /api/auth/password-resets`；token 另開 `password_reset_tokens`，效期 30 分鐘、只能用一次，產生與雜湊抽成和 Email 驗證共用的 `SecureToken`。回應一致（帳號不存在、冷卻 60 秒內都回 204），畫面列出剛送出的 Email 讓使用者自己核對；重設後不自動登入、寄通知信，已發出的 JWT 不作廢（見上方 refresh token）。業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-002 |
 | ~~圖形驗證碼~~ | 已實施（2026-11-18）：只保護登入（開工時使用者決定，原本計畫先保護會寄信的端點）。SkiaSharp 自己產生圖片，字形用線段自己畫、不嵌入字型；答案存在記憶體，2 分鐘內有效、只能送出一次；檢查放 `CaptchaEndpointFilter`（§2 提到的 endpoint filter 的第一個使用者）。開發環境的固定答案 `KONBI`（`Captcha:DevelopmentAnswer`，其他環境設了就啟動失敗）。映像只帶目標架構的原生檔（§4）。業務規則與理由見 `docs/modules/decisions/Auth.md` DD-AUT-003。註冊、重寄驗證信、忘記密碼仍然沒有驗證碼，要加時端點加 `.RequireCaptcha()`、畫面加 `CaptchaInput` |
+| ~~角色與後台權限~~ | 已實施（2026-11-20）：`users.role`（顧客、管理員）、`Admin` policy 每次查資料庫、`ADMIN_EMAIL` 在啟動時設定第一個管理員、`/admin` 後台版面與唯讀的商品與庫存一覽（`GET /api/admin/products`）。理由見 §5「角色與後台權限」，業務規則見 `docs/modules/decisions/Auth.md` DD-AUT-004 |
+| 後台：補庫存與上下架 | 接在角色與後台權限之後；由誰處理待決定（2026-11-19 記錄）。已定的規則：庫存上限 999；用增減量加條件式 UPDATE（`0 ≤ stock + delta ≤ 999`），不做「設定絕對值」（會蓋掉同時間的下單）。建議：下架另設 `products.is_listed`，和軟刪除分開（`status` 是每張表共用的稽核欄位，同 `OrderStatus` 的做法）；下單遇到下架商品回 409「下列商品已停售：品名」；有下架後不提供刪除商品。不做改價、改名，會讓「購物車價格與現價不同步」真的發生，要先做那一項或同一支做 |
+| 後台：出貨與完成 | 接在角色與後台權限之後（2026-11-19 記錄）。狀態：Pending 1、Shipped 3、Completed 5、Cancelled 9；出貨、完成只有管理員，取消是本人或管理員，已出貨不能取消。管理員取消走 `/api/admin/orders/{id}/cancel`，前台路由的擁有權檢查不加「或是管理員」；`TryCancelAsync` 綁定 userId，要另一條路徑；`OrderErrors.AlreadyCancelled` 改成依狀態回不同訊息。這一支會符合「DDD 分層拆成多專案」的觸發條件，先決定拆分要在它之前還是之後 |
 | 第三方登入（Google、LINE） | 練習題（2026-11-11 記錄）；接在 Email 驗證之後：「同一個 Email 已用密碼註冊過」的帳號合併，要先確認 Email 屬於本人。後端要有 OAuth callback 端點、`users` 加提供者與外部 ID 欄位（Migration）；按鈕必須用 Google 與 LINE 官方的素材與配色。先決定提供者、帳號合併規則、只用第三方登入的帳號要不要能設定密碼 |
 | ~~前端 ESLint＋Prettier（門檻錯誤 0，CI 與 pre-push 同步）~~ | 已實施（2026-11-12）：`flat/recommended`＋typescript-eslint `recommended`＋Prettier，錯誤與警告 0，CI 與 pre-push 一起阻擋；前端檔案強制 LF。理由見上方「為什麼前端 ESLint＋Prettier 的門檻也是 0」。原本預期要開的 unplugin-auto-import `eslintrc` 選項，實測不需要 |
 | 前端開發相依套件 minimatch 的弱點（GHSA-g3hv-75wg-m249，moderate，DoS）：ESLint 帶進的 minimatch 10.2.6 在受影響範圍（7.0.0–11.0.0）內，只有 11.x 修正。`eslint` 10.14.0、`@eslint/config-array` 0.23.5、`@typescript-eslint/typescript-estree` 8.72.2 都已是最新版，仍要求 `^10`，Dependabot 的安全性更新因此失敗（2026-11-13 記錄） | 上游接受 minimatch 11 之後，由 Dependabot 自動開 Pull Request；GitHub 上的 alert 不 dismiss，dismiss 之後就不會再開。現在不用 `overrides` 強制升級：跨主版本等於自己承擔上游還沒驗證過的組合，而且 11.0.0 在 2026-10-27 才發布。minimatch 只在 devDependencies，不會進打包成品；CI 的 `npm audit` 也只提醒、不阻擋。`npm audit fix --force` 會把 eslint 降回 9，不能用 |

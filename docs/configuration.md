@@ -20,6 +20,7 @@ API 的設定來自四個地方，**後面的蓋過前面的**：
 | `APP_DB_USER` | 應用程式專屬帳號 | 同上 | 否 | 否 | — | `konbini` |
 | `APP_DB_PASSWORD` | 應用程式帳號的密碼 | 同上 | 是 | 是 | 不可含 `;`、`'`（會截斷連線字串）；含 `$` 時整個值用單引號包起來 | — |
 | `JWT_SECRET` | JWT 簽章金鑰（HS256） | compose（api）、本機 API | 是 | 是 | 至少 32 字元的隨機字串 | — |
+| `ADMIN_EMAIL` | 第一個管理員的 Email | compose（api）、本機 API | 否 | 否 | 這個帳號要先註冊並完成 Email 驗證，重新啟動 API 才會設為管理員 | 空值（不設管理員） |
 | `APP_CLIENT_BASE_URL` | 驗證信中的連結指向的前端網址 | compose（prod） | 否 | 否 | 完整的 http(s) 網址，結尾不加斜線 | `http://localhost:8080` |
 | `APP_VERSION` | 部署時要啟動的映像版號 | compose（prod） | 否 | 否 | 例：`0.1.0` | `0.0.0-local` |
 
@@ -41,6 +42,7 @@ API 的設定來自四個地方，**後面的蓋過前面的**：
 | `Email:Smtp:Host` | SMTP 主機 | `appsettings.json` | compose：`mailpit` | 否 | 是 | — | `127.0.0.1`（空值時啟動失敗）。不寫 `localhost`：Windows 會先試 `::1`，mailpit 只綁 IPv4，每封信多等 2 秒 |
 | `Email:Smtp:Port` | SMTP 埠 | `appsettings.json` | compose：`1025` | 否 | 是 | 1–65535 的整數 | `1025`（格式錯誤時啟動失敗） |
 | `App:ClientBaseUrl` | 前端的網址，驗證信中的連結指向這裡 | `appsettings.json` | override：`http://localhost:5173`；prod：`.env` 的 `APP_CLIENT_BASE_URL` | 否 | 是 | 完整的 http(s) 網址 | `http://localhost:5173`（不是完整網址時啟動失敗） |
+| `Admin:Email` | 啟動時把這個帳號設為管理員 | `.env` 的 `ADMIN_EMAIL` | 同左，經 compose | 否 | 否 | Email；帳號不存在或還沒驗證時記 warning、不中斷啟動。只升不降 | 不設 |
 | `Captcha:DevelopmentAnswer` | 開發環境的驗證碼固定答案，這個答案一律通過（Scalar、PowerShell 測試登入用） | `appsettings.Development.json`：`KONBI` | override：同左（Development）；prod：不設 | 否 | 否 | 不分大小寫；用驗證碼不會出現的字元（`O`、`I`），才不會和真的答案混在一起 | 不設。只在 Development 讀；其他環境設了就啟動失敗 |
 | `Logging:LogLevel:*` | log 等級 | `appsettings.json`、`appsettings.Development.json` | 同左 | 否 | 否 | — | `Default`：Information；`Microsoft.AspNetCore`：Warning（Development 為 Information） |
 | `AllowedHosts` | 允許的 Host 標頭 | `appsettings.json` | 同左 | 否 | 否 | — | `*` |
