@@ -9,6 +9,10 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     /** 只給訪客（登入、註冊）：已登入時導回來源頁或首頁 */
     guestOnly?: boolean
+    /** 只給管理員：不是管理員時導回首頁。只是不讓顧客看到空殼畫面，防護在後端（403） */
+    requiresAdmin?: boolean
+    /** 版面：admin 用後台版面（App.vue 不顯示前台的 header 與 footer） */
+    layout?: 'admin'
   }
 }
 
@@ -90,6 +94,21 @@ const routes = [
     component: () => import('@features/Auth/views/ResetPasswordView.vue'),
   },
 
+  // --- 後台：子路由繼承 meta，都需要登入、都只給管理員 ---
+  {
+    path: '/admin',
+    component: () => import('@/layouts/AdminLayout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'admin' as const },
+    children: [
+      { path: '', redirect: { name: 'AdminProducts' } },
+      {
+        path: 'products',
+        name: 'AdminProducts',
+        component: () => import('@features/Products/views/AdminProductsView.vue'),
+      },
+    ],
+  },
+
   // --- 其他網址：一定要放最後，前面的路由都對不到才會進來 ---
   {
     path: '/:pathMatch(.*)*',
@@ -104,10 +123,23 @@ const router = createRouter({
 })
 
 // 進頁面之前檢查登入狀態：頁面不會先渲染再跳走，未登入的人也不會先發出一次沒有 token 的請求
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.token) {
     return { name: 'Login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdmin) {
+    // 重新整理頁面後還沒有使用者資料，要等拿到角色才能判斷
+    await auth.ensureUser()
+    // 有 token 卻拿不到使用者資料：API 暫時連不上（ensureUser 保留 token），不是沒有權限
+    if (auth.token && !auth.user) {
+      ElMessage.error('暫時無法確認帳號權限，請稍後再試')
+      return '/'
+    }
+    if (!auth.isAdmin) {
+      ElMessage.warning('這個頁面只有管理員能使用')
+      return '/'
+    }
   }
   if (to.meta.guestOnly && auth.token) {
     return safeRedirect(to.query.redirect) ?? '/'

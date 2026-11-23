@@ -220,14 +220,18 @@ Endpoint → Command/Query → Handler → Service → Repository
 ## 認證授權
 
 - 使用 JWT Bearer Token。
-- Token 內容只放必要的識別資訊（使用者 id、角色）。
-  不要放個人資料、email 全文、或任何敏感欄位。
-
-  > 現況：token 只有使用者 id（`sub`），還沒有角色。
+- Token 內容只放使用者 id（`sub`）。
+  不要放個人資料、email 全文、角色或任何敏感欄位。
+  角色不放 token：放進去的話，降權要等 token 過期（8 小時）才生效；需要角色的端點每次從資料庫查（CLAUDE.md §5）。
 - 涉及使用者資料的端點，一律從 token 的 claims 取得使用者身分。
   絕不接受前端傳來的 userId 或 customerId 作為身分依據。
-- 授權檢查用 endpoint 上的 RequireAuthorization（需要角色時再定義 policy，目前沒有任何 policy），
-  不要在 Handler 裡零散地判斷角色字串。
+- 授權檢查用 endpoint 上的 RequireAuthorization，不要在 Handler 裡零散地判斷角色。
+  需要角色的端點用 policy：目前只有 `Admin`（`Common/Auth/AdminAuthorization.cs`），
+  由 `AdminAuthorizationHandler` 查資料庫的 `users.role`。
+- 後台的路由一律在 `/api/admin/{資源}` 底下，用 `MapAdminGroup` 開 route group（一次掛好前綴與 Admin policy），
+  程式碼放在各自的 feature、和前台寫在同一支 `XxxEndpoints.cs`。`AdminEndpointPolicyTests` 會檢查每個 `/api/admin` 端點都掛了 policy。
+- 不是管理員時回 403 ProblemDetails（`general`：沒有權限執行這個操作），未登入回 401。
+  policy 在查資源之前就擋下，不會洩漏資源是否存在，所以不用改成 404。
 - 資源層級的擁有權檢查（這張訂單是不是這個人的）放在 Handler，
   policy 擋不住這種情況。查不到或不屬於該使用者時回 404 而非 403，
   避免洩漏資源是否存在。

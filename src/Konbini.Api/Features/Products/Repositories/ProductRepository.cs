@@ -22,6 +22,9 @@ public interface IProductRepository : IRepository
     /// <summary>多關鍵字 OR 搜尋，任一命中即符合。</summary>
     Task<PagedResult<ProductDto>> SearchAsync(string[] keywords, PageRequest paging, CancellationToken ct);
 
+    /// <summary>後台的商品一覽，依 Id 排序；已軟刪除的商品不列出。</summary>
+    Task<PagedResult<AdminProductDto>> GetAdminListAsync(PageRequest paging, CancellationToken ct);
+
     /// <summary>依 Id 取商品快照（下單計價、檢查庫存用）；查無的 Id 不在結果內。</summary>
     Task<Dictionary<int, ProductSnapshot>> GetSnapshotsAsync(IReadOnlyCollection<int> ids, CancellationToken ct);
 
@@ -59,6 +62,12 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
             .Where(p => p.Id == id)
             .Select(ToDto)
             .FirstOrDefaultAsync(ct);
+
+    public async Task<PagedResult<AdminProductDto>> GetAdminListAsync(PageRequest paging, CancellationToken ct)
+        => await db.Products.AsNoTracking()
+            .OrderBy(p => p.Id)
+            .Select(p => new AdminProductDto(p.Id, p.Type, p.Name, p.Price, p.Stock, p.ModifiedOn))
+            .ToPagedResultAsync(paging, ct);
 
     public async Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct)
         => await db.Products.AsNoTracking()

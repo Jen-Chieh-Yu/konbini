@@ -244,6 +244,9 @@ gh auth login
 > API 只在啟動時讀一次，改了 `.env` 要重新啟動（`dotnet watch` 按 Ctrl+R）。
 > 終端機或 Rider 設定的同名環境變數（例 `Jwt__Secret`）會蓋過 `.env`。
 
+> **第一個管理員**：在 `.env` 設 `ADMIN_EMAIL`，從畫面用這個 Email 註冊並完成驗證（信在 `http://localhost:8025`），
+> 再重新啟動 API，這個帳號就是管理員，header 會出現「後台」（`/admin`）。只升不降：改掉 `ADMIN_EMAIL` 不會撤銷原本的管理員。
+
 > **之前用過 user-secrets 的機器**（2026-11-12 之前）：API 已經不讀 user-secrets，留著也不會生效。
 > 要清掉的話執行 `dotnet user-secrets clear --id konbini-api`。
 
@@ -501,6 +504,7 @@ public class ProductEndpoints : IEndpoint
 |---|---|---|
 | Products | `GET /api/products?type=&page=&pageSize=` | 商品列表（type=0 為全部），分頁 |
 | | `GET /api/products/{id}` | 商品明細 + 同類推薦 |
+| | `GET /api/admin/products?page=&pageSize=` 🛠️ | 後台：商品與庫存一覽，分頁 |
 | Orders | `GET /api/orders?page=&pageSize=` 🔒 | 訂單列表，分頁 |
 | | `GET /api/orders/{id}` 🔒 | 訂單明細；不是自己的訂單回 404 |
 | | `POST /api/orders` 🔒 | 建立訂單 |
@@ -520,7 +524,7 @@ public class ProductEndpoints : IEndpoint
 | Health | `GET /health` | 健康檢查（含資料庫連線；容器 healthcheck 亦打此端點） |
 | AppInfo | `GET /api/version` | 執行中的版號與 commit（不需登入；本機建置為 `0.0.0-dev`） |
 
-🔒 = 需要 JWT。完整規格見 Scalar（開發模式）：`http://localhost:5214/scalar`
+🔒 = 需要 JWT。🛠️ = 只有管理員（未登入 401、不是管理員 403）。完整規格見 Scalar（開發模式）：`http://localhost:5214/scalar`
 登入要帶 `X-Captcha-Id`、`X-Captcha-Answer` 兩個 header；開發環境的 `X-Captcha-Answer` 填 `KONBI` 一律通過，
 可以不帶 id（`appsettings.Development.json` 的 `Captcha:DevelopmentAnswer`）。
 購物車沒有後端路由——狀態在前端 Pinia，見「Feature 內部結構」的說明。

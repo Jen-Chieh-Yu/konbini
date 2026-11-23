@@ -11,6 +11,8 @@ services:
       - Email__Smtp__Port=1025
       # 信中的連結指向開發用的前端（vite）
       - App__ClientBaseUrl=http://localhost:5173
+      # 第一個管理員：這個 Email 的帳號註冊並完成驗證後，重新啟動 API 就會設為管理員（留空表示不設）
+      - Admin__Email=${ADMIN_EMAIL:-}
     ports:
       # 對外固定 5214，讓 vite proxy（→ 127.0.0.1:5214）不論 API 在容器內外都通。
       # 只綁本機：不綁 IP 時會開在所有網卡，同網段的人也連得到

@@ -243,6 +243,10 @@ namespace Konbini.Api.Features.Common.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("phone");
 
+                    b.Property<short>("Role")
+                        .HasColumnType("smallint")
+                        .HasColumnName("role");
+
                     b.Property<short>("Status")
                         .HasColumnType("smallint")
                         .HasColumnName("status");

@@ -34,7 +34,7 @@ public class LoginHandler(IUserRepository users, IPasswordHasher hasher, IJwtTok
         }
 
         var token = tokenService.CreateToken(user);
-        var dto = new UserDto(user.Id, user.Name, user.Email, user.Phone);
+        var dto = new UserDto(user.Id, user.Name, user.Email, user.Phone, user.Role);
         return new LoginResponse(token, dto);
     }
 }

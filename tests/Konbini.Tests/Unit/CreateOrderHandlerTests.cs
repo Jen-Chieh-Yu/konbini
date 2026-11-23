@@ -410,6 +410,7 @@ public class CreateOrderHandlerTests
         }
 
         public Task<PagedResult<ProductDto>> GetListAsync(int type, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
+        public Task<PagedResult<AdminProductDto>> GetAdminListAsync(PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
         public Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct) => throw new NotSupportedException();
         public Task<PagedResult<ProductDto>> SearchAsync(string[] keywords, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();

@@ -52,6 +52,8 @@ services:
       Email__Smtp__Port: "1025"
       # 信中的連結指向 client（nginx）；部署機用其他網址或埠時在 .env 設 APP_CLIENT_BASE_URL
       App__ClientBaseUrl: ${APP_CLIENT_BASE_URL:-http://localhost:8080}
+      # 第一個管理員：這個 Email 的帳號註冊並完成驗證後，重新啟動 api 就會設為管理員（留空表示不設）
+      Admin__Email: ${ADMIN_EMAIL:-}
     expose:
       - "8080"
     healthcheck:

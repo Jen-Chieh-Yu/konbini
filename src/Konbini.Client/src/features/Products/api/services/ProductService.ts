@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios'
 import instance from '@shared/api/axios'
 
 import { ProductApi } from '../constants/ApiEndpoints'
-import type { ProductDTO, ProductDetailDTO } from '../interfaces/ProductDTO'
+import type { AdminProductDTO, ProductDTO, ProductDetailDTO } from '../interfaces/ProductDTO'
 import type { PagedResult } from '@shared/api/interfaces/PagedResult'
 
 // API 服務封裝
@@ -25,5 +25,13 @@ export const ProductService = {
       if (isAxiosError(e) && e.response?.status === 404) return null
       throw e
     }
+  },
+
+  // 後台的商品與庫存一覽；不是管理員時回 403，由畫面處理
+  getAdminProducts: async (page = 1): Promise<PagedResult<AdminProductDTO>> => {
+    const res = await instance.get<PagedResult<AdminProductDTO>>(ProductApi.adminList, {
+      params: { page },
+    })
+    return res.data
   },
 }

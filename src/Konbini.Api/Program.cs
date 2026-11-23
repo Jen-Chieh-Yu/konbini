@@ -12,6 +12,7 @@ using Konbini.Api.Features.Common.Persistence;
 using Konbini.Api.Features.Common.Persistence.Seed;
 using Konbini.Api.Features.Common.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
@@ -55,7 +56,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromMinutes(1),
         };
     });
-builder.Services.AddAuthorization();
+// 後台用 Admin policy：角色不放 token，每次從資料庫查（AdminAuthorizationHandler，見 CLAUDE.md §5「角色與後台權限」）
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Policies.Admin, policy => policy
+        .RequireAuthenticatedUser()
+        .AddRequirements(new AdminRequirement()));
+builder.Services.AddScoped<IAuthorizationHandler, AdminAuthorizationHandler>();
+// 不是管理員時回 403 ProblemDetails（預設的 403 沒有內容）
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemDetailsAuthorizationResultHandler>();
 
 // --- 寄信（Email 驗證）：設定缺漏或格式錯誤直接啟動失敗，同 Jwt:Secret ---
 builder.Services.AddSingleton(EmailOptions.FromConfiguration(builder.Configuration));
@@ -117,11 +125,11 @@ app.UseAuthorization();
 app.MapEndpoints();
 app.MapHealthChecks("/health");
 
-// 套用 EF Migrations 並匯入種子資料
+// 套用 EF Migrations 並匯入種子資料；設定了 Admin:Email 時把那個帳號設為管理員
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DataSeeder.SeedAsync(db);
+    await DataSeeder.SeedAsync(db, app.Configuration["Admin:Email"], app.Logger);
 }
 
 app.Run();

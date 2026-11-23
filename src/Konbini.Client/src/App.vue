@@ -10,7 +10,8 @@ const route = useRoute()
 const router = useRouter()
 const cart = useCartStore()
 const auth = useAuthStore()
-auth.fetchMe()
+// 進入需要角色的頁面時，路由守衛可能已經在拿了；ensureUser 不會重複送請求
+auth.ensureUser()
 
 const keyword = ref('')
 // 搜尋框跟著網址的 q 走：在 /search 時顯示目前的關鍵字，離開後清空
@@ -21,6 +22,9 @@ watch(
   },
   { immediate: true },
 )
+
+// 後台用自己的版面（layouts/AdminLayout.vue），不顯示前台的公告條、header 與 footer
+const isAdminLayout = computed(() => route.meta.layout === 'admin')
 
 // 桌機的分類導覽由首頁左側欄承擔，其他頁面仍需要 header 的分類列
 const isHome = computed(() => route.path === '/')
@@ -45,13 +49,13 @@ function logout() {
 <template>
   <el-config-provider :locale="zhTw">
     <!-- 免運門檻取自購物車的計價常數，不在畫面上另外寫死金額 -->
-    <div class="notice">
+    <div v-if="!isAdminLayout" class="notice">
       單筆滿 <b class="kb-num">NT${{ formatMoney(FREE_DELIVERY_THRESHOLD) }}</b> 免運費
       <span class="sep">·</span>
       平日 15:00 前下單當日出貨
     </div>
 
-    <header class="hdr">
+    <header v-if="!isAdminLayout" class="hdr">
       <div class="hdr-top">
         <RouterLink to="/" class="logo">
           🏪 Konbini <span class="logo-sub">NICHI–KAN SNACKS</span>
@@ -68,6 +72,9 @@ function logout() {
         </form>
 
         <nav class="util" aria-label="會員與購物車">
+          <RouterLink v-if="auth.isAdmin" to="/admin" class="util-item">
+            <span class="ico" aria-hidden="true">🛠️</span>後台
+          </RouterLink>
           <RouterLink v-if="auth.user" to="/orders" class="util-item">
             <span class="ico" aria-hidden="true">📋</span>我的訂單
           </RouterLink>
@@ -98,11 +105,11 @@ function logout() {
       </nav>
     </header>
 
-    <main class="container">
+    <main :class="{ container: !isAdminLayout }">
       <RouterView />
     </main>
 
-    <footer class="ftr">
+    <footer v-if="!isAdminLayout" class="ftr">
       <div class="ftr-in">
         <div>
           <h4>購物指南</h4>
