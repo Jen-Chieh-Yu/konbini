@@ -21,6 +21,8 @@ public class LoginHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("token", result.Value.Token);
         Assert.Equal(Email, result.Value.User.Email);
+        // 前端用 role 決定要不要顯示後台入口
+        Assert.Equal(UserRole.Customer, result.Value.User.Role);
     }
 
     [Fact]
@@ -94,5 +96,6 @@ public class LoginHandlerTests
         public void Add(User user) => throw new NotSupportedException();
         public Task<User?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
         public Task<UserDto?> GetProfileAsync(int id, CancellationToken ct) => throw new NotSupportedException();
+        public Task<UserRole?> GetRoleAsync(int id, CancellationToken ct) => throw new NotSupportedException();
     }
 }

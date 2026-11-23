@@ -6,9 +6,8 @@ import type { ProductDetailDTO } from '../api/interfaces/ProductDTO'
 import { MAX_ITEM_QUANTITY } from '@features/Cart/stores/useCartStore'
 import { useAddToCart } from '@features/Cart/composables/useAddToCart'
 import AppStatePanel from '@shared/components/AppStatePanel.vue'
-
-/** 庫存在這個數字以下才顯示剩幾件；平常不顯示數字 */
-const LOW_STOCK_THRESHOLD = 5
+// 庫存在這個數字以下才顯示剩幾件；平常不顯示數字
+import { LOW_STOCK_THRESHOLD } from '@shared/constants/catalog'
 
 const route = useRoute()
 const addToCart = useAddToCart()

@@ -33,6 +33,12 @@ public static class AuthErrors
     /// </summary>
     public static readonly Error EmailNotVerified = Error.Forbidden("此帳號尚未完成 Email 驗證，請到信箱點驗證連結");
 
+    /// <summary>
+    /// 已登入、但角色不符合端點的 policy（目前只有 /api/admin 的 Admin policy）。
+    /// 由授權 middleware 回傳（ProblemDetailsAuthorizationResultHandler），不經過 Handler。
+    /// </summary>
+    public static readonly Error Forbidden = Error.Forbidden("沒有權限執行這個操作");
+
     /// <summary>找不到 token，包含被重寄取代、已刪除的舊連結。</summary>
     public static readonly Error VerificationTokenInvalid =
         Error.Validation("token", "驗證連結無效，請使用最新一封驗證信中的連結，或重新寄送驗證信");

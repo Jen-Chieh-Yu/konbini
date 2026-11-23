@@ -39,6 +39,14 @@ public class LocalDotEnvTests
     }
 
     [Fact]
+    public void ToConfiguration_MapsAdminEmail()
+    {
+        var config = LocalDotEnv.ToConfiguration(new Dictionary<string, string> { ["ADMIN_EMAIL"] = "admin@example.com" });
+
+        Assert.Equal("admin@example.com", config["Admin:Email"]);
+    }
+
+    [Fact]
     public void ToConfiguration_EmptyNameAndUser_UseComposeDefaults()
     {
         var config = LocalDotEnv.ToConfiguration(new Dictionary<string, string>
@@ -55,7 +63,7 @@ public class LocalDotEnvTests
     {
         var config = LocalDotEnv.ToConfiguration(new Dictionary<string, string>
         {
-            ["APP_DB_PASSWORD"] = "", ["JWT_SECRET"] = " ",
+            ["APP_DB_PASSWORD"] = "", ["JWT_SECRET"] = " ", ["ADMIN_EMAIL"] = "",
         });
 
         Assert.Empty(config);

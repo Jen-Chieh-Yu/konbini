@@ -98,6 +98,13 @@ order_items 的快照欄位：product_name、unit_price、image_url（下單當�
 - 不加檢查約束：值只由程式寫入，不會被算術更新（和 `ck_products_stock` 的情況不同）。
 - 規則與理由見 docs/modules/decisions/Orders.md DD-ORD-003。
 
+## 角色
+
+- users.role（smallint NOT NULL）：角色，C# 是 `UserRole : short`（1 = 顧客、2 = 管理員）。角色沒有先後順序，數值不留間隔。
+- 加欄位的 Migration 把既有帳號填成 1（顧客）；工具產生的預設值是 0，要手動改。
+- 管理員只能由 API 啟動時的 `Admin:Email` 設定產生（DataSeeder），沒有改角色的 API。
+- 規則與理由見 docs/modules/decisions/Auth.md DD-AUT-004。
+
 ## Email 驗證
 
 - users.email_verified_on（timestamptz，可為 null）：完成 Email 驗證的時間，null 表示還沒驗證、不能登入。

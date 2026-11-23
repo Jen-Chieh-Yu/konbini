@@ -18,6 +18,9 @@ public interface IUserRepository : IRepository
     /// <summary>目前使用者的公開資料投影。</summary>
     Task<UserDto?> GetProfileAsync(int id, CancellationToken ct);
 
+    /// <summary>使用者的角色（Admin policy 用）；帳號不存在或已軟刪除時回 null。</summary>
+    Task<UserRole?> GetRoleAsync(int id, CancellationToken ct);
+
     /// <summary>加入新使用者；由呼叫端以 IUnitOfWork 提交。</summary>
     void Add(User user);
 }
@@ -36,7 +39,13 @@ public sealed class UserRepository(AppDbContext db) : IUserRepository
     public async Task<UserDto?> GetProfileAsync(int id, CancellationToken ct)
         => await db.Users.AsNoTracking()
             .Where(u => u.Id == id)
-            .Select(u => new UserDto(u.Id, u.Name, u.Email, u.Phone))
+            .Select(u => new UserDto(u.Id, u.Name, u.Email, u.Phone, u.Role))
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<UserRole?> GetRoleAsync(int id, CancellationToken ct)
+        => await db.Users.AsNoTracking()
+            .Where(u => u.Id == id)
+            .Select(u => (UserRole?)u.Role)
             .FirstOrDefaultAsync(ct);
 
     public void Add(User user) => db.Users.Add(user);

@@ -22,6 +22,9 @@ export function categoryName(type: number): string {
   return CATEGORIES.find((c) => c.type === type)?.name ?? '商品'
 }
 
+/** 庫存在這個數字以下算「快沒了」：商品明細顯示剩幾件、後台標成警示 */
+export const LOW_STOCK_THRESHOLD = 5
+
 /** 金額顯示：新台幣整數、千分位逗號，與 docs/ui-guidelines.md 一致 */
 export function formatMoney(value: number): string {
   return value.toLocaleString('zh-TW', { maximumFractionDigits: 0 })

@@ -12,6 +12,9 @@
 | 看商品明細與相關商品 | 訪客、會員 | `GET /api/products/{id}` | `ProductDetailView.vue`（`/products/:id`） |
 | 加入購物車 | 訪客、會員 | 沒有（見 [Cart](Cart.md)） | 列表、明細頁的「加入購物車」 |
 | 依 Id 取商品（購物車校正） | 訪客、會員 | `GET /api/products?ids=1&ids=2&pageSize=100` | 購物車頁、結帳頁（見 [Cart「校正」](Cart.md#校正)） |
+| 看商品與庫存一覽 | 管理員 | `GET /api/admin/products?page=&pageSize=` 🛠️ | `AdminProductsView.vue`（`/admin/products?page=`） |
+
+🛠️ = 只有管理員，不是管理員時回 403（見 [Auth「角色與管理員」](Auth.md#角色與管理員)）。
 
 後端：[ProductEndpoints.cs](../../src/Konbini.Api/Features/Products/Endpoints/ProductEndpoints.cs)、
 [ProductRepository.cs](../../src/Konbini.Api/Features/Products/Repositories/ProductRepository.cs)。
@@ -53,6 +56,12 @@
 - 新資料庫由種子資料的 `Stock` 欄給值；導入庫存（2026-11-18）之前就存在的商品一律是 100 件。
 - 決策與理由見 [DD-ORD-002](decisions/Orders.md#dd-ord-002庫存與扣庫存2026-11-18使用者決定claudemd-6庫存欄位與扣庫存交易)。
 
+### 後台的商品一覽
+
+- 列出所有未軟刪除的商品，依 Id 由小到大排序，分頁規則同前台列表；沒有分類篩選。
+- 每筆回傳 `id`、`type`、`name`、`price`、`stock`、`modifiedAt`。`modifiedAt` 是最後異動時間（UTC），下單扣庫存、取消訂單歸還庫存也會更新。
+- 只能看，不能修改：補庫存與上下架另外處理（見下方「尚未實作」）。
+
 ### 商品資料的來源
 
 - 沒有新增、修改、刪除商品的 API。
@@ -73,9 +82,13 @@
   - 載入中顯示轉圈；查無商品（含網址的 Id 不是正整數）顯示「找不到這項商品」與「逛逛其他商品」「回首頁」；
     載入失敗顯示「暫時看不到這項商品」與「重新載入」。
 - 列表頁的「加入購物車」一次加 1 件，並提示結果（見 [Cart](Cart.md)）；售完的商品按鈕顯示「已售完」並停用。
+- **後台的商品與庫存（`/admin/products`）**：表格欄位是 ID、分類、品名、價格、庫存、最後異動（台灣時間）。
+  庫存 0 標「已售完」，1–5 件標「庫存偏低」（和明細頁「僅剩 N 件」同一個門檻 `LOW_STOCK_THRESHOLD`）。
+  頁碼放在網址（`?page=`）。992px 以下改成卡片列表（左側選單占 200px，表格放不下）。
+  有載入中、錯誤（「暫時看不到商品」＋「重新載入」）、沒有商品、沒有權限（403）四種狀態。
 
 ## 尚未實作
 
 - 首頁的商品卡片不顯示售完。
 - 列表與明細頁的四種畫面狀態、Element Plus 元件、`formatMoney`：見 CLAUDE.md §6「前端 feature 頁面遷移到 UI 規範」。
-- 商品管理（新增、修改、下架）：§6 沒有列。
+- 後台的補庫存、上下架，以及商品的新增、修改：CLAUDE.md §6「後台：補庫存與上下架」。

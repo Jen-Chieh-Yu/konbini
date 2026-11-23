@@ -1,4 +1,5 @@
 using Konbini.Api.Features.Common.Abstractions;
+using Konbini.Api.Features.Common.Auth;
 using Konbini.Api.Features.Common.Web;
 using Konbini.Api.Features.Products.Models;
 using Konbini.Api.Features.Products.Queries;
@@ -34,5 +35,18 @@ public class ProductEndpoints : IEndpoint
             })
             .Produces<ProductDetailDto>()
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // --- 後台：/api/admin/products，Admin policy 掛在 group 上 ---
+        var admin = app.MapAdminGroup("products");
+
+        admin.MapGet("/", async (
+                int? page,
+                int? pageSize,
+                IQueryHandler<GetAdminProductsQuery, PagedResult<AdminProductDto>> handler,
+                CancellationToken ct)
+            => Results.Ok(await handler.Handle(new(PageRequest.From(page, pageSize)), ct)))
+            .Produces<PagedResult<AdminProductDto>>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 }

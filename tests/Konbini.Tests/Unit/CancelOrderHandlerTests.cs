@@ -138,6 +138,7 @@ public class CancelOrderHandlerTests
         public Task<Dictionary<int, ProductSnapshot>> GetSnapshotsAsync(IReadOnlyCollection<int> ids, CancellationToken ct) => throw new NotSupportedException();
         public Task<bool> TryDeductStockAsync(int id, int quantity, int? modifiedBy, CancellationToken ct) => throw new NotSupportedException();
         public Task<PagedResult<ProductDto>> GetListAsync(int type, IReadOnlyCollection<int> ids, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
+        public Task<PagedResult<AdminProductDto>> GetAdminListAsync(PageRequest paging, CancellationToken ct) => throw new NotSupportedException();
         public Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<ProductDto>> GetRelatedAsync(int type, int excludeId, CancellationToken ct) => throw new NotSupportedException();
         public Task<PagedResult<ProductDto>> SearchAsync(string[] keywords, PageRequest paging, CancellationToken ct) => throw new NotSupportedException();

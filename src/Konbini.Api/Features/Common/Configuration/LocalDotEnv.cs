@@ -87,6 +87,9 @@ public static class LocalDotEnv
         if (Value(env, "JWT_SECRET") is { } jwtSecret)
             config["Jwt:Secret"] = jwtSecret;
 
+        if (Value(env, "ADMIN_EMAIL") is { } adminEmail)
+            config["Admin:Email"] = adminEmail;
+
         return config;
     }
 

@@ -17,8 +17,9 @@
 | 登出 | 會員 | 沒有（前端清除 token） | header 的「登出」（`App.vue`） |
 | 取得目前使用者 | 會員 | `GET /api/auth/me` 🔒 | 沒有畫面；`App.vue` 啟動時呼叫 |
 | 修改密碼 | 會員 | `PUT /api/auth/password` 🔒 | 沒有畫面（前端 `AuthService.changePassword` 已寫好，但沒有地方呼叫） |
+| 進入後台 | 管理員 | 各模組的 `/api/admin/...` 🛠️（目前只有 [Products](Products.md) 的商品一覽） | header 的「後台」→ `/admin`（`layouts/AdminLayout.vue`） |
 
-🔒 = 需要 JWT，沒有或失效時回 401。
+🔒 = 需要 JWT，沒有或失效時回 401。🛠️ = 只有管理員，不是管理員時回 403。
 後端：[AuthEndpoints.cs](../../src/Konbini.Api/Features/Auth/Endpoints/AuthEndpoints.cs)、
 [Commands/](../../src/Konbini.Api/Features/Auth/Commands/)、
 [PasswordPolicy.cs](../../src/Konbini.Api/Features/Auth/Models/PasswordPolicy.cs)、
@@ -223,7 +224,25 @@ flowchart TD
 
 ### 目前使用者
 
-- `GET /api/auth/me` 回傳 `{ id, name, email, phone }`；token 有效但使用者已不存在時回 404，`general`：找不到使用者。
+- `GET /api/auth/me` 回傳 `{ id, name, email, phone, role }`；token 有效但使用者已不存在時回 404，`general`：找不到使用者。
+  登入的回應 `user` 也有 `role`。
+
+### 角色與管理員
+
+- 角色只有兩種：`customer`（顧客）與 `admin`（管理員）。註冊的帳號都是顧客，既有帳號在加欄位時也是顧客。
+- **第一個管理員**：設定 `Admin:Email`（`.env` 的 `ADMIN_EMAIL`），API 啟動時把這個帳號設為管理員。
+  - 帳號要先從畫面註冊、完成 Email 驗證；還沒註冊或還沒驗證時略過並記 warning，下一次啟動 API 才會設定。
+  - 只升不降：改掉或清空 `Admin:Email` 不會撤銷原本的管理員；角色沒有到期日。
+  - 沒有改角色的 API 與畫面；要撤銷管理員只能改資料庫。
+- **後台的權限**：`/api/admin/...` 的端點都要管理員。角色每次從資料庫查，不放在 token 裡，所以撤銷管理員後馬上生效。
+
+  | 情況 | 狀態碼 | 回應 |
+  |---|---|---|
+  | 沒有 token、token 失效 | 401 | 沒有內容 |
+  | 已登入，不是管理員（含帳號已軟刪除） | 403 | `general`：沒有權限執行這個操作 |
+  | 管理員 | 依各端點 | — |
+
+- 規則與理由見 [DD-AUT-004](decisions/Auth.md)。
 
 ### 修改密碼
 
@@ -279,7 +298,10 @@ flowchart TD
 - **token 保存**：存在 localStorage（鍵 `konbini.token`），每個 API 請求自動帶上。
 - **啟動時**：有 token 就呼叫 `/api/auth/me` 取使用者資料。回 404 就登出；網路錯誤或 500 保留 token。
 - **登出**：只清掉瀏覽器的 token 與使用者資料，沒有呼叫 API；購物車不受影響。
-- **header**：有 token 時顯示「登出」，沒有時顯示「登入」；頁尾在沒有 token 時顯示「建立帳號」。
+- **header**：有 token 時顯示「登出」，沒有時顯示「登入」；頁尾在沒有 token 時顯示「建立帳號」。管理員多一個「後台」，連到 `/admin`。
+- **後台（`/admin`）**：未登入時導向登入頁，登入後回到原本的頁面；已登入但不是管理員時提示「這個頁面只有管理員能使用」並導回首頁。
+  重新整理後台頁面時，先等 `/api/auth/me` 回來才判斷角色；連不上 API 時提示「暫時無法確認帳號權限，請稍後再試」並導回首頁（保留 token）。後台用自己的版面（工具列有「回前台」「登出」），不顯示前台的 header 與 footer。
+  畫面開著時被取消管理員，下一次請求回 403，畫面顯示「沒有權限查看」與「回前台」。
 
 ## 尚未實作
 
