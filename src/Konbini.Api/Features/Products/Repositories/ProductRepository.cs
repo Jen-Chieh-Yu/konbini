@@ -12,7 +12,8 @@ public record ProductSnapshot(int Id, string Name, int Price, string? ImageUrl, 
 public interface IProductRepository : IRepository
 {
     /// <param name="type">商品類別；0 = 全部</param>
-    Task<PagedResult<ProductDto>> GetListAsync(int type, PageRequest paging, CancellationToken ct);
+    /// <param name="ids">只取這些 Id 的商品；空集合 = 不限。和 type 同時給時兩個條件都要符合。</param>
+    Task<PagedResult<ProductDto>> GetListAsync(int type, IReadOnlyCollection<int> ids, PageRequest paging, CancellationToken ct);
 
     Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct);
 
@@ -50,12 +51,22 @@ public sealed class ProductRepository(AppDbContext db) : IProductRepository
     private static readonly Expression<Func<Product, ProductDto>> ToDto =
         p => new ProductDto(p.Id, p.Type, p.Name, p.Price, p.ImageUrl, p.Stock);
 
-    public async Task<PagedResult<ProductDto>> GetListAsync(int type, PageRequest paging, CancellationToken ct)
-        => await db.Products.AsNoTracking()
-            .Where(p => type == 0 || p.Type == type)
+    public async Task<PagedResult<ProductDto>> GetListAsync(
+        int type, IReadOnlyCollection<int> ids, PageRequest paging, CancellationToken ct)
+    {
+        var query = db.Products.AsNoTracking().Where(p => type == 0 || p.Type == type);
+        // 沒給 Id 時不加條件，SQL 裡才不會多出一段永遠成立的 ANY(@ids)；
+        // 軟刪除的商品由 HasQueryFilter 排除，和查不到的 Id 一樣不在結果內
+        if (ids.Count > 0)
+        {
+            query = query.Where(p => ids.Contains(p.Id));
+        }
+
+        return await query
             .OrderBy(p => p.Id)
             .Select(ToDto)
             .ToPagedResultAsync(paging, ct);
+    }
 
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct)
         => await db.Products.AsNoTracking()

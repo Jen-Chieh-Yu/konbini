@@ -5,11 +5,12 @@ using Konbini.Api.Features.Products.Repositories;
 namespace Konbini.Api.Features.Products.Queries;
 
 /// <param name="Type">商品類別；0 = 全部</param>
-public record GetProductsQuery(int Type, PageRequest Paging);
+/// <param name="Ids">只取這些 Id 的商品（購物車校正現價與庫存用）；空陣列 = 不限。查不到的 Id 不在結果內。</param>
+public record GetProductsQuery(int Type, int[] Ids, PageRequest Paging);
 
 public class GetProductsHandler(IProductRepository products)
     : IQueryHandler<GetProductsQuery, PagedResult<ProductDto>>
 {
     public async Task<PagedResult<ProductDto>> Handle(GetProductsQuery query, CancellationToken ct)
-        => await products.GetListAsync(query.Type, query.Paging, ct);
+        => await products.GetListAsync(query.Type, query.Ids, query.Paging, ct);
 }

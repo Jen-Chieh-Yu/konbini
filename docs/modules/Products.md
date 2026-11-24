@@ -11,6 +11,7 @@
 | 瀏覽商品列表、切換分類 | 訪客、會員 | `GET /api/products?type=&page=&pageSize=` | `ProductsView.vue`（`/products?type=&page=`） |
 | 看商品明細與相關商品 | 訪客、會員 | `GET /api/products/{id}` | `ProductDetailView.vue`（`/products/:id`） |
 | 加入購物車 | 訪客、會員 | 沒有（見 [Cart](Cart.md)） | 列表、明細頁的「加入購物車」 |
+| 依 Id 取商品（購物車校正） | 訪客、會員 | `GET /api/products?ids=1&ids=2&pageSize=100` | 購物車頁、結帳頁（見 [Cart「校正」](Cart.md#校正)） |
 | 看商品與庫存一覽 | 管理員 | `GET /api/admin/products?page=&pageSize=` 🛠️ | `AdminProductsView.vue`（`/admin/products?page=`） |
 
 🛠️ = 只有管理員，不是管理員時回 403（見 [Auth「角色與管理員」](Auth.md#角色與管理員)）。
@@ -37,6 +38,9 @@
 ### 列表
 
 - 依商品 Id 由小到大排序，分頁規則見 [模組總覽「共同規則」](README.md#2-模組關係)。
+- `ids`：重複帶（`ids=1&ids=2`）時只回這些 Id 的商品，和 `type` 同時給時兩個條件都要符合；不帶就不限。
+  查不到的 Id（不存在、已軟刪除）不在結果內，不回錯誤。數量不另設上限，一頁最多 100 筆，前端校正時帶 `pageSize=100`。
+  值不是整數時回 400。
 - 每筆回傳 `id`、`type`、`name`、`price`、`imageUrl`、`stock`；價格是新台幣整數。
 
 ### 明細與相關商品

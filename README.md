@@ -502,7 +502,7 @@ public class ProductEndpoints : IEndpoint
 
 | Feature | 路由 | 說明 |
 |---|---|---|
-| Products | `GET /api/products?type=&page=&pageSize=` | 商品列表（type=0 為全部），分頁 |
+| Products | `GET /api/products?type=&ids=&page=&pageSize=` | 商品列表（type=0 為全部），分頁；`ids` 重複帶（`ids=1&ids=2`）時只取這些商品（購物車校正用） |
 | | `GET /api/products/{id}` | 商品明細 + 同類推薦 |
 | | `GET /api/admin/products?page=&pageSize=` 🛠️ | 後台：商品與庫存一覽，分頁 |
 | Orders | `GET /api/orders?page=&pageSize=` 🔒 | 訂單列表，分頁 |

@@ -5,7 +5,7 @@ export type CartProduct = Omit<CartItem, 'quantity'> & { stock: number }
 
 /**
  * 列表、搜尋、明細頁共用的「加入購物車」：數量不超過庫存與每項上限，並提示結果
- * （ui-guidelines「非同步操作要有明確回饋」）。購物車只在加入當下知道庫存，之後的變化由下單時的 409 把關。
+ * （ui-guidelines「非同步操作要有明確回饋」）。加入之後庫存的變化，由購物車頁與結帳頁的校正（useCartSync）處理。
  */
 export function useAddToCart() {
   const cart = useCartStore()
