@@ -54,7 +54,7 @@ public class ResetPasswordHandler(
         }
         if (request.NewPassword != request.ConfirmPassword)
         {
-            errors["confirmPassword"] = "密碼與確認密碼不一致，請重新輸入";
+            errors["confirmPassword"] = PasswordPolicy.ConfirmMismatchMessage;
         }
         if (errors.Count > 0)
         {

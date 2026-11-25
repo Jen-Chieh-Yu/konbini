@@ -9,6 +9,9 @@ public static class PasswordPolicy
     public const int MinLength = 8;
     public const int MaxLength = 20;
 
+    /// <summary>確認密碼與密碼不同。註冊與重設密碼共用（改密碼沒有確認欄位）。</summary>
+    public const string ConfirmMismatchMessage = "密碼與確認密碼不一致，請重新輸入";
+
     /// <returns>不符合時回傳錯誤訊息，符合時回傳 null。</returns>
     public static string? Validate(string? password)
     {

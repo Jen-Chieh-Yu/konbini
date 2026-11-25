@@ -46,17 +46,9 @@ public partial class RegisterHandler(
             errors["name"] = $"姓名合計不可超過 {User.NameMaxLength} 個字元";
         }
 
-        if (email.Length == 0)
+        if (EmailPolicy.Validate(email) is { } emailError)
         {
-            errors["email"] = "請填寫Email";
-        }
-        else if (email.Length > User.EmailMaxLength)
-        {
-            errors["email"] = $"Email不可超過 {User.EmailMaxLength} 個字元";
-        }
-        else if (!User.IsValidEmailFormat(email))
-        {
-            errors["email"] = "Email格式不正確";
+            errors["email"] = emailError;
         }
         else if (await users.EmailExistsAsync(email, ct))
         {
@@ -69,12 +61,12 @@ public partial class RegisterHandler(
         }
         if (request.Password != request.ConfirmPassword)
         {
-            errors["confirmPassword"] = "密碼與確認密碼不一致，請重新輸入";
+            errors["confirmPassword"] = PasswordPolicy.ConfirmMismatchMessage;
         }
 
         if (phone.Length == 0)
         {
-            errors["phoneNumber"] = "請填寫手機號碼";
+            errors["phoneNumber"] = "請輸入手機號碼";
         }
         else if (!PhoneRegex().IsMatch(phone))
         {

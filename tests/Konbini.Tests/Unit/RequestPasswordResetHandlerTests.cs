@@ -80,9 +80,9 @@ public class RequestPasswordResetHandlerTests
     }
 
     [Theory]
-    [InlineData("", "請輸入 Email")]
-    [InlineData("   ", "請輸入 Email")]
-    [InlineData("not-an-email", "Email 格式不正確")]
+    [InlineData("", EmailPolicy.RequiredMessage)]
+    [InlineData("   ", EmailPolicy.RequiredMessage)]
+    [InlineData("not-an-email", EmailPolicy.InvalidFormatMessage)]
     public async Task InvalidEmail_ReturnsEmailError(string email, string message)
     {
         var (handler, reset, _, _) = Create();
@@ -95,14 +95,14 @@ public class RequestPasswordResetHandlerTests
     }
 
     [Fact]
-    public async Task EmailTooLong_ReturnsFormatError()
+    public async Task EmailTooLong_ReturnsTooLongError()
     {
         var (handler, _, _, _) = Create();
         var email = new string('a', User.EmailMaxLength - "@example.com".Length + 1) + "@example.com";
 
         var result = await Handle(handler, email);
 
-        Assert.Equal("Email 格式不正確", result.Error?.Errors["email"]);
+        Assert.Equal(EmailPolicy.TooLongMessage, result.Error?.Errors["email"]);
     }
 
     [Fact]

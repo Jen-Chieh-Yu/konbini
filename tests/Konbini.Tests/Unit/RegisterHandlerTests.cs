@@ -130,7 +130,7 @@ public class RegisterHandlerTests
         var result = await Handle(ValidRequest() with { Email = EmailOfLength(User.EmailMaxLength + 1) }, uow);
 
         Assert.Equal(ErrorType.Validation, result.Error?.Type);
-        Assert.Contains("email", result.Error!.Errors.Keys);
+        Assert.Equal(EmailPolicy.TooLongMessage, result.Error!.Errors["email"]);
         Assert.Equal(0, uow.SaveCount);
     }
 
