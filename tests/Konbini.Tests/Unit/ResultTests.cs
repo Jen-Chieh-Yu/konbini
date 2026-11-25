@@ -38,10 +38,10 @@ public class ResultTests
     [Fact]
     public void ValidationErrors_AreCopied()
     {
-        var errors = new Dictionary<string, string> { ["email"] = "請填寫Email" };
+        var errors = new Dictionary<string, string> { ["email"] = "請輸入 Email" };
 
         var error = Error.Validation(errors);
-        errors["phoneNumber"] = "請填寫手機號碼";
+        errors["phoneNumber"] = "請輸入手機號碼";
 
         Assert.Single(error.Errors);
     }
@@ -76,14 +76,14 @@ public class ResultTests
     {
         var error = Error.Validation(new Dictionary<string, string>
         {
-            ["email"] = "請填寫Email",
-            ["phoneNumber"] = "請填寫手機號碼",
+            ["email"] = "請輸入 Email",
+            ["phoneNumber"] = "請輸入手機號碼",
         });
 
         var problem = Assert.IsType<ProblemHttpResult>(error.ToProblem());
 
         var errors = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(problem.ProblemDetails.Extensions["errors"]);
-        Assert.Equal("請填寫Email", errors["email"]);
-        Assert.Equal("請填寫手機號碼", errors["phoneNumber"]);
+        Assert.Equal("請輸入 Email", errors["email"]);
+        Assert.Equal("請輸入手機號碼", errors["phoneNumber"]);
     }
 }

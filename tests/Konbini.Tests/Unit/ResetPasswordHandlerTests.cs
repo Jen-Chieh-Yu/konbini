@@ -145,7 +145,7 @@ public class ResetPasswordHandlerTests
 
         Assert.Equal(ErrorType.Validation, result.Error?.Type);
         Assert.Equal("密碼需包含大寫英文字母、小寫英文字母、數字與符號", result.Error!.Errors["newPassword"]);
-        Assert.Equal("密碼與確認密碼不一致，請重新輸入", result.Error.Errors["confirmPassword"]);
+        Assert.Equal(PasswordPolicy.ConfirmMismatchMessage, result.Error.Errors["confirmPassword"]);
         Assert.Null(env.Token.UsedOn);
         Assert.Equal(0, env.Uow.SaveCount);
     }

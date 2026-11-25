@@ -25,13 +25,9 @@ public class ResendVerificationEmailHandler(
     {
         // 先去頭尾空白、轉小寫再檢查，與註冊一致（docs/api-conventions.md「驗證」）
         var email = command.Request.Email is null ? "" : User.NormalizeEmail(command.Request.Email);
-        if (email.Length == 0)
+        if (EmailPolicy.Validate(email) is { } emailError)
         {
-            return Error.Validation("email", "請輸入 Email");
-        }
-        if (email.Length > User.EmailMaxLength || !User.IsValidEmailFormat(email))
-        {
-            return Error.Validation("email", "Email 格式不正確");
+            return Error.Validation("email", emailError);
         }
 
         var user = await users.GetByEmailAsync(email, ct);
