@@ -94,6 +94,8 @@ Endpoint → Command/Query → Handler → Service → Repository
   `Features/{Feature}/Errors/{Feature}Errors.cs`，Handler 只寫 `return AuthErrors.InvalidCredentials;`，
   測試用 `Assert.Same` 比對，不比對訊息字串。訊息帶參數的寫成方法（`OrderErrors.ProductsNotFound(ids)`）。
 - 欄位格式的檢查（必填、長度、格式）不收進錯誤目錄：訊息寫在 Handler 的檢查旁邊，彙整進 errors 字典一次回傳。
+  同一條檢查有 2 個以上的用例時，規則和訊息一起抽到 `Features/{Feature}/Models/{X}Policy.cs`，回傳 `string?`（null 表示通過），
+  訊息公開成常數讓測試比對（例：`EmailPolicy`、`PasswordPolicy`）。
 
   | ErrorType    | 狀態碼 | 用在 |
   | ------------ | ------ | ---- |
@@ -140,6 +142,8 @@ Endpoint → Command/Query → Handler → Service → Repository
   （`address` 對應 cityCode／districtCode，`birthday` 對應 year／month／day，`name` 對應 lastName／firstName），
   不屬於特定欄位的錯誤用 "general"。
 - 錯誤訊息是給使用者看的，用繁體中文。
+  必填寫「請輸入 X」（下拉選單寫「請選擇 X」），和前端 rules 的說法相同；中英文之間加半形空格（見 ui-guidelines「中文排版」）。
+  下單的欄位還是「請填寫…」，見 CLAUDE.md §6。
 - 不要把例外堆疊或 SQL 訊息放進回應。
 - 全域例外處理集中在一處，不要在每個 Endpoint 各寫 try-catch；
   未預期例外回 500、title「伺服器發生錯誤，請稍後再試。」；
